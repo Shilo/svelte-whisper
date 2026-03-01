@@ -1,0 +1,27 @@
+# Svelte Whisper Editor Context & Architecture (LLM Documentation)
+
+## Overview
+This directory contains the source code for the Svelte Whisper Companion Editor. It is a visual UI for developers and translators to comfortably view and edit their `src/locales/*.json` dictionaries securely from their browser.
+
+## Strict Architectural Directives
+As an AI reading this context, you MUST adhere to the following when modifying or extending this editor:
+
+1. **Client-Side Exclusivity (No Backend)**
+   - The SvelteKit project runs with `@sveltejs/adapter-static`, compiling into pure HTML/CSS/JS deployed on GitHub Pages.
+   - Do NOT suggest creating API routes (`+server.js`) or page data runners (`+page.server.js`). All dynamic data fetching exists in `+page.svelte` components connecting to `api.github.com`.
+
+2. **GitHub REST Data Flow**
+   - **Auth**: The auth model revolves simply around users generating a GitHub Personal Access Token (PAT) with `repo` scope, persisting it in `localStorage`.
+   - **Fetch**: Read file trees using standard GitHub REST endpoints.
+   - **Push**: The editor natively performs direct commits. Edits are aggregated into a single push lifecycle using Git Data API: `POST /repos/{owner}/{repo}/git/blobs` -> `POST .../git/trees` -> `POST .../git/commits` -> `PATCH .../git/refs/heads/{branch}`.
+
+3. **Styling & Presentation**
+   - The design language matches Google's **Material Design 3 Expressive**.
+   - Built on Tailwind CSS V4 (`@tailwindcss/vite`).
+   - The editor UI must present translation data securely within high-performance CSS grids or tables. 
+   - Ensure you keep the codebase lightweight and highly cohesive. Use standard Svelte 5 Stores to distribute configuration context across components.
+
+## Development Workflow
+To run locally, you will run `npm install` followed by `npm run dev`. The development server operates entirely on localhost while interacting correctly with external GitHub networks for commits.
+
+*Remember: The editor’s core principle is frictionless usage—zero backend databases required. Retain this simplicity.*

@@ -1,0 +1,67 @@
+# Svelte Whisper Context & Architecture (LLM Documentation)
+
+## Overview
+Svelte Whisper is an ultra-minimalist, fast i18n localization library native to Svelte 5 Single Page Applications (SPAs). 
+- **Footprint**: <70 lines of pure JS (~1KB minified). NO external dependencies except `svelte` peer dependency.
+- **Performance**: O(1) fast-path evaluations natively integrated with Svelte 5 store primitives (`writable`, `derived`).
+
+## Core API & Implementation Details
+As an AI, if you are asked to implement or modify Svelte Whisper logic, follow these primary paths strictly:
+
+### 1. The Zero-Config Automatic Fallback Mode
+By default, simply changing the `locale` store with zero upfront dictionaries triggers a `fetch('/locales/{lang}.json')`.
+**Usage Pattern:**
+```svelte
+<script>
+  import { t, locale } from 'svelte-whisper';
+  // Triggers an automatic silent fetch('/locales/en.json')
+  locale.set('en');
+</script>
+<h1>{$t('hello')}</h1>
+```
+
+### 2. The Hybrid Optimal Mode (Sync + Async)
+To prevent async fetch waterfalls on bootstrap, bundle the fallback language dictionary synchronously and lazy load the rest.
+**Usage Pattern:**
+```svelte
+<script>
+  import { addDictionary, locale } from 'svelte-whisper';
+  import enDict from './locales/en.json'; // Bundled string
+
+  addDictionary('en', enDict); 
+  locale.set('en'); // Synchronous. Network request is bypassed.
+</script>
+```
+
+### 3. App-Level Initialization (Direct Injection)
+**Usage Pattern (e.g. `main.js`):**
+```javascript
+import { init, registerLoader } from 'svelte-whisper';
+// Registers async loaders without instantly fetching
+registerLoader('es', () => import('./locales/es.json'));
+
+init({
+  fallback: 'en',
+  initial: 'en' 
+});
+```
+
+### 4. Interpolation Mechanics
+Use the following exact syntax when asked to provide component-level localization:
+- **Keys**: Access via `$t('key')` or deep nested `$t('app.ui.title')`.
+- **Named**: `$t('greeting', { user: 'Alice' })` parses `{ "greeting": "Hello {user}!" }`.
+- **Positional (Auto)**: `$t('items', [5, 10])` parses `{ "items": "Found {} out of {}" }`.
+- **Positional (Indexed)**: `$t('items', [5, 10])` parses `{ "items": "Found {0} out of {1}" }`.
+
+---
+
+## The Companion Editor Architecture (Context)
+Located in `/editor`, this is a fully standalone visual UI to edit localization dictionaries.
+
+**Architecture Rules (CRITICAL FOR AIs):**
+1. **Fully Static Client-Side App:** This is a SvelteKit SPA using `@sveltejs/adapter-static`. **ABSOLUTELY NO backend code**, no internal databases, and no Node `+server.js` runtimes. It runs solely in the browser.
+2. **Design Language:** Material Design 3 Expressive, integrated heavily with Vanilla CSS and `@tailwindcss/vite` utility classes. Dark mode is prioritized.
+3. **Authentication:** Relies exclusively on standard GitHub Personal Access Tokens (PAT, `repo` scope). Tokens are sent directly to `api.github.com` via REST and persisted locally via browser `localStorage`.
+4. **Data Sync Flow:** Pulls tree definitions of `src/locales/*.json` via GitHub REST APIs -> User edits translations visually in a grid -> The editor blobs the diffs, creates a Git Tree, generates a Commit referencing parent hash, and pushes updates straight to GitHub without an intermediary backend.
+
+*Maintain frictionlessness and simplicity above all else when aiding users with this project.*
