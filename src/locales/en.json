@@ -1,15 +1,15 @@
 {
-    "greeting": "Hello {user}!",
-    "app": {
-        "title": "Svelte Whisper Demo",
-        "description": "The minimalist i18n library for Svelte 5",
-        "features": "Supports {}, {}, and {}."
-    },
-    "buttons": {
-        "switch_en": "Switch to English",
-        "switch_es": "Switch to Spanish",
-        "switch_fr": "Switch to French"
-    },
-    "only_en": "This string only exists in English.",
-    "status": "Currently selected language: {lang}"
+  "greeting": "Hello {user}!",
+  "app": {
+    "title": "Svelte Whisper Demo",
+    "description": "The minimalist i18n library for Svelte 5",
+    "features": "Supports {}, {}, and {}."
+  },
+  "buttons": {
+    "switch_en": "Switch to English",
+    "switch_es": "Switch to Spanish",
+    "switch_fr": "Switch to French"
+  },
+  "only_en": "This string only exists in English.",
+  "status": "en"
 }
