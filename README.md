@@ -15,10 +15,26 @@ Svelte Whisper prioritizes a tiny footprint, zero configuration, and blazing-fas
 
 ## Installation
 
+Because `svelte-whisper` is a single `< 70` lines vanilla JavaScript runtime file, you have multiple ways to install it.
+
+### Option 1: NPM (Recommended)
 ```bash
 npm install svelte-whisper
 ```
-*(Note: Requires Svelte ^5.0.0 peer dependency)*
+
+### Option 2: Direct from GitHub
+You can bypass the npm registry entirely and install the package directly from the public Git repository:
+```bash
+npm install github:YOUR_GITHUB_USERNAME/svelte-whisper
+```
+*(Make sure to replace `YOUR_GITHUB_USERNAME` with your actual username once uploaded!)*
+
+### Option 3: Manual Drop-In (Zero config)
+Because there are no build steps, you can literally just copy the `index.js` file into your Svelte project's `src/lib/` folder:
+1. Copy `index.js` and rename it to `svelte-whisper.js`.
+2. Import it anywhere in your app: `import { t, locale } from '$lib/svelte-whisper.js';`
+
+*(Note: Regardless of installation method, `svelte-whisper` requires a `svelte` `^5.0.0` peer dependency)*
 
 ## Getting Started
 
