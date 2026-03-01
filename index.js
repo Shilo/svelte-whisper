@@ -5,12 +5,7 @@ const fallbackLocale = writable('en');
 const dictionaries = writable({});
 const loaders = {};
 
-let currentLocaleVal = '';
-let fallBackLocaleVal = 'en';
 let dictionariesVal = {};
-
-currentLocale.subscribe(v => currentLocaleVal = v);
-fallbackLocale.subscribe(v => fallBackLocaleVal = v);
 dictionaries.subscribe(v => dictionariesVal = v);
 
 export async function init(options = {}) {
@@ -58,6 +53,7 @@ const keyCache = new Map();
 
 function resolveKey(dict, key) {
     if (!dict) return undefined;
+    if (dict[key] !== undefined) return dict[key]; // Fast path for flat keys
 
     let keys = keyCache.get(key);
     if (!keys) {
@@ -66,9 +62,9 @@ function resolveKey(dict, key) {
     }
 
     let val = dict;
-    for (const k of keys) {
-        if (val === undefined || val === null) return undefined;
-        val = val[k];
+    for (let i = 0; i < keys.length; i++) {
+        val = val[keys[i]];
+        if (val == null) return undefined;
     }
     return val;
 }
@@ -79,10 +75,7 @@ function interpolate(text, vars) {
 
     let autoIndex = 0;
     return text.replace(/{([^}]*)}/g, (match, p1) => {
-        let key = p1.trim();
-        if (!key) {
-            key = autoIndex++;
-        }
+        let key = p1.trim() || autoIndex++;
         return vars[key] !== undefined ? String(vars[key]) : match;
     });
 }
@@ -91,12 +84,10 @@ export const t = derived(
     [currentLocale, dictionaries, fallbackLocale],
     ([$currentLocale, $dictionaries, $fallbackLocale]) => {
         return (key, vars) => {
-            const currentDict = $dictionaries[$currentLocale];
-            let val = resolveKey(currentDict, key);
+            let val = resolveKey($dictionaries[$currentLocale], key);
 
             if (val === undefined && $currentLocale !== $fallbackLocale) {
-                const fallbackDict = $dictionaries[$fallbackLocale];
-                val = resolveKey(fallbackDict, key);
+                val = resolveKey($dictionaries[$fallbackLocale], key);
             }
 
             if (val === undefined) return key;
