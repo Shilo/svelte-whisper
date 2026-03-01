@@ -149,7 +149,7 @@ export const submitTranslations = async (filesData, message, submitMode, baseBra
         newBranch,
         baseBranch,
         message,
-        `Translation updates submitted via the [svelte-whisper editor](https://github.com/Shilocity/svelte-whisper).\n\n**Branch:** \`${newBranch}\`\n**Target:** \`${baseBranch}\`\n\nReview and merge when ready.`
+        `Translation updates submitted via the [Svelte Whisper Editor](https://github.com/Shilo/svelte-whisper).\n\n**Branch:** \`${newBranch}\`\n**Target:** \`${baseBranch}\`\n\nReview and merge when ready.`
     );
 
     return { mode: 'pr', prUrl: pr.html_url, prNumber: pr.number, branchName: newBranch };
