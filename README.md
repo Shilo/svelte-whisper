@@ -152,25 +152,34 @@ Import the generated `$t` derived store and the `$locale` store directly into an
 
 ## API Reference
 
+The `svelte-whisper` package provides the following exports to manage your application's internationalization state.
+
 ### `init(options)`
-Bootstraps the Svelte Whisper configuration parameters.
-- `options.fallback` (String): The dictionary fallback locale key (default: `'en'`).
-- `options.initial` (String): Set the default booting language. 
+Bootstraps the Svelte Whisper configuration parameters. This is typically called once in your main application entry point.
+- `options.fallback` (String): The dictionary fallback locale key (default: `'en'`). If a translation key is missing in the currently active locale, `svelte-whisper` will attempt to resolve it using this fallback locale.
+- `options.initial` (String): Sets the default booting language. If provided, `svelte-whisper` will immediately set the `locale` store to this value.
 
 ### `addDictionary(locale, dict)`
-Synchronously merge a JSON object dictionary into a locale space. Useful for injecting the primary application language on boot.
+Synchronously merges a JSON object dictionary into a locale space in memory.
+- **Why use it?** Useful for injecting the primary application language on boot (e.g., your fallback language). By bundling the fallback language directly and adding it via `addDictionary`, you ensure the app renders instantly without an initial network waterfall.
+- `locale` (String): The language code (e.g., `'en'`).
+- `dict` (Object): The JSON dictionary representing translations.
 
 ### `registerLoader(locale, asyncLoaderFn)`
-Defines an async function responsible for returning a dictionary object or a module where `module.default` is a dictionary. Calling `locale.set(key)` evaluates this loader once.
+Defines an asynchronous function responsible for fetching or dynamically importing a dictionary.
+- **Why use it?** Use this to define code-splitting boundaries for alternative languages, ensuring they are only loaded when requested by the user.
+- `locale` (String): The language code (e.g., `'es'`).
+- `asyncLoaderFn` (Function): A function returning a Promise that resolves to a dictionary object or a module where `module.default` is a dictionary (e.g., `() => import('./locales/es.json')`). Calling `locale.set(key)` evaluates this loader once.
 
 ### `locale`
-A specialized Svelte store reflecting the active locale string (e.g., `'en'`).
-- **`locale.subscribe`**: Reactive `$locale` syntax.
-- **`locale.set(newLocale)`**: Instructs Svelte Whisper to change language. Will fire off lazy loaders registered via `registerLoader` if the dictionary is missing.
+A specialized Svelte 5 `writable` store reflecting the currently active locale string (e.g., `'en'`).
+- **`$locale`**: You can subscribe to changes using standard Svelte reactivity.
+- **`locale.set(newLocale)`**: Instructs Svelte Whisper to change the requested language. If the dictionary for `newLocale` is not already in memory, this action will fire off lazy loaders registered via `registerLoader`, or fallback to an automatic `fetch('/locales/{newLocale}.json')`.
 
 ### `t`
-A Svelte derived store representing a pure function `(key: string, vars?: any[] | object) => string`.
-It automatically resolves paths, substitutes variables, queries fallback dictionaries, and re-renders Svelte components reactively anytime dictionaries or the active `locale` shifts.
+A Svelte 5 `derived` store representing a pure translation function. 
+- **Signature:** `(key: string, vars?: any[] | object) => string`
+- **Behavior:** It automatically resolves paths, substitutes positional or named variables, queries fallback dictionaries if keys are missing, and re-renders any Svelte components reactively anytime dictionaries update or the active `locale` shifts.
 
 ## Philosophy
 Svelte Whisper does **not** rely on compile-time integrations, routing manipulation, tree shaking dependencies, or heavy config maps. Its goal is strictly mapping dynamic dictionary values into memory securely & reactively without any configuration overhead for CSR SPAs.
