@@ -27,9 +27,9 @@ npm install svelte-whisper
 ### Option 2: Direct from GitHub
 You can bypass the npm registry entirely and install the package directly from the public Git repository:
 ```bash
-npm install github:YOUR_GITHUB_USERNAME/svelte-whisper
+npm install github:Shilo/svelte-whisper
 ```
-*(Make sure to replace `YOUR_GITHUB_USERNAME` with your actual username once uploaded!)*
+
 
 ### Option 3: Manual Drop-In (Zero config)
 Because there are no build steps, you can literally just copy the `index.js` file into your Svelte project's `src/lib/` folder:
