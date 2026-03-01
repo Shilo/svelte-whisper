@@ -145,7 +145,7 @@
 			<div class="space-y-6">
 				<div>
 					<label class="block text-sm font-semibold mb-2 text-on-surface/80 uppercase tracking-wider text-xs">Repository (user/repo)</label>
-					<input class="w-full bg-background/80 border border-outline/20 rounded-xl px-4 py-3.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-mono text-sm shadow-inner" bind:value={config.repo} placeholder="e.g. Shilocity/svelte-whisper" />
+					<input class="w-full bg-background/80 border border-outline/20 rounded-xl px-4 py-3.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-mono text-sm shadow-inner" bind:value={config.repo} placeholder="e.g. Shilo/svelte-whisper" />
 				</div>
 				<div>
 					<label class="block text-sm font-semibold mb-2 text-on-surface/80 uppercase tracking-wider text-xs">Branch</label>
