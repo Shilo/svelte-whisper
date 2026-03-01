@@ -145,10 +145,19 @@ VITE_GITHUB_CLIENT_ID=your_client_id_here
 VITE_CORS_PROXY_URL=https://your-worker-name.your-subdomain.workers.dev
 ```
 
-For production deployments (e.g. GitHub Pages via GitHub Actions), add these as **repository secrets** and expose them as environment variables in your workflow:
+For production deployments (e.g. GitHub Pages via GitHub Actions), you need to add these values as **repository secrets** and expose them as environment variables in your workflow.
+
+To add the variables as secrets to your GitHub repository:
+1. Go to your GitHub repository on github.com and click **Settings**.
+2. Go to **Secrets and variables** -> **Actions** on the left menu.
+3. Under the **Repository secrets** tab, click **New repository secret**.
+4. Add a secret with the name `VITE_GITHUB_CLIENT_ID` and your Client ID as the value.
+5. Add another secret with the name `VITE_CORS_PROXY_URL` and your proxy worker URL as the value.
+
+Then expose the secrets to your build step in your GitHub Actions workflow configuration:
 
 ```yaml
-# .github/workflows/deploy.yml (example snippet)
+# .github/workflows/deploy-editor.yml (example snippet)
 - name: Build editor
   working-directory: editor
   env:
