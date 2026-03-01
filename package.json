@@ -9,5 +9,11 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  },
+  "peerDependencies": {
+    "svelte": "^5.0.0"
+  }
 }

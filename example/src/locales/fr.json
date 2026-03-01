@@ -1,0 +1,14 @@
+{
+    "greeting": "Bonjour {user}!",
+    "app": {
+        "title": "Démo Svelte Whisper",
+        "description": "La bibliothèque i18n minimaliste pour Svelte 5",
+        "features": "Prend en charge {0}, {1}, et {2}."
+    },
+    "buttons": {
+        "switch_en": "Passer à l'anglais",
+        "switch_es": "Passer à l'espagnol",
+        "switch_fr": "Passer au français"
+    },
+    "status": "Langue actuellement sélectionnée : {lang}"
+}
