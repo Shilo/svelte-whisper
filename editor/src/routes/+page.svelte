@@ -60,6 +60,15 @@
 	}
 
 	function handleSetup() {
+		if (config.repo) {
+			config.repo = config.repo.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\/$/, '');
+		}
+		if (config.token) {
+			config.token = config.token.trim();
+		}
+		if (config.branch) {
+			config.branch = config.branch.trim();
+		}
 		githubConfig.set(config);
 		loadLocales();
 	}
