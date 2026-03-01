@@ -55,6 +55,32 @@ Use the following exact syntax when asked to provide component-level localizatio
 
 ---
 
+## API Exports
+
+The primary `svelte-whisper` module exports the following members:
+
+### `init(options)`
+Bootstraps the Svelte Whisper configuration parameters.
+- `options.fallback` (String): The dictionary fallback locale key (default: `'en'`).
+- `options.initial` (String): Set the default booting language. 
+
+### `addDictionary(locale, dict)`
+Synchronously merge a JSON object dictionary into a locale space. Useful for injecting the primary application language on boot.
+
+### `registerLoader(locale, asyncLoaderFn)`
+Defines an async function responsible for returning a dictionary object or a module where `module.default` is a dictionary. Calling `locale.set(key)` evaluates this loader once.
+
+### `locale`
+A specialized Svelte store reflecting the active locale string (e.g., `'en'`).
+- `locale.subscribe`: Reactive `$locale` syntax.
+- `locale.set(newLocale)`: Instructs Svelte Whisper to change language. Will fire off lazy loaders registered via `registerLoader` if the dictionary is missing.
+
+### `t`
+A Svelte derived store representing a pure function `(key: string, vars?: any[] | object) => string`.
+It automatically resolves paths, substitutes variables, queries fallback dictionaries, and re-renders Svelte components reactively anytime dictionaries or the active `locale` shifts.
+
+---
+
 ## The Companion Editor Architecture (Context)
 Located in `/editor`, this is a fully standalone visual UI to edit localization dictionaries.
 
