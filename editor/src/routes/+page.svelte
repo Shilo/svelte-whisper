@@ -6,14 +6,9 @@
 	import Snackbar from '$lib/components/Snackbar.svelte';
 
 	// ── Reactive store mirrors ──────────────────────────────────────
-	let auth = $state($authStore);
-	authStore.subscribe(v => auth = v);
-
-	let cfg = $state($githubConfig);
-	githubConfig.subscribe(v => cfg = v);
-
-	let localesCfg = $state($translationsConfig);
-	translationsConfig.subscribe(v => localesCfg = v);
+	let auth = $derived($authStore);
+	let cfg = $derived($githubConfig);
+	let localesCfg = $derived($translationsConfig);
 
 	// ── UI state ────────────────────────────────────────────────────
 	let showPatForm   = $state(false);
