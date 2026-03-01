@@ -1,0 +1,21 @@
+=== Svelte Whisper Benchmark Suite ===
+
+--- Read Performance ---
+[Static Flat Key          ] 1,000,000 ops:    23.67ms (42,241,325 ops/sec)
+[Missing Key (Fallback)   ] 1,000,000 ops:    30.14ms (33,181,363 ops/sec)
+[Deep Nested Key          ] 1,000,000 ops:    39.37ms (25,398,051 ops/sec)
+
+--- Interpolation Performance ---
+[Static String (No vars)  ] 1,000,000 ops:    77.54ms (12,895,755 ops/sec)
+[Mixed Interpolation      ] 1,000,000 ops:   380.62ms ( 2,627,294 ops/sec)
+
+--- Lazy Loading Performance (20+ Languages) ---
+Loaded and mounted 25 dynamic languages in 0.19ms
+Store value verification at end: greeting
+
+--- Store Change Reactions ---
+1000 Locale changes/re-renders fired in 0.83ms
+Derived $t computed 1000 times
+
+=======================================
+

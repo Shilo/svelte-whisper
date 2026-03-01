@@ -5,6 +5,14 @@ const fallbackLocale = writable('en');
 const dictionaries = writable({});
 const loaders = {};
 
+let currentLocaleVal = '';
+let fallBackLocaleVal = 'en';
+let dictionariesVal = {};
+
+currentLocale.subscribe(v => currentLocaleVal = v);
+fallbackLocale.subscribe(v => fallBackLocaleVal = v);
+dictionaries.subscribe(v => dictionariesVal = v);
+
 export function init(options = {}) {
     if (options.fallback) fallbackLocale.set(options.fallback);
     if (options.initial) setLocale(options.initial);
@@ -22,11 +30,7 @@ export function registerLoader(locale, loader) {
 }
 
 export async function setLocale(locale) {
-    let dictStore = {};
-    const unsubscribe = dictionaries.subscribe(v => dictStore = v);
-    unsubscribe();
-
-    if (!dictStore[locale] && loaders[locale]) {
+    if (!dictionariesVal[locale] && loaders[locale]) {
         try {
             const module = await loaders[locale]();
             const dict = module.default || module;
@@ -43,9 +47,17 @@ export const locale = {
     set: setLocale
 };
 
+const keyCache = new Map();
+
 function resolveKey(dict, key) {
     if (!dict) return undefined;
-    const keys = key.split('.');
+
+    let keys = keyCache.get(key);
+    if (!keys) {
+        keys = key.split('.');
+        keyCache.set(key, keys);
+    }
+
     let val = dict;
     for (const k of keys) {
         if (val === undefined || val === null) return undefined;
@@ -56,7 +68,7 @@ function resolveKey(dict, key) {
 
 function interpolate(text, vars) {
     if (!text || typeof text !== 'string') return text;
-    if (!vars) return text;
+    if (!vars || text.indexOf('{') === -1) return text;
 
     return text.replace(/{([^}]+)}/g, (match, p1) => {
         const key = p1.trim();
