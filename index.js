@@ -22,10 +22,10 @@ export function registerLoader(locale, loader) {
 }
 
 export async function setLocale(locale) {
-    let dictStore;
+    let dictStore = {};
     const unsubscribe = dictionaries.subscribe(v => dictStore = v);
     unsubscribe();
-    
+
     if (!dictStore[locale] && loaders[locale]) {
         try {
             const module = await loaders[locale]();
@@ -57,7 +57,7 @@ function resolveKey(dict, key) {
 function interpolate(text, vars) {
     if (!text || typeof text !== 'string') return text;
     if (!vars) return text;
-    
+
     return text.replace(/{([^}]+)}/g, (match, p1) => {
         const key = p1.trim();
         return vars[key] !== undefined ? String(vars[key]) : match;
@@ -70,12 +70,12 @@ export const t = derived(
         return (key, vars) => {
             const currentDict = $dictionaries[$currentLocale];
             let val = resolveKey(currentDict, key);
-            
+
             if (val === undefined && $currentLocale !== $fallbackLocale) {
                 const fallbackDict = $dictionaries[$fallbackLocale];
                 val = resolveKey(fallbackDict, key);
             }
-            
+
             if (val === undefined) return key;
             return interpolate(val, vars);
         };
