@@ -8,7 +8,7 @@
         visible = $bindable(false),
     } = $props();
 
-    let timer = $state(null);
+    let timer = null;
 
     $effect(() => {
         if (visible && duration > 0) {

@@ -1,5 +1,6 @@
 <script>
 	import { get } from 'svelte/store';
+	import { untrack } from 'svelte';
 	import { githubConfig, translationsConfig, authStore } from '$lib/store.js';
 	import { fetchTree, fetchFileContent, submitTranslations } from '$lib/github.js';
 	import { startDeviceFlow, cancelDeviceFlow, signInWithPat, signOut, openPatCreationPage, isOAuthConfigured } from '$lib/auth.js';
@@ -52,8 +53,12 @@
 
 	// Auto-load if token + repo already known
 	$effect(() => {
-		if (auth.token && cfg.repo && !editorLoaded && !editorLoading) {
-			loadLocales();
+		if (auth.token && cfg.repo) {
+			untrack(() => {
+				if (!editorLoaded && !editorLoading) {
+					loadLocales();
+				}
+			});
 		}
 	});
 
@@ -437,7 +442,7 @@
 									<textarea
 										class="trans-table__textarea"
 										value={locales[lang]?.content[key] ?? ''}
-										oninput={(e) => updateTranslation(lang, key, e.target.value)}
+										oninput={(e) => updateTranslation(lang, key, e.currentTarget.value)}
 										placeholder="Missing…"
 									></textarea>
 								</td>
@@ -466,7 +471,7 @@
 						<textarea
 							class="key-card__textarea"
 							value={locales[lang]?.content[key] ?? ''}
-							oninput={(e) => updateTranslation(lang, key, e.target.value)}
+							oninput={(e) => updateTranslation(lang, key, e.currentTarget.value)}
 							placeholder="Missing…"
 						></textarea>
 					</div>
