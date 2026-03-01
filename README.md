@@ -174,3 +174,34 @@ It automatically resolves paths, substitutes variables, queries fallback diction
 
 ## Philosophy
 Svelte Whisper does **not** rely on compile-time integrations, routing manipulation, tree shaking dependencies, or heavy config maps. Its goal is strictly mapping dynamic dictionary values into memory securely & reactively without any configuration overhead for CSR SPAs.
+
+## 🌐 Companion Localization Editor
+
+Svelte Whisper includes a built-in, beautifully designed, purely client-side localization editor inspired by [Fink](https://fink.inlang.com/). This allows you to visually manage your JSON translation files directly from the browser!
+
+### Features
+- 🎨 **Material Design 3 Expressive**: A stunning, modern dark mode interface.
+- 🔒 **Secure Client-Side Auth**: Connects directly to GitHub via Personal Access Tokens (PAT). Your token is only saved in your browser's local storage.
+- 🚀 **Commit Directly**: Edit translations in a grid and push changes directly to your repository branches.
+
+### How to use the Editor
+
+The editor is hosted on GitHub Pages: **[Try the Editor](https://shilo.github.io/svelte-whisper/)**
+
+1. Go to your GitHub account settings and create a **Personal Access Token (classic)** with the `repo` scope.
+2. Open the editor and enter your Repository name (e.g. `Shilo/svelte-whisper`), Branch (e.g. `main`), and the PAT you just created.
+3. Your standard JSON files stored in `src/locales` will be loaded into a visual grid! Edit away.
+
+### Deploying the Editor to GitHub Pages
+
+The editor comes with a pre-configured GitHub Action to automatically build and deploy itself to GitHub Pages whenever you push to `main`. 
+
+To enable this:
+1. Go to your repository on GitHub.
+2. Click on **Settings** > **Pages** (under the "Code and automation" section).
+3. Under **Build and deployment**, change the "Source" dropdown from "Deploy from a branch" to **"GitHub Actions"**.
+4. That's it! GitHub Actions will now use the `.github/workflows/deploy-editor.yml` file to deploy the editor. Wait a few minutes for the action to finish running, and your editor will be live!
+
+---
+
+Built with ❤️ for the Svelte community.
