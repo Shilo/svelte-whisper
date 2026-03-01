@@ -41,16 +41,16 @@
     font-family: system-ui, -apple-system, sans-serif;
   }
   h1 {
-    color: #ff3e00;
+    color: var(--color-primary);
     margin-bottom: 0.5rem;
   }
   .desc {
-    color: #666;
+    color: var(--color-text-desc);
     margin-top: 0;
     margin-bottom: 2rem;
   }
   .card {
-    background: #f4f4f4;
+    background: var(--color-bg-card);
     padding: 1.5rem;
     border-radius: 8px;
     margin-bottom: 2rem;
@@ -63,7 +63,7 @@
   }
   .features {
     padding-left: 1rem;
-    border-left: 4px solid #ff3e00;
+    border-left: 4px solid var(--color-primary);
   }
   .fallback-demo {
     font-style: italic;
@@ -82,17 +82,18 @@
     padding: 0.75rem 1.5rem;
     border: 2px solid transparent;
     border-radius: 6px;
-    background: #e0e0e0;
+    background: var(--color-bg-btn);
+    color: inherit;
     cursor: pointer;
     font-size: 1rem;
     transition: all 0.2s;
   }
   button:hover {
-    background: #d0d0d0;
+    background: var(--color-bg-btn-hover);
   }
   button.active {
-    border-color: #ff3e00;
-    background: white;
-    color: #ff3e00;
+    border-color: var(--color-primary);
+    background: var(--color-bg-btn-active);
+    color: var(--color-text-btn-active);
   }
 </style>
