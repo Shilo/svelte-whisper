@@ -3,7 +3,7 @@
     "app": {
         "title": "Svelte Whisper Demo",
         "description": "The minimalist i18n library for Svelte 5",
-        "features": "Supports {0}, {1}, and {2}."
+        "features": "Supports {}, {}, and {}."
     },
     "buttons": {
         "switch_en": "Switch to English",

@@ -17,6 +17,11 @@ test('interpolation positional properties', async () => {
     assert.strictEqual(get(t)('msg', ['Alice', 'Bob']), 'Hello Alice, Bob!');
 });
 
+test('auto-positional interpolation', async () => {
+    addDictionary('en', { msg: 'Supports {}, {}, and {}' });
+    assert.strictEqual(get(t)('msg', ['a', 'b', 'c']), 'Supports a, b, and c');
+});
+
 test('interpolation named properties', async () => {
     addDictionary('en', { greet: 'Hello {user}!' });
     assert.strictEqual(get(t)('greet', { user: 'Charlie' }), 'Hello Charlie!');

@@ -70,8 +70,12 @@ function interpolate(text, vars) {
     if (!text || typeof text !== 'string') return text;
     if (!vars || text.indexOf('{') === -1) return text;
 
-    return text.replace(/{([^}]+)}/g, (match, p1) => {
-        const key = p1.trim();
+    let autoIndex = 0;
+    return text.replace(/{([^}]*)}/g, (match, p1) => {
+        let key = p1.trim();
+        if (!key) {
+            key = autoIndex++;
+        }
         return vars[key] !== undefined ? String(vars[key]) : match;
     });
 }

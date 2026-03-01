@@ -3,7 +3,7 @@
     "app": {
         "title": "Demostración de Svelte Whisper",
         "description": "La biblioteca i18n minimalista para Svelte 5",
-        "features": "Soporta {0}, {1}, y {2}."
+        "features": "Soporta {}, {}, y {}."
     },
     "buttons": {
         "switch_en": "Cambiar a Inglés",

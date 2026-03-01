@@ -9,7 +9,7 @@ Svelte Whisper prioritizes a tiny footprint, zero configuration, and blazing-fas
 - **Extremely Lightweight**: ~1KB minified, pure JS. No bloated dependencies.
 - **Svelte 5 Ready**: Built on Svelte `store` primitives (`writable`, `derived`) for flawless reactivity.
 - **Lazy Loading**: Avoids async waterfall delays. Load the default language synchronously, and lazy load others only when requested.
-- **Interpolations**: Built-in support for positional (`{0}`) and named (`{user}`) variables.
+- **Interpolations**: Built-in support for auto-positional (`{}`), indexed (`{0}`), and named (`{user}`) variables.
 - **Deep Keys**: Access deeply nested JSON objects flawlessly (`app.ui.header.title`).
 - **Graceful Fallbacks**: Automatically falls back to your specified default language dictionary if a key is missing in the active locale.
 
@@ -66,7 +66,7 @@ Import the generated `$t` derived store and the `$locale` store directly into an
 <p>{$t('greeting', { user: 'Alice' })}</p>
 
 <!-- Positional Interpolation -->
-<!-- en.json: { "items": "Found {0} out of {1} items" } -->
+<!-- en.json: { "items": "Found {} out of {} items" } -->
 <p>{$t('items', [5, 10])}</p>
 
 <!-- Reactive Locale Switching -->
