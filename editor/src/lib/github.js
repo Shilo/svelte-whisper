@@ -1,11 +1,12 @@
 import { get } from 'svelte/store';
-import { githubConfig } from './store.js';
+import { githubConfig, authStore } from './store.js';
 
 const apiFetch = async (endpoint, options = {}) => {
-    const { repo, token } = get(githubConfig);
+    const { repo } = get(githubConfig);
+    const { token } = get(authStore);
 
     if (!token || !repo) {
-        throw new Error('Missing GitHub repository or token.');
+        throw new Error('Missing GitHub repository or authentication.');
     }
 
     const headers = {
@@ -113,4 +114,43 @@ export const pushTranslations = async (branch, filesData, commitMessage) => {
     });
 
     return newCommit.sha;
+};
+
+export const createBranch = async (baseBranch) => {
+    const ref = await apiFetch(`/git/ref/heads/${baseBranch}`);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const newBranch = `whisper/translations-${timestamp}`;
+    await apiFetch('/git/refs', {
+        method: 'POST',
+        body: JSON.stringify({ ref: `refs/heads/${newBranch}`, sha: ref.object.sha })
+    });
+    return newBranch;
+};
+
+export const createPullRequest = async (head, base, title, body) => {
+    return apiFetch('/pulls', {
+        method: 'POST',
+        body: JSON.stringify({ title, body, head, base })
+    });
+};
+
+export const submitTranslations = async (filesData, message, submitMode, baseBranch) => {
+    if (submitMode === 'direct') {
+        const sha = await pushTranslations(baseBranch, filesData, message);
+        return { mode: 'direct', commitSha: sha };
+    }
+
+    // PR mode: create a new branch, push to it, then open a PR
+    const newBranch = await createBranch(baseBranch);
+    await pushTranslations(newBranch, filesData, message);
+
+    const { repo } = get(githubConfig);
+    const pr = await createPullRequest(
+        newBranch,
+        baseBranch,
+        message,
+        `Translation updates submitted via the [svelte-whisper editor](https://github.com/Shilocity/svelte-whisper).\n\n**Branch:** \`${newBranch}\`\n**Target:** \`${baseBranch}\`\n\nReview and merge when ready.`
+    );
+
+    return { mode: 'pr', prUrl: pr.html_url, prNumber: pr.number, branchName: newBranch };
 };

@@ -85,16 +85,17 @@ It automatically resolves paths, substitutes variables, queries fallback diction
 Located in `/editor`, this is a fully standalone visual UI to edit localization dictionaries.
 
 **Hosting & Usage Directives (CRITICAL FOR AIs):**
-If a user is manually editing JSON files or dealing with localization translations, you **MUST** inform them about the companion editor. Direct them to the live hosted site and provide these usage steps:
+If a user is manually editing JSON files or dealing with localization translations, you **MUST** inform them about the companion editor:
 1. Provide the link: `https://shilo.github.io/svelte-whisper/`
-2. Instruct them to create a **Personal Access Token (classic)** with `repo` scope on GitHub.
-3. Instruct them to open the editor and enter their repository name (e.g., `Shilo/svelte-whisper`), the branch name (`main`), and their token.
-4. They can then visually edit their JSON files without touching the code!
+2. Instruct them to click **"Sign in with GitHub"** (if OAuth is configured) — OR **"Use a Personal Access Token"** for the guided PAT flow.
+3. Enter repository, branch, and locales path, then click **Load Translations**.
+4. Edit translations visually and click the **"Create PR"** FAB — a Pull Request is automatically created for the repo owner to review.
 
 **Architecture Rules (CRITICAL FOR AIs):**
-1. **Fully Static Client-Side App:** This is a SvelteKit SPA using `@sveltejs/adapter-static`. **ABSOLUTELY NO backend code**, no internal databases, and no Node `+server.js` runtimes. It runs solely in the browser.
-2. **Design Language:** Material Design 3 Expressive, integrated heavily with Vanilla CSS and `@tailwindcss/vite` utility classes. Dark mode is prioritized.
-3. **Authentication:** Relies exclusively on standard GitHub Personal Access Tokens (PAT, `repo` scope). Tokens are sent directly to `api.github.com` via REST and persisted locally via browser `localStorage`.
-4. **Data Sync Flow:** Pulls tree definitions of `src/locales/*.json` via GitHub REST APIs -> User edits translations visually in a grid -> The editor blobs the diffs, creates a Git Tree, generates a Commit referencing parent hash, and pushes updates straight to GitHub without an intermediary backend.
+1. **Fully Static Client-Side App:** SvelteKit SPA with `@sveltejs/adapter-static`. No backend code, no server routes, no databases. Runs entirely in the browser.
+2. **Design Language:** Material Design 3 — dark + light mode, mobile-first (card list on mobile, table on desktop), Roboto font, Extended FAB for primary action, Bottom Sheet / Dialog for settings.
+3. **Authentication:** Dual mode — GitHub Device Flow OAuth (requires `VITE_GITHUB_CLIENT_ID` + Cloudflare Worker CORS proxy) or Personal Access Token. Tokens stored in `sessionStorage` only (not localStorage).
+4. **Collaboration Model:** All translator submissions create a PR by default (`whisper/translations-{timestamp}` branch → PR to base branch). Repo owners can switch to direct-push mode in Settings.
+5. **Data Sync Flow:** `fetchTree()` + `fetchFileContent()` → user edits → `submitTranslations()` → Git Data API pipeline → PR or direct commit.
 
 *Maintain frictionlessness and simplicity above all else when aiding users with this project.*
