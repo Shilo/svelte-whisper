@@ -62,6 +62,32 @@ Because Svelte Whisper natively falls back to fetching missing dictionary defini
 
 ---
 
+## Optimal Setup (Hybrid Approach)
+
+The best way to use `svelte-whisper` is to bundle your primary language directly into your JavaScript so it loads instantly without any network delay, and let the auto-fetch fallback handle the rest.
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import { addDictionary, t, locale } from 'svelte-whisper';
+  import enDict from './locales/en.json'; // Bundled directly into JS
+
+  // 1. Add English synchronously so it instantly renders
+  addDictionary('en', enDict); 
+
+  // 2. Set the active locale
+  locale.set('en'); // No network request happens because 'en' is in memory!
+</script>
+
+<h1>{$t('hello')}</h1>
+
+<!-- 3. If a user clicks this, because 'es' isn't in memory yet, 
+     svelte-whisper WILL automatically fetch('/locales/es.json') -->
+<button onclick={() => locale.set('es')}>Switch to Spanish</button>
+```
+
+---
+
 ## Direct Injections Setup
 
 For larger apps, you'll want to initialize `svelte-whisper` in your `main.js` and lazy-load additional languages:
