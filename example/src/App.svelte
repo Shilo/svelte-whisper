@@ -1,5 +1,6 @@
 <script>
   import { t, locale } from 'svelte-whisper';
+  let userName = $state('Developer');
 </script>
 
 <main>
@@ -7,7 +8,8 @@
   <p class="desc">{$t('app.description')}</p>
 
   <div class="card">
-    <p class="greeting">{$t('greeting', { user: 'Developer' })}</p>
+    <p class="greeting">{$t('greeting', { user: userName })}</p>
+    <input type="text" bind:value={userName} placeholder="Type a name..." />
     
     <div class="features">
       <p>{$t('app.features', ['lazy loading', 'string interpolation', 'nested keys'])}</p>
