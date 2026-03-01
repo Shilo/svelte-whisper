@@ -9,6 +9,8 @@ This Single Page Application demonstrates:
 2. Handling deeply nested dictionaries & dictionary missing-key fallbacks.
 3. Showcasing reactive language shifting.
 4. Using dynamic language chunking via internal Vite dynamic imports mechanism (`() => import('./locales/es.json')`). Notice the Network Tab lazily pulling `es.json`!
+5. Real-time interpolation updates via Svelte 5 `$state` data bindings (modifying local inputs updates translations instantly).
+6. Auto-positional interpolation formatting using empty `{}` tags.
 
 ## Setup and Run
 
