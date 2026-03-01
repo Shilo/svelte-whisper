@@ -4,7 +4,7 @@ import { get } from 'svelte/store';
 import { init, addDictionary, registerLoader, setLocale, locale, t } from './index.js';
 
 test('initialization and dictionary addition', async () => {
-    init({ fallback: 'en', initial: 'en' });
+    await init({ fallback: 'en', initial: 'en' });
     addDictionary('en', { hello: 'Hello', nested: { val: 'nested_val' } });
 
     assert.strictEqual(get(locale), 'en');

@@ -13,9 +13,9 @@ currentLocale.subscribe(v => currentLocaleVal = v);
 fallbackLocale.subscribe(v => fallBackLocaleVal = v);
 dictionaries.subscribe(v => dictionariesVal = v);
 
-export function init(options = {}) {
+export async function init(options = {}) {
     if (options.fallback) fallbackLocale.set(options.fallback);
-    if (options.initial) setLocale(options.initial);
+    if (options.initial) await setLocale(options.initial);
 }
 
 export function addDictionary(locale, dict) {
@@ -30,11 +30,18 @@ export function registerLoader(locale, loader) {
 }
 
 export async function setLocale(locale) {
-    if (!dictionariesVal[locale] && loaders[locale]) {
+    if (!dictionariesVal[locale]) {
         try {
-            const module = await loaders[locale]();
-            const dict = module.default || module;
-            addDictionary(locale, dict);
+            let dict;
+            if (loaders[locale]) {
+                const module = await loaders[locale]();
+                dict = module.default || module;
+            } else if (typeof fetch !== 'undefined') {
+                // Zero-Config Auto Fallback
+                const res = await fetch(`/locales/${locale}.json`);
+                if (res.ok) dict = await res.json();
+            }
+            if (dict) addDictionary(locale, dict);
         } catch (e) {
             console.error(`svelte-whisper: Failed to load dictionary for ${locale}`, e);
         }

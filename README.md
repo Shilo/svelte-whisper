@@ -8,6 +8,7 @@ Svelte Whisper prioritizes a tiny footprint, zero configuration, and blazing-fas
 
 - **Extremely Lightweight**: ~1KB minified, pure JS. No bloated dependencies.
 - **Svelte 5 Ready**: Built on Svelte `store` primitives (`writable`, `derived`) for flawless reactivity.
+- **Zero-Config File Auto-Loading**: If no dictionaries or load handlers are provided, Svelte Whisper natively tries a network fetch to `/locales/{lang}.json` as a magical fallback!
 - **Lazy Loading**: Avoids async waterfall delays. Load the default language synchronously, and lazy load others only when requested.
 - **Interpolations**: Built-in support for auto-positional (`{}`), indexed (`{0}`), and named (`{user}`) variables.
 - **Deep Keys**: Access deeply nested JSON objects flawlessly (`app.ui.header.title`).
@@ -38,31 +39,30 @@ Because there are no build steps, you can literally just copy the `index.js` fil
 
 ## Minimal Quick Start (Zero Config)
 
-Want to get started in 10 seconds? You don't even need async lazy loading.
+Want to get started in 10 seconds without any async code, configuration, or initialization logic? 
+
+Because Svelte Whisper natively falls back to fetching missing dictionary definitions from your `public/locales/` folder, you literally just need to set the `locale` store.
 
 ```svelte
 <!-- App.svelte -->
 <script>
-  import { init, addDictionary, t, locale } from 'svelte-whisper';
-
-  // 1. Initialize and add your dictionary
-  init({ initial: 'en' });
-  addDictionary('en', { hello: "Hello World!", my_name: "My name is {}" });
-
-  // 2. Add another language
-  addDictionary('es', { hello: "¡Hola Mundo!", my_name: "Mi nombre es {}" });
+  import { t, locale } from 'svelte-whisper';
+  
+  // Triggers an automatic silent `fetch('/locales/en.json')` !
+  locale.set('en');
 </script>
 
 <h1>{$t('hello')}</h1>
 <p>{$t('my_name', ['Svelte'])}</p>
 
+<!-- Translates instantly if you have /locales/es.json -->
 <button onclick={() => locale.set('es')}>Spanish</button>
 <button onclick={() => locale.set('en')}>English</button>
 ```
 
 ---
 
-## Advanced Setup (Lazy Loading & Fallbacks)
+## Direct Injections Setup
 
 For larger apps, you'll want to initialize `svelte-whisper` in your `main.js` and lazy-load additional languages:
 

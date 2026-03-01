@@ -1,21 +1,12 @@
 import { mount } from 'svelte'
 import './app.css'
 import App from './App.svelte'
+import { locale } from 'svelte-whisper';
 
-import { init, addDictionary, registerLoader } from 'svelte-whisper';
-import enDict from './locales/en.json';
-
-// Bundle English directly for fast initial load
-addDictionary('en', enDict);
-
-// Lazy load other languages
-registerLoader('es', () => import('./locales/es.json'));
-registerLoader('fr', () => import('./locales/fr.json'));
-
-init({
-  fallback: 'en',
-  initial: 'en'
-});
+// Zero configuration needed!
+// Svelte Whisper will automatically fetch `/locales/{lang}.json`
+// when a locale is set, since no custom loaders were defined.
+locale.set('en');
 
 const app = mount(App, {
   target: document.getElementById('app'),
