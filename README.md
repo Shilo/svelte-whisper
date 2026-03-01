@@ -36,9 +36,36 @@ Because there are no build steps, you can literally just copy the `index.js` fil
 
 *(Note: Regardless of installation method, `svelte-whisper` requires a `svelte` `^5.0.0` peer dependency)*
 
-## Getting Started
+## Minimal Quick Start (Zero Config)
 
-In your `main.js` or root layout setup, initialize Svelte Whisper.
+Want to get started in 10 seconds? You don't even need async lazy loading.
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import { init, addDictionary, t, locale } from 'svelte-whisper';
+
+  // 1. Initialize and add your dictionary
+  init({ initial: 'en' });
+  addDictionary('en', { hello: "Hello World!", my_name: "My name is {}" });
+
+  // 2. Add another language
+  addDictionary('es', { hello: "¡Hola Mundo!", my_name: "Mi nombre es {}" });
+</script>
+
+<h1>{$t('hello')}</h1>
+<p>{$t('my_name', ['Svelte'])}</p>
+
+<button onclick={() => locale.set('es')}>Spanish</button>
+<button onclick={() => locale.set('en')}>English</button>
+```
+
+---
+
+## Advanced Setup (Lazy Loading & Fallbacks)
+
+For larger apps, you'll want to initialize `svelte-whisper` in your `main.js` and lazy-load additional languages:
+
 
 ```javascript
 import { mount } from 'svelte';
