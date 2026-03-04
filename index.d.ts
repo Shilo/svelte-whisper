@@ -24,6 +24,8 @@ export function registerLoader(
 
 export function setLocale(locale: string): Promise<void>;
 
+export function resetLocale(): Promise<void>;
+
 export function getLocales(): string[];
 
 export function getFallbackLocale(): string;
