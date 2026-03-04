@@ -98,3 +98,37 @@ test('detect maps navigator.language to locale', async () => {
         delete globalThis.navigator;
     }
 });
+
+test('auto-detect matches registered locale from navigator.language', async () => {
+    registerLoader('ja', async () => ({ default: { hello: 'こんにちは' } }));
+    const origDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+        value: { language: 'ja-JP' },
+        configurable: true,
+        writable: true,
+    });
+    // No detect option — should auto-detect 'ja' from registered loaders
+    await init({ fallback: 'en' });
+    assert.strictEqual(get(locale), 'ja');
+    if (origDescriptor) {
+        Object.defineProperty(globalThis, 'navigator', origDescriptor);
+    } else {
+        delete globalThis.navigator;
+    }
+});
+
+test('detect: false disables browser detection', async () => {
+    const origDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+        value: { language: 'ja-JP' },
+        configurable: true,
+        writable: true,
+    });
+    await init({ fallback: 'en', detect: false });
+    assert.strictEqual(get(locale), 'en');
+    if (origDescriptor) {
+        Object.defineProperty(globalThis, 'navigator', origDescriptor);
+    } else {
+        delete globalThis.navigator;
+    }
+});

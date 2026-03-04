@@ -37,8 +37,9 @@ export async function init(options = {}) {
         } catch { }
     }
 
-    if (!initial && options.detect) {
-        initial = detectBrowserLocale(options.detect, '');
+    if (!initial && options.detect !== false) {
+        const mapping = typeof options.detect === 'object' ? options.detect : null;
+        initial = detectBrowserLocale(mapping, '');
     }
 
     if (!initial && options.initial) {
@@ -126,9 +127,22 @@ export function tr(key, vars) {
 function detectBrowserLocale(mapping, fallback) {
     if (typeof navigator === 'undefined') return fallback || '';
     const lang = navigator.language.toLowerCase();
-    for (const [prefix, loc] of Object.entries(mapping)) {
-        if (lang.startsWith(prefix.toLowerCase())) return loc;
+
+    // Explicit mapping: { prefix: localeId }
+    if (mapping) {
+        for (const [prefix, loc] of Object.entries(mapping)) {
+            if (lang.startsWith(prefix.toLowerCase())) return loc;
+        }
+        return fallback || '';
     }
+
+    // Auto-detect: match browser language against registered locales
+    const knownLocales = [...new Set([...Object.keys(loaders), ...Object.keys(dictionariesVal)])];
+    // Exact match first (e.g. "en-US"), then prefix match (e.g. "en")
+    const exact = knownLocales.find(l => lang === l.toLowerCase());
+    if (exact) return exact;
+    const prefix = knownLocales.find(l => lang.startsWith(l.toLowerCase()));
+    if (prefix) return prefix;
     return fallback || '';
 }
 
