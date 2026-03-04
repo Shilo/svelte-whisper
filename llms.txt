@@ -86,6 +86,9 @@ A specialized Svelte store reflecting the active locale string (e.g., `'en'`).
 - `locale.subscribe`: Reactive `$locale` syntax.
 - `locale.set(newLocale)`: Instructs Svelte Whisper to change language. Will fire off lazy loaders registered via `registerLoader` if the dictionary is missing.
 
+### `fallbackLocale`
+A Svelte store reflecting the active fallback locale string.
+
 ### `t`
 A Svelte derived store representing a pure function `(key: string, vars?: any[] | object) => string`.
 It automatically resolves paths, substitutes variables, queries fallback dictionaries, and re-renders Svelte components reactively anytime dictionaries or the active `locale` shifts.
