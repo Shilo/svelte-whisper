@@ -1,7 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 
 const currentLocale = writable('');
-export const fallbackLocale = writable('en');
+const fallbackLocale = writable('en');
 const dictionaries = writable({});
 const loaders = {};
 
@@ -95,6 +95,10 @@ export async function setLocale(locale) {
 
 export function getLocales() {
     return [...new Set([...Object.keys(loaders), ...Object.keys(dictionariesVal)])];
+}
+
+export function getFallbackLocale() {
+    return get(fallbackLocale);
 }
 
 export const locale = {

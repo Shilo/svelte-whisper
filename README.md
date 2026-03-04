@@ -218,9 +218,8 @@ A specialized Svelte 5 `writable` store reflecting the currently active locale s
 - **`$locale`**: You can subscribe to changes using standard Svelte reactivity.
 - **`locale.set(newLocale)`**: Instructs Svelte Whisper to change the requested language. If the dictionary for `newLocale` is not already in memory, this action will fire off lazy loaders registered via `registerLoader`, or fallback to an automatic `fetch('/locales/{newLocale}.json')`.
 
-### `fallbackLocale`
-A Svelte 5 `writable` store reflecting the fallback language. Initialized via `init({ fallback: 'en' })`.
-- **`$fallbackLocale`**: You can subscribe to changes or read the current fallback locale.
+### `getFallbackLocale()`
+Returns the current fallback locale string (e.g., `'en'`). Initialized via `init({ fallback: 'en' })`.
 
 ### `t`
 A Svelte 5 `derived` store representing a pure translation function.
