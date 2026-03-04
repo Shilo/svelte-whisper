@@ -10,11 +10,13 @@ dictionaries.subscribe(v => dictionariesVal = v);
 
 let persistKey = null;
 let persistUnsub = null;
+let initOptions = {};
 const keyCache = new Map();
 
 // --- Public API ---
 
 export async function init(options = {}) {
+    initOptions = options;
     if (options.fallback) fallbackLocale.set(options.fallback);
 
     // Clean up previous persistence
@@ -60,6 +62,29 @@ export async function init(options = {}) {
     }
 
     if (initial) await setLocale(initial);
+}
+
+export async function resetLocale() {
+    if (persistKey && typeof localStorage !== 'undefined') {
+        try { localStorage.removeItem(persistKey); } catch { }
+    }
+
+    let next = '';
+
+    if (initOptions.detect !== false) {
+        const mapping = typeof initOptions.detect === 'object' ? initOptions.detect : null;
+        next = detectBrowserLocale(mapping, '');
+    }
+
+    if (!next && initOptions.initial) {
+        next = initOptions.initial;
+    }
+
+    if (!next) {
+        next = initOptions.fallback || get(fallbackLocale) || '';
+    }
+
+    if (next) await setLocale(next);
 }
 
 export function addDictionary(locale, dict) {

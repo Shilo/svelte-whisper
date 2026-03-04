@@ -129,6 +129,9 @@ mount(App, { target: document.getElementById('app') });
 
 **Init priority chain:** `persistKey` (localStorage) → `detect` (browser language) → `initial` → `fallback`
 
+> [!TIP]
+> Use `resetLocale()` to programmatically clear the `persistKey` from `localStorage` and revert the app to this default priority chain state.
+
 ## Usage in Components
 
 Import the generated `$t` derived store and the `$locale` store directly into any component.
@@ -209,6 +212,9 @@ Defines an asynchronous function responsible for fetching or dynamically importi
 
 ### `setLocale(locale)`
 Explicitly sets the active locale. If the dictionary is not already in memory, it will be loaded via a registered loader or network fetch.
+
+### `resetLocale()`
+Resets the active locale to its default state. This action clears any persisted locale in `localStorage` and re-runs the detection priority chain (`persistKey` -> `detect` -> `initial` -> `fallback`).
 
 ### `getLocales()`
 Returns an array of all known locale IDs — combining keys from both `registerLoader()` and `addDictionary()` calls.

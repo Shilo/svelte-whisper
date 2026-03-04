@@ -78,6 +78,9 @@ Defines an async function responsible for returning a dictionary object or a mod
 ### `setLocale(locale)`
 Explicitly sets the active locale. Loads the dictionary via registered loader or network fetch if not already in memory.
 
+### `resetLocale()`
+Resets the active locale to its default state. This clears any persisted locale in `localStorage` and re-runs the detection logic (detect -> initial -> fallback).
+
 ### `getLocales()`
 Returns an array of all known locale IDs (from both `registerLoader` and `addDictionary` calls).
 

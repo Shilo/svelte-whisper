@@ -132,3 +132,43 @@ test('detect: false disables browser detection', async () => {
         delete globalThis.navigator;
     }
 });
+
+test('resetLocale clears persistence and re-detects', async () => {
+    // Mock localStorage
+    const storage = {};
+    globalThis.localStorage = {
+        getItem: (k) => storage[k],
+        setItem: (k, v) => storage[k] = v,
+        removeItem: (k) => delete storage[k]
+    };
+
+    // Mock navigator
+    const origDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+        value: { language: 'ja-JP' },
+        configurable: true,
+        writable: true,
+    });
+
+    try {
+        await init({ fallback: 'en', persistKey: 'whisper-test' });
+
+        // Change from detected 'ja' to 'es'
+        addDictionary('es', { hello: 'Hola' });
+        await setLocale('es');
+        assert.strictEqual(get(locale), 'es');
+        assert.strictEqual(storage['whisper-test'], 'es');
+
+        // Reset
+        await resetLocale();
+        assert.strictEqual(get(locale), 'ja');
+        assert.strictEqual(storage['whisper-test'], undefined);
+    } finally {
+        if (origDescriptor) {
+            Object.defineProperty(globalThis, 'navigator', origDescriptor);
+        } else {
+            delete globalThis.navigator;
+        }
+        delete globalThis.localStorage;
+    }
+});
