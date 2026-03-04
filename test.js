@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { get } from 'svelte/store';
-import { init, addDictionary, registerLoader, setLocale, locale, t } from './index.js';
+import { init, addDictionary, registerLoader, setLocale, locale, t, tr, getLocales } from './index.js';
 
 test('initialization and dictionary addition', async () => {
     await init({ fallback: 'en', initial: 'en' });
@@ -48,4 +48,31 @@ test('lazy loading properties', async () => {
     assert.strictEqual(get(locale), 'fr');
     assert.strictEqual(get(t)('bonjour'), 'Bonjour');
     assert.strictEqual(get(t)('hello'), 'Hello'); // Falls back to en still
+});
+
+test('tr sync helper', async () => {
+    await setLocale('en');
+    addDictionary('en', { sync: 'Sync value' });
+    assert.strictEqual(tr('sync'), 'Sync value');
+    assert.strictEqual(tr('sync.missing'), 'sync.missing');
+});
+
+test('tr sync helper with interpolation', async () => {
+    addDictionary('en', { greetSync: 'Hi {name}!' });
+    assert.strictEqual(tr('greetSync', { name: 'Alice' }), 'Hi Alice!');
+});
+
+test('getLocales returns registered loader keys', () => {
+    // 'fr' was registered in earlier test
+    const locales = getLocales();
+    assert.ok(locales.includes('fr'));
+    assert.ok(!locales.includes('nonexistent'));
+});
+
+test('getLocales includes dictionary-only locales', () => {
+    // 'es' was added via addDictionary (not registerLoader) in an earlier test
+    const locales = getLocales();
+    assert.ok(locales.includes('es'), 'es should be in getLocales() since it was added via addDictionary');
+    assert.ok(locales.includes('en'), 'en should be in getLocales() since it was added via addDictionary');
+    assert.ok(locales.includes('fr'), 'fr should still be in getLocales() from registerLoader');
 });

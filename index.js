@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 
 const currentLocale = writable('');
 const fallbackLocale = writable('en');
@@ -95,3 +95,11 @@ export const t = derived(
         };
     }
 );
+
+export function tr(key, vars) {
+    return get(t)(key, vars);
+}
+
+export function getLocales() {
+    return [...new Set([...Object.keys(loaders), ...Object.keys(dictionariesVal)])];
+}
