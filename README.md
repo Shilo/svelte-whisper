@@ -2,7 +2,7 @@
 
 The minimalist, frictionless, and incredibly fast i18n localization library designed specifically for **Svelte 5** Single Page Applications.
 
-Svelte Whisper prioritizes a tiny footprint, zero configuration, and blazing-fast runtime above all else. With less than 60 lines of vanilla JavaScript, it provides all the essential internationalization features without complex build steps or compile-time dependencies.
+Svelte Whisper prioritizes a tiny footprint, zero configuration, and blazing-fast runtime above all else. With pure vanilla JavaScript, it provides all the essential internationalization features without complex build steps or compile-time dependencies.
 
 ## Features
 
@@ -11,13 +11,14 @@ Svelte Whisper prioritizes a tiny footprint, zero configuration, and blazing-fas
 - **Svelte 5 Ready**: Built on Svelte `store` primitives (`writable`, `derived`) for flawless reactivity.
 - **Zero-Config File Auto-Loading**: If no dictionaries or load handlers are provided, Svelte Whisper natively tries a network fetch to `/locales/{lang}.json` as a magical fallback!
 - **Lazy Loading**: Avoids async waterfall delays. Load the default language synchronously, and lazy load others only when requested.
+- **Browser Locale Detection**: Automatically matches `navigator.language` against registered locales on init. No manual mapping needed.
+- **LocalStorage Persistence**: Optionally persist the user's locale choice across sessions with a single config option.
 - **Interpolations**: Built-in support for auto-positional (`{}`), indexed (`{0}`), and named (`{user}`) variables.
 - **Deep Keys**: Access deeply nested JSON objects flawlessly (`app.ui.header.title`).
 - **Graceful Fallbacks**: Automatically falls back to your specified default language dictionary if a key is missing in the active locale.
+- **Sync Translation Helper**: Use `tr()` for translations outside Svelte component reactivity (stores, utilities, plain TS modules).
 
 ## Installation
-
-Because `svelte-whisper` is a single `< 70` lines vanilla JavaScript runtime file, you have multiple ways to install it.
 
 ### Option 1: NPM (Recommended)
 ```bash
@@ -40,7 +41,7 @@ Because there are no build steps, you can literally just copy the `index.js` fil
 
 ## Minimal Quick Start (Zero Config)
 
-Want to get started in 10 seconds without any async code, configuration, or initialization logic? 
+Want to get started in 10 seconds without any async code, configuration, or initialization logic?
 
 Because Svelte Whisper natively falls back to fetching missing dictionary definitions from your `public/locales/` folder, you literally just need to set the `locale` store.
 
@@ -48,7 +49,7 @@ Because Svelte Whisper natively falls back to fetching missing dictionary defini
 <!-- App.svelte -->
 <script>
   import { t, locale } from 'svelte-whisper';
-  
+
   // Triggers an automatic silent `fetch('/locales/en.json')` !
   locale.set('en');
 </script>
@@ -74,7 +75,7 @@ The best way to use `svelte-whisper` is to bundle your primary language directly
   import enDict from './locales/en.json'; // Bundled directly into JS
 
   // 1. Add English synchronously so it instantly renders
-  addDictionary('en', enDict); 
+  addDictionary('en', enDict);
 
   // 2. Set the active locale
   locale.set('en'); // No network request happens because 'en' is in memory!
@@ -82,7 +83,7 @@ The best way to use `svelte-whisper` is to bundle your primary language directly
 
 <h1>{$t('hello')}</h1>
 
-<!-- 3. If a user clicks this, because 'es' isn't in memory yet, 
+<!-- 3. If a user clicks this, because 'es' isn't in memory yet,
      svelte-whisper WILL automatically fetch('/locales/es.json') -->
 <button onclick={() => locale.set('es')}>Switch to Spanish</button>
 ```
@@ -107,14 +108,26 @@ addDictionary('en', enDict);
 registerLoader('es', () => import('./locales/es.json'));
 registerLoader('fr', () => import('./locales/fr.json'));
 
-// 3. Initialize Whisper targeting an initial and fallback language
-init({
+// 3. Initialize Whisper with persistence and auto-detection
+await init({
   fallback: 'en',
-  initial: 'en'
+  persistKey: 'my-app-locale',  // Saves locale choice to localStorage
+  // detect is enabled by default — matches navigator.language against 'en', 'es', 'fr'
 });
 
 mount(App, { target: document.getElementById('app') });
 ```
+
+### Init Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `fallback` | String | `'en'` | Fallback locale for missing translation keys |
+| `initial` | String | — | Explicitly set the starting locale |
+| `persistKey` | String | — | localStorage key to save/restore the user's locale choice |
+| `detect` | Boolean \| Object | `true` | Auto-detect browser locale. `true` matches `navigator.language` against registered locales. Pass an object for custom mapping (e.g. `{ ja: 'jp' }`). `false` disables detection. |
+
+**Init priority chain:** `persistKey` (localStorage) → `detect` (browser language) → `initial` → `fallback`
 
 ## Usage in Components
 
@@ -150,6 +163,27 @@ Import the generated `$t` derived store and the `$locale` store directly into an
 <p>Current Locale: {$locale}</p>
 ```
 
+### Using `tr()` Outside Components
+
+For translations in plain TypeScript/JavaScript modules (stores, utilities, non-component code), use the synchronous `tr()` helper:
+
+```typescript
+import { tr } from 'svelte-whisper';
+
+// Works anywhere — no Svelte reactivity needed
+const label = tr('settings.title');
+const greeting = tr('hello', { name: 'Alice' });
+```
+
+### Querying Available Locales
+
+```javascript
+import { getLocales } from 'svelte-whisper';
+
+// Returns all registered locale IDs (from registerLoader + addDictionary)
+const locales = getLocales(); // ['en', 'es', 'fr']
+```
+
 ## API Reference
 
 The `svelte-whisper` package provides the following exports to manage your application's internationalization state.
@@ -158,6 +192,8 @@ The `svelte-whisper` package provides the following exports to manage your appli
 Bootstraps the Svelte Whisper configuration parameters. This is typically called once in your main application entry point.
 - `options.fallback` (String): The dictionary fallback locale key (default: `'en'`). If a translation key is missing in the currently active locale, `svelte-whisper` will attempt to resolve it using this fallback locale.
 - `options.initial` (String): Sets the default booting language. If provided, `svelte-whisper` will immediately set the `locale` store to this value.
+- `options.persistKey` (String): A localStorage key for persisting the user's locale choice. When set, the active locale is automatically saved on change and restored on next init.
+- `options.detect` (Boolean | Object): Browser locale auto-detection. Enabled by default — matches `navigator.language` against registered locale IDs. Pass an explicit mapping object (e.g. `{ ja: 'jp' }`) to map browser language prefixes to custom locale IDs. Pass `false` to disable.
 
 ### `addDictionary(locale, dict)`
 Synchronously merges a JSON object dictionary into a locale space in memory.
@@ -171,15 +207,24 @@ Defines an asynchronous function responsible for fetching or dynamically importi
 - `locale` (String): The language code (e.g., `'es'`).
 - `asyncLoaderFn` (Function): A function returning a Promise that resolves to a dictionary object or a module where `module.default` is a dictionary (e.g., `() => import('./locales/es.json')`). Calling `locale.set(key)` evaluates this loader once.
 
+### `setLocale(locale)`
+Explicitly sets the active locale. If the dictionary is not already in memory, it will be loaded via a registered loader or network fetch.
+
+### `getLocales()`
+Returns an array of all known locale IDs — combining keys from both `registerLoader()` and `addDictionary()` calls.
+
 ### `locale`
 A specialized Svelte 5 `writable` store reflecting the currently active locale string (e.g., `'en'`).
 - **`$locale`**: You can subscribe to changes using standard Svelte reactivity.
 - **`locale.set(newLocale)`**: Instructs Svelte Whisper to change the requested language. If the dictionary for `newLocale` is not already in memory, this action will fire off lazy loaders registered via `registerLoader`, or fallback to an automatic `fetch('/locales/{newLocale}.json')`.
 
 ### `t`
-A Svelte 5 `derived` store representing a pure translation function. 
+A Svelte 5 `derived` store representing a pure translation function.
 - **Signature:** `(key: string, vars?: any[] | object) => string`
 - **Behavior:** It automatically resolves paths, substitutes positional or named variables, queries fallback dictionaries if keys are missing, and re-renders any Svelte components reactively anytime dictionaries update or the active `locale` shifts.
+
+### `tr(key, vars)`
+A synchronous translation helper that returns the translated string for the current locale. Equivalent to `get(t)(key, vars)`. Use this in non-reactive contexts like plain TypeScript modules, store logic, or utility functions where Svelte's `$t` syntax is not available.
 
 ## Philosophy
 Svelte Whisper does **not** rely on compile-time integrations, routing manipulation, tree shaking dependencies, or heavy config maps. Its goal is strictly mapping dynamic dictionary values into memory securely & reactively without any configuration overhead for CSR SPAs.
@@ -206,7 +251,7 @@ The editor is hosted on GitHub Pages: **[Try the Editor](https://shilo.github.io
 
 ### Deploying the Editor to GitHub Pages
 
-The editor comes with a pre-configured GitHub Action to automatically build and deploy itself to GitHub Pages whenever you push to `main`. 
+The editor comes with a pre-configured GitHub Action to automatically build and deploy itself to GitHub Pages whenever you push to `main`.
 
 To enable this:
 1. Go to your repository on GitHub.

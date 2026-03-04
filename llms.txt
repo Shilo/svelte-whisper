@@ -1,8 +1,8 @@
 # Svelte Whisper Context & Architecture (LLM Documentation)
 
 ## Overview
-Svelte Whisper is an ultra-minimalist, fast i18n localization library native to Svelte 5 Single Page Applications (SPAs). 
-- **Footprint**: <70 lines of pure JS (~1KB minified). NO external dependencies except `svelte` peer dependency.
+Svelte Whisper is an ultra-minimalist, fast i18n localization library native to Svelte 5 Single Page Applications (SPAs).
+- **Footprint**: Pure JS (~1KB minified). NO external dependencies except `svelte` peer dependency.
 - **Performance**: O(1) fast-path evaluations natively integrated with Svelte 5 store primitives (`writable`, `derived`).
 
 ## Core API & Implementation Details
@@ -28,7 +28,7 @@ To prevent async fetch waterfalls on bootstrap, bundle the fallback language dic
   import { addDictionary, locale } from 'svelte-whisper';
   import enDict from './locales/en.json'; // Bundled string
 
-  addDictionary('en', enDict); 
+  addDictionary('en', enDict);
   locale.set('en'); // Synchronous. Network request is bypassed.
 </script>
 ```
@@ -42,7 +42,8 @@ registerLoader('es', () => import('./locales/es.json'));
 
 init({
   fallback: 'en',
-  initial: 'en' 
+  initial: 'en',
+  persistKey: 'my-app-locale',   // Auto-save/restore locale to localStorage
 });
 ```
 
@@ -62,13 +63,23 @@ The primary `svelte-whisper` module exports the following members:
 ### `init(options)`
 Bootstraps the Svelte Whisper configuration parameters.
 - `options.fallback` (String): The dictionary fallback locale key (default: `'en'`).
-- `options.initial` (String): Set the default booting language. 
+- `options.initial` (String): Set the default booting language.
+- `options.persistKey` (String): A localStorage key. When set, the active locale is automatically saved to and restored from localStorage across sessions.
+- `options.detect` (Object | Boolean): Browser locale auto-detection. By default (`undefined` or `true`), matches `navigator.language` against registered locale IDs. Pass an explicit mapping object (e.g. `{ ja: 'jp' }`) to map browser prefixes to custom locale IDs. Pass `false` to disable detection entirely.
+
+**Init priority chain:** persistKey (localStorage) → detect (browser language) → initial → fallback.
 
 ### `addDictionary(locale, dict)`
 Synchronously merge a JSON object dictionary into a locale space. Useful for injecting the primary application language on boot.
 
 ### `registerLoader(locale, asyncLoaderFn)`
 Defines an async function responsible for returning a dictionary object or a module where `module.default` is a dictionary. Calling `locale.set(key)` evaluates this loader once.
+
+### `setLocale(locale)`
+Explicitly sets the active locale. Loads the dictionary via registered loader or network fetch if not already in memory.
+
+### `getLocales()`
+Returns an array of all known locale IDs (from both `registerLoader` and `addDictionary` calls).
 
 ### `locale`
 A specialized Svelte store reflecting the active locale string (e.g., `'en'`).
@@ -78,6 +89,9 @@ A specialized Svelte store reflecting the active locale string (e.g., `'en'`).
 ### `t`
 A Svelte derived store representing a pure function `(key: string, vars?: any[] | object) => string`.
 It automatically resolves paths, substitutes variables, queries fallback dictionaries, and re-renders Svelte components reactively anytime dictionaries or the active `locale` shifts.
+
+### `tr(key, vars)`
+A synchronous translation helper for use outside Svelte component reactivity (e.g. in plain TypeScript modules, stores, or utility functions). Equivalent to calling `get(t)(key, vars)`.
 
 ---
 
