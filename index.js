@@ -27,8 +27,8 @@ export async function init(options = {}) {
     // Determine initial locale: persist → detect → initial → fallback
     let initial = '';
 
-    if (options.persist && typeof localStorage !== 'undefined') {
-        persistKey = options.persist;
+    if (options.persistKey && typeof localStorage !== 'undefined') {
+        persistKey = options.persistKey;
         try {
             const stored = localStorage.getItem(persistKey);
             if (stored && (loaders[stored] || dictionariesVal[stored])) {
