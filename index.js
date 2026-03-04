@@ -34,7 +34,7 @@ export async function init(options = {}) {
             if (stored && (loaders[stored] || dictionariesVal[stored])) {
                 initial = stored;
             }
-        } catch {}
+        } catch { }
     }
 
     if (!initial && options.detect) {
@@ -53,7 +53,7 @@ export async function init(options = {}) {
     if (persistKey) {
         persistUnsub = currentLocale.subscribe(val => {
             if (val) {
-                try { localStorage.setItem(persistKey, val); } catch {}
+                try { localStorage.setItem(persistKey, val); } catch { }
             }
         });
     }
@@ -92,6 +92,10 @@ export async function setLocale(locale) {
     currentLocale.set(locale);
 }
 
+export function getLocales() {
+    return [...new Set([...Object.keys(loaders), ...Object.keys(dictionariesVal)])];
+}
+
 export const locale = {
     subscribe: currentLocale.subscribe,
     set: setLocale
@@ -115,10 +119,6 @@ export const t = derived(
 
 export function tr(key, vars) {
     return get(t)(key, vars);
-}
-
-export function getLocales() {
-    return [...new Set([...Object.keys(loaders), ...Object.keys(dictionariesVal)])];
 }
 
 // --- Internal helpers ---
