@@ -8,9 +8,57 @@ const loaders = {};
 let dictionariesVal = {};
 dictionaries.subscribe(v => dictionariesVal = v);
 
+let persistKey = null;
+let persistUnsub = null;
+const keyCache = new Map();
+
+// --- Public API ---
+
 export async function init(options = {}) {
     if (options.fallback) fallbackLocale.set(options.fallback);
-    if (options.initial) await setLocale(options.initial);
+
+    // Clean up previous persistence
+    if (persistUnsub) {
+        persistUnsub();
+        persistUnsub = null;
+    }
+    persistKey = null;
+
+    // Determine initial locale: persist → detect → initial → fallback
+    let initial = '';
+
+    if (options.persist && typeof localStorage !== 'undefined') {
+        persistKey = options.persist;
+        try {
+            const stored = localStorage.getItem(persistKey);
+            if (stored && (loaders[stored] || dictionariesVal[stored])) {
+                initial = stored;
+            }
+        } catch {}
+    }
+
+    if (!initial && options.detect) {
+        initial = detectBrowserLocale(options.detect, '');
+    }
+
+    if (!initial && options.initial) {
+        initial = options.initial;
+    }
+
+    if (!initial) {
+        initial = options.fallback || '';
+    }
+
+    // Auto-save locale changes to localStorage
+    if (persistKey) {
+        persistUnsub = currentLocale.subscribe(val => {
+            if (val) {
+                try { localStorage.setItem(persistKey, val); } catch {}
+            }
+        });
+    }
+
+    if (initial) await setLocale(initial);
 }
 
 export function addDictionary(locale, dict) {
@@ -49,7 +97,40 @@ export const locale = {
     set: setLocale
 };
 
-const keyCache = new Map();
+export const t = derived(
+    [currentLocale, dictionaries, fallbackLocale],
+    ([$currentLocale, $dictionaries, $fallbackLocale]) => {
+        return (key, vars) => {
+            let val = resolveKey($dictionaries[$currentLocale], key);
+
+            if (val === undefined && $currentLocale !== $fallbackLocale) {
+                val = resolveKey($dictionaries[$fallbackLocale], key);
+            }
+
+            if (val === undefined) return key;
+            return interpolate(val, vars);
+        };
+    }
+);
+
+export function tr(key, vars) {
+    return get(t)(key, vars);
+}
+
+export function getLocales() {
+    return [...new Set([...Object.keys(loaders), ...Object.keys(dictionariesVal)])];
+}
+
+// --- Internal helpers ---
+
+function detectBrowserLocale(mapping, fallback) {
+    if (typeof navigator === 'undefined') return fallback || '';
+    const lang = navigator.language.toLowerCase();
+    for (const [prefix, loc] of Object.entries(mapping)) {
+        if (lang.startsWith(prefix.toLowerCase())) return loc;
+    }
+    return fallback || '';
+}
 
 function resolveKey(dict, key) {
     if (!dict) return undefined;
@@ -78,28 +159,4 @@ function interpolate(text, vars) {
         let key = p1.trim() || autoIndex++;
         return vars[key] !== undefined ? String(vars[key]) : match;
     });
-}
-
-export const t = derived(
-    [currentLocale, dictionaries, fallbackLocale],
-    ([$currentLocale, $dictionaries, $fallbackLocale]) => {
-        return (key, vars) => {
-            let val = resolveKey($dictionaries[$currentLocale], key);
-
-            if (val === undefined && $currentLocale !== $fallbackLocale) {
-                val = resolveKey($dictionaries[$fallbackLocale], key);
-            }
-
-            if (val === undefined) return key;
-            return interpolate(val, vars);
-        };
-    }
-);
-
-export function tr(key, vars) {
-    return get(t)(key, vars);
-}
-
-export function getLocales() {
-    return [...new Set([...Object.keys(loaders), ...Object.keys(dictionariesVal)])];
 }

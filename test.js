@@ -76,3 +76,25 @@ test('getLocales includes dictionary-only locales', () => {
     assert.ok(locales.includes('en'), 'en should be in getLocales() since it was added via addDictionary');
     assert.ok(locales.includes('fr'), 'fr should still be in getLocales() from registerLoader');
 });
+
+test('init with detect option falls back when no navigator', async () => {
+    // Node has no navigator, so detect should fall back to fallback locale
+    await init({ fallback: 'en', detect: { ja: 'jp', zh: 'zh' } });
+    assert.strictEqual(get(locale), 'en');
+});
+
+test('detect maps navigator.language to locale', async () => {
+    const origDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+        value: { language: 'ja-JP' },
+        configurable: true,
+        writable: true,
+    });
+    await init({ fallback: 'en', detect: { ja: 'jp' } });
+    assert.strictEqual(get(locale), 'jp');
+    if (origDescriptor) {
+        Object.defineProperty(globalThis, 'navigator', origDescriptor);
+    } else {
+        delete globalThis.navigator;
+    }
+});
