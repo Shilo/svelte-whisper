@@ -47,7 +47,7 @@ export async function init(options = {}) {
     }
 
     if (!initial) {
-        initial = options.fallback || '';
+        initial = options.fallback || get(fallbackLocale) || '';
     }
 
     // Auto-save locale changes to localStorage
