@@ -1,5 +1,5 @@
 {
-  "greeting": "Hello {user}!",
+  "greeting": "Hello {user} {user}!",
   "app": {
     "title": "Svelte Whisper Demo",
     "description": "The minimalist i18n library for Svelte 5",
