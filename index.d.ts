@@ -41,3 +41,7 @@ export function tr(
     key: string,
     vars?: WhisperVars,
 ): string;
+
+export function formatNumber(num: number): string;
+
+export function formatPercent(decimal: number): string;

@@ -235,6 +235,27 @@ A Svelte 5 `derived` store representing a pure translation function.
 ### `tr(key, vars)`
 A synchronous translation helper that returns the translated string for the current locale. Equivalent to `get(t)(key, vars)`. Use this in non-reactive contexts like plain TypeScript modules, store logic, or utility functions where Svelte's `$t` syntax is not available.
 
+### `formatNumber(num)`
+Formats a number using locale-aware thousand separators based on the currently active locale.
+- `num` (Number): The number to format.
+- Returns a locale-formatted string (e.g., `1234` → `"1,234"` in English, `"1.234"` in German).
+
+```javascript
+import { formatNumber } from 'svelte-whisper';
+formatNumber(1234567); // "1,234,567" (en), "1.234.567" (de)
+```
+
+### `formatPercent(decimal)`
+Formats a decimal value as a locale-aware percentage string. Multiplies by 100 and appends `%`.
+- `decimal` (Number): The raw decimal value (e.g., `0.2` becomes `"20%"`).
+- Integer percentages use locale-aware separators; non-integers use 3 significant digits.
+
+```javascript
+import { formatPercent } from 'svelte-whisper';
+formatPercent(0.2);    // "20%"
+formatPercent(0.123);  // "12.3%"
+```
+
 ## Philosophy
 Svelte Whisper does **not** rely on compile-time integrations, routing manipulation, tree shaking dependencies, or heavy config maps. Its goal is strictly mapping dynamic dictionary values into memory securely & reactively without any configuration overhead for CSR SPAs.
 

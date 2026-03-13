@@ -151,6 +151,17 @@ export function tr(key, vars) {
     return get(t)(key, vars);
 }
 
+export function formatNumber(num) {
+    return num.toLocaleString(get(currentLocale) || undefined);
+}
+
+export function formatPercent(decimal) {
+    if (decimal === 0) return '0%';
+    const percent = decimal * 100;
+    if (Number.isInteger(percent)) return formatNumber(percent) + '%';
+    return String(parseFloat(percent.toPrecision(3))) + '%';
+}
+
 // --- Internal helpers ---
 
 function detectBrowserLocale(mapping, fallback) {
