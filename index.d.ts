@@ -44,4 +44,4 @@ export function tr(
 
 export function formatNumber(num: number): string;
 
-export function formatPercent(decimal: number): string;
+export function formatPercent(decimal: number, precision?: number): string;

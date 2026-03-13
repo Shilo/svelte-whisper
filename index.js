@@ -155,11 +155,11 @@ export function formatNumber(num) {
     return num.toLocaleString(get(currentLocale) || undefined);
 }
 
-export function formatPercent(decimal) {
+export function formatPercent(decimal, precision = 0) {
     if (decimal === 0) return '0%';
     const percent = decimal * 100;
     if (Number.isInteger(percent)) return formatNumber(percent) + '%';
-    return String(parseFloat(percent.toPrecision(3))) + '%';
+    return String(parseFloat(percent.toFixed(precision))) + '%';
 }
 
 // --- Internal helpers ---

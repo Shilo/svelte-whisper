@@ -245,15 +245,16 @@ import { formatNumber } from 'svelte-whisper';
 formatNumber(1234567); // "1,234,567" (en), "1.234.567" (de)
 ```
 
-### `formatPercent(decimal)`
+### `formatPercent(decimal, precision?)`
 Formats a decimal value as a locale-aware percentage string. Multiplies by 100 and appends `%`.
 - `decimal` (Number): The raw decimal value (e.g., `0.2` becomes `"20%"`).
-- Integer percentages use locale-aware separators; non-integers use 3 significant digits.
+- `precision` (Number, default `0`): Number of decimal places for non-integer percentages.
 
 ```javascript
 import { formatPercent } from 'svelte-whisper';
-formatPercent(0.2);    // "20%"
-formatPercent(0.123);  // "12.3%"
+formatPercent(0.2);       // "20%"
+formatPercent(0.123);     // "12%"
+formatPercent(0.123, 1);  // "12.3%"
 ```
 
 ## Philosophy

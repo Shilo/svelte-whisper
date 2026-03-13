@@ -104,10 +104,11 @@ Formats a number using locale-aware thousand separators based on the currently a
 - `num` (Number): The number to format.
 - Returns: A locale-formatted string (e.g., `1234` → `"1,234"` in English, `"1.234"` in German).
 
-### `formatPercent(decimal)`
+### `formatPercent(decimal, precision?)`
 Formats a decimal value as a locale-aware percentage string. Multiplies by 100 and appends `%`.
 - `decimal` (Number): The raw decimal value (e.g., `0.2` becomes `"20%"`).
-- Returns: A formatted percentage string. Integer percentages use `formatNumber()` for locale-aware separators; non-integers use 3 significant digits.
+- `precision` (Number, default `0`): Number of decimal places for non-integer percentages.
+- Returns: A formatted percentage string. Integer percentages use `formatNumber()` for locale-aware separators.
 
 ---
 
