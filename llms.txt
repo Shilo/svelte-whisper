@@ -64,8 +64,8 @@ The primary `svelte-whisper` module exports the following members:
 Bootstraps the Svelte Whisper configuration parameters.
 - `options.fallback` (String): The dictionary fallback locale key (default: `'en'`).
 - `options.initial` (String): Set the default booting language.
-- `options.persistKey` (String): A localStorage key. When set, the active locale is automatically saved to and restored from localStorage across sessions.
-- `options.detect` (Object | Boolean): Browser locale auto-detection. By default (`undefined` or `true`), matches `navigator.language` against registered locale IDs. Pass an explicit mapping object (e.g. `{ ja: 'jp' }`) to map browser prefixes to custom locale IDs. Pass `false` to disable detection entirely.
+- `options.persistKey` (String): A localStorage key. When set, the locale is restored from localStorage on init, and future explicit locale changes (via `locale.set()` or `setLocale()` after init) are saved. The auto-detected or defaulted locale chosen during init is NOT persisted — only deliberate user-triggered changes are saved. This prevents stale auto-detected values from permanently overriding browser language detection on subsequent visits.
+- `options.detect` (Object | Boolean): Browser locale auto-detection. By default (`undefined` or `true`), iterates `navigator.languages` (the full browser preference list) and matches each against registered locale IDs using exact match first, then prefix match (e.g. `ja-JP` matches registered `ja`). Pass an explicit mapping object (e.g. `{ ja: 'jp' }`) to map browser prefixes to custom locale IDs. Pass `false` to disable detection entirely.
 
 **Init priority chain:** persistKey (localStorage) → detect (browser language) → initial → fallback.
 
@@ -79,7 +79,7 @@ Defines an async function responsible for returning a dictionary object or a mod
 Explicitly sets the active locale. Loads the dictionary via registered loader or network fetch if not already in memory.
 
 ### `resetLocale()`
-Resets the active locale to its default state. This clears any persisted locale in `localStorage` and re-runs the detection logic (detect -> initial -> fallback).
+Resets the active locale to its default state. This clears any persisted locale in `localStorage` and re-runs the detection logic (detect -> initial -> fallback). The re-detected locale is not persisted — only future explicit changes will be saved.
 
 ### `getLocales()`
 Returns an array of all known locale IDs (from both `registerLoader` and `addDictionary` calls).

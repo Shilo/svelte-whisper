@@ -52,22 +52,19 @@ export async function init(options = {}) {
         initial = options.fallback || get(fallbackLocale) || '';
     }
 
-    // Auto-save locale changes to localStorage
-    if (persistKey) {
-        persistUnsub = currentLocale.subscribe(val => {
-            if (val) {
-                try { localStorage.setItem(persistKey, val); } catch { }
-            }
-        });
-    }
-
     if (initial) await setLocale(initial);
+
+    // Persist only FUTURE explicit locale changes (not the auto-detected initial value)
+    setupPersistence();
 }
 
 export async function resetLocale() {
     if (persistKey && typeof localStorage !== 'undefined') {
         try { localStorage.removeItem(persistKey); } catch { }
     }
+
+    // Tear down persistence so re-detected locale isn't stored
+    if (persistUnsub) { persistUnsub(); persistUnsub = null; }
 
     let next = '';
 
@@ -85,6 +82,9 @@ export async function resetLocale() {
     }
 
     if (next) await setLocale(next);
+
+    // Re-establish persistence for future explicit changes only
+    setupPersistence();
 }
 
 export function addDictionary(locale, dict) {
@@ -164,25 +164,44 @@ export function formatPercent(decimal, precision = 0) {
 
 // --- Internal helpers ---
 
+function setupPersistence() {
+    if (persistUnsub) { persistUnsub(); persistUnsub = null; }
+    if (!persistKey) return;
+    let skip = true;
+    persistUnsub = currentLocale.subscribe(val => {
+        if (skip) { skip = false; return; }
+        if (val) {
+            try { localStorage.setItem(persistKey, val); } catch { }
+        }
+    });
+}
+
 function detectBrowserLocale(mapping, fallback) {
     if (typeof navigator === 'undefined') return fallback || '';
-    const lang = navigator.language.toLowerCase();
+    const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
 
     // Explicit mapping: { prefix: localeId }
     if (mapping) {
-        for (const [prefix, loc] of Object.entries(mapping)) {
-            if (lang.startsWith(prefix.toLowerCase())) return loc;
+        for (const lang of langs) {
+            const lower = lang.toLowerCase();
+            for (const [prefix, loc] of Object.entries(mapping)) {
+                if (lower.startsWith(prefix.toLowerCase())) return loc;
+            }
         }
         return fallback || '';
     }
 
-    // Auto-detect: match browser language against registered locales
+    // Auto-detect: iterate browser language preferences in priority order
     const knownLocales = [...new Set([...Object.keys(loaders), ...Object.keys(dictionariesVal)])];
-    // Exact match first (e.g. "en-US"), then prefix match (e.g. "en")
-    const exact = knownLocales.find(l => lang === l.toLowerCase());
-    if (exact) return exact;
-    const prefix = knownLocales.find(l => lang.startsWith(l.toLowerCase()));
-    if (prefix) return prefix;
+    for (const lang of langs) {
+        const lower = lang.toLowerCase();
+        // Exact match first (e.g. "ja-JP" matches registered "ja-JP")
+        const exact = knownLocales.find(l => lower === l.toLowerCase());
+        if (exact) return exact;
+        // Prefix match (e.g. "ja-JP" matches registered "ja")
+        const prefix = knownLocales.find(l => lower.startsWith(l.toLowerCase()));
+        if (prefix) return prefix;
+    }
     return fallback || '';
 }
 

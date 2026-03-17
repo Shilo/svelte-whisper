@@ -11,8 +11,8 @@ Svelte Whisper prioritizes a tiny footprint, zero configuration, and blazing-fas
 - **Svelte 5 Ready**: Built on Svelte `store` primitives (`writable`, `derived`) for flawless reactivity.
 - **Zero-Config File Auto-Loading**: If no dictionaries or load handlers are provided, Svelte Whisper natively tries a network fetch to `/locales/{lang}.json` as a magical fallback!
 - **Lazy Loading**: Avoids async waterfall delays. Load the default language synchronously, and lazy load others only when requested.
-- **Browser Locale Detection**: Automatically matches `navigator.language` against registered locales on init. No manual mapping needed.
-- **LocalStorage Persistence**: Optionally persist the user's locale choice across sessions with a single config option.
+- **Browser Locale Detection**: Automatically matches `navigator.languages` (full preference list) against registered locales on init, with exact and prefix matching (e.g. `ja-JP` → `ja`). No manual mapping needed.
+- **LocalStorage Persistence**: Optionally persist the user's explicit locale choice across sessions. Auto-detected locales are not persisted, so browser language changes are always respected.
 - **Interpolations**: Built-in support for auto-positional (`{}`), indexed (`{0}`), and named (`{user}`) variables.
 - **Deep Keys**: Access deeply nested JSON objects flawlessly (`app.ui.header.title`).
 - **Graceful Fallbacks**: Automatically falls back to your specified default language dictionary if a key is missing in the active locale.
@@ -111,8 +111,8 @@ registerLoader('fr', () => import('./locales/fr.json'));
 // 3. Initialize Whisper with persistence and auto-detection
 await init({
   fallback: 'en',
-  persistKey: 'my-app-locale',  // Saves locale choice to localStorage
-  // detect is enabled by default — matches navigator.language against 'en', 'es', 'fr'
+  persistKey: 'my-app-locale',  // Saves explicit locale choices to localStorage
+  // detect is enabled by default — matches navigator.languages against 'en', 'es', 'fr'
 });
 
 mount(App, { target: document.getElementById('app') });
@@ -124,8 +124,8 @@ mount(App, { target: document.getElementById('app') });
 |---|---|---|---|
 | `fallback` | String | `'en'` | Fallback locale for missing translation keys |
 | `initial` | String | — | Explicitly set the starting locale |
-| `persistKey` | String | — | localStorage key to save/restore the user's locale choice |
-| `detect` | Boolean \| Object | `true` | Auto-detect browser locale. `true` matches `navigator.language` against registered locales. Pass an object for custom mapping (e.g. `{ ja: 'jp' }`). `false` disables detection. |
+| `persistKey` | String | — | localStorage key to save/restore the user's explicit locale choice. Auto-detected locales during init are not persisted. |
+| `detect` | Boolean \| Object | `true` | Auto-detect browser locale. `true` iterates `navigator.languages` and matches against registered locales (exact then prefix, e.g. `ja-JP` → `ja`). Pass an object for custom mapping (e.g. `{ ja: 'jp' }`). `false` disables detection. |
 
 **Init priority chain:** `persistKey` (localStorage) → `detect` (browser language) → `initial` → `fallback`
 
@@ -195,8 +195,8 @@ The `svelte-whisper` package provides the following exports to manage your appli
 Bootstraps the Svelte Whisper configuration parameters. This is typically called once in your main application entry point.
 - `options.fallback` (String): The dictionary fallback locale key (default: `'en'`). If a translation key is missing in the currently active locale, `svelte-whisper` will attempt to resolve it using this fallback locale.
 - `options.initial` (String): Sets the default booting language. If provided, `svelte-whisper` will immediately set the `locale` store to this value.
-- `options.persistKey` (String): A localStorage key for persisting the user's locale choice. When set, the active locale is automatically saved on change and restored on next init.
-- `options.detect` (Boolean | Object): Browser locale auto-detection. Enabled by default — matches `navigator.language` against registered locale IDs. Pass an explicit mapping object (e.g. `{ ja: 'jp' }`) to map browser language prefixes to custom locale IDs. Pass `false` to disable.
+- `options.persistKey` (String): A localStorage key for persisting the user's locale choice. When set, the locale is restored from localStorage on init, and future explicit changes (via `locale.set()` after init) are saved. The auto-detected locale during init is not persisted — only deliberate user changes are saved.
+- `options.detect` (Boolean | Object): Browser locale auto-detection. Enabled by default — iterates `navigator.languages` (the full preference list) and matches each against registered locale IDs using exact match first, then prefix match (e.g. `ja-JP` matches registered `ja`). Pass an explicit mapping object (e.g. `{ ja: 'jp' }`) to map browser language prefixes to custom locale IDs. Pass `false` to disable.
 
 ### `addDictionary(locale, dict)`
 Synchronously merges a JSON object dictionary into a locale space in memory.
@@ -214,7 +214,7 @@ Defines an asynchronous function responsible for fetching or dynamically importi
 Explicitly sets the active locale. If the dictionary is not already in memory, it will be loaded via a registered loader or network fetch.
 
 ### `resetLocale()`
-Resets the active locale to its default state. This action clears any persisted locale in `localStorage` and re-runs the detection priority chain (`persistKey` -> `detect` -> `initial` -> `fallback`).
+Resets the active locale to its default state. This action clears any persisted locale in `localStorage` and re-runs the detection priority chain (`detect` -> `initial` -> `fallback`). The re-detected locale is not persisted — only future explicit changes will be saved.
 
 ### `getLocales()`
 Returns an array of all known locale IDs — combining keys from both `registerLoader()` and `addDictionary()` calls.
