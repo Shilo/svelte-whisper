@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { get } from 'svelte/store';
-import { init, addDictionary, registerLoader, setLocale, locale, t, tr, getLocales } from './index.js';
+import { init, addDictionary, registerLoader, setLocale, resetLocale, locale, t, tr, getLocales } from './index.js';
 
 test('initialization and dictionary addition', async () => {
     await init({ fallback: 'en', initial: 'en' });
@@ -171,4 +171,130 @@ test('resetLocale clears persistence and re-detects', async () => {
         }
         delete globalThis.localStorage;
     }
+});
+
+// ---------------------------------------------------------------------------
+// Persistence & detection edge-case tests (v1.1.2 bug-fix coverage)
+// ---------------------------------------------------------------------------
+
+/**
+ * Helper: run a test body with mocked navigator and localStorage, cleaning up
+ * regardless of success/failure.
+ */
+async function withBrowserMocks({ languages, storage = {} }, fn) {
+    const origNav = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+        value: { languages, language: languages[0] },
+        configurable: true,
+        writable: true,
+    });
+    globalThis.localStorage = {
+        getItem: (k) => storage[k] ?? null,
+        setItem: (k, v) => { storage[k] = v; },
+        removeItem: (k) => { delete storage[k]; },
+    };
+    try {
+        await fn(storage);
+    } finally {
+        if (origNav) {
+            Object.defineProperty(globalThis, 'navigator', origNav);
+        } else {
+            delete globalThis.navigator;
+        }
+        delete globalThis.localStorage;
+    }
+}
+
+test('auto-detected locale is NOT persisted to localStorage', async () => {
+    registerLoader('ja', async () => ({ default: { hello: 'こんにちは' } }));
+    await withBrowserMocks({ languages: ['ja-JP', 'en'] }, async (storage) => {
+        await init({ fallback: 'en', persistKey: 'test-persist' });
+        // Detection should pick 'ja' via prefix match on 'ja-JP'
+        assert.strictEqual(get(locale), 'ja');
+        // But auto-detected value must NOT be written to localStorage
+        assert.strictEqual(storage['test-persist'], undefined,
+            'auto-detected locale should not be persisted');
+    });
+});
+
+test('explicit locale change IS persisted to localStorage', async () => {
+    addDictionary('fr', { bonjour: 'Bonjour' });
+    registerLoader('ja', async () => ({ default: { hello: 'こんにちは' } }));
+    await withBrowserMocks({ languages: ['ja-JP', 'en'] }, async (storage) => {
+        await init({ fallback: 'en', persistKey: 'test-persist-explicit' });
+        assert.strictEqual(get(locale), 'ja');
+        assert.strictEqual(storage['test-persist-explicit'], undefined);
+
+        // Simulate user explicitly choosing French
+        await setLocale('fr');
+        assert.strictEqual(storage['test-persist-explicit'], 'fr',
+            'explicit locale change should be persisted');
+    });
+});
+
+test('navigator.languages iterates full list to find a match', async () => {
+    registerLoader('ja', async () => ({ default: { hello: 'こんにちは' } }));
+    // First preference (ko-KR) has no registered locale; second (ja-JP) does.
+    await withBrowserMocks({ languages: ['ko-KR', 'ja-JP', 'en-US'] }, async () => {
+        await init({ fallback: 'en' });
+        assert.strictEqual(get(locale), 'ja',
+            'should iterate navigator.languages and pick ja from second preference');
+    });
+});
+
+test('exact ja-JP bug: stale "en" no longer blocks detection on return visit', async () => {
+    // Scenario: first visit happened before Japanese was added.
+    // Old code would have persisted "en" to localStorage.
+    // After the fix + migration clears localStorage, detection should run fresh.
+    registerLoader('ja', async () => ({ default: { hello: 'こんにちは' } }));
+    addDictionary('en', { hello: 'Hello' });
+
+    // Simulate "return visit" with empty localStorage (migration cleared it)
+    await withBrowserMocks({ languages: ['ja-JP', 'ja', 'en-US', 'en'] }, async (storage) => {
+        await init({ fallback: 'en', persistKey: 'test-ja-bug' });
+        // Should detect ja, not fall back to en
+        assert.strictEqual(get(locale), 'ja',
+            'with empty localStorage, browser detection should pick ja');
+        // And it should NOT be persisted (auto-detected)
+        assert.strictEqual(storage['test-ja-bug'], undefined,
+            'auto-detected ja should not be persisted');
+    });
+});
+
+test('persisted explicit choice is restored on subsequent init', async () => {
+    addDictionary('fr', { bonjour: 'Bonjour' });
+    registerLoader('ja', async () => ({ default: { hello: 'こんにちは' } }));
+    // Simulate: user previously chose 'fr' explicitly, it's in localStorage
+    const preSeeded = { 'test-restore': 'fr' };
+    await withBrowserMocks({ languages: ['ja-JP', 'en'] , storage: preSeeded }, async () => {
+        await init({ fallback: 'en', persistKey: 'test-restore' });
+        // Persisted value should win over browser detection
+        assert.strictEqual(get(locale), 'fr',
+            'persisted explicit choice should be restored, not overridden by detection');
+    });
+});
+
+test('resetLocale does not persist the re-detected locale', async () => {
+    addDictionary('fr', { bonjour: 'Bonjour' });
+    registerLoader('ja', async () => ({ default: { hello: 'こんにちは' } }));
+    await withBrowserMocks({ languages: ['ja-JP', 'en'] }, async (storage) => {
+        await init({ fallback: 'en', persistKey: 'test-reset-persist' });
+        assert.strictEqual(get(locale), 'ja');
+
+        // User explicitly picks French
+        await setLocale('fr');
+        assert.strictEqual(storage['test-reset-persist'], 'fr');
+
+        // Reset clears persistence and re-detects
+        await resetLocale();
+        assert.strictEqual(get(locale), 'ja',
+            'after reset, should re-detect ja from browser');
+        assert.strictEqual(storage['test-reset-persist'], undefined,
+            'after reset, re-detected locale should not be persisted');
+
+        // A subsequent explicit change should still persist
+        await setLocale('en');
+        assert.strictEqual(storage['test-reset-persist'], 'en',
+            'explicit change after reset should still persist');
+    });
 });
