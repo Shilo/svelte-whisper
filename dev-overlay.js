@@ -50,6 +50,11 @@ const STYLES = `
             inset 0 1px 0 rgba(255,255,255,0.1);
     }
     .sw-badge:active { transform: translateY(0); }
+    .sw-container.sw-dragging .sw-badge,
+    .sw-container.sw-dragging .sw-badge:hover {
+        cursor: grabbing;
+        transform: none;
+    }
 
     .sw-badge-icon { font-size: 14px; line-height: 1; }
 
@@ -298,8 +303,9 @@ export function mount({ subscribe, getKeys, clear }) {
     const countEl = shadow.querySelector('.sw-count');
     const headerCountEl = shadow.querySelector('.sw-header-count');
 
+    const container = shadow.querySelector('.sw-container');
+
     // Event listeners
-    badge.addEventListener('click', () => setExpanded(!expanded));
     shadow.querySelector('.sw-close').addEventListener('click', () => setExpanded(false));
     shadow.querySelector('.sw-clear').addEventListener('click', () => {
         clear();
@@ -317,6 +323,42 @@ export function mount({ subscribe, getKeys, clear }) {
         if (expanded && !host.contains(e.target)) setExpanded(false);
     });
 
+    // Drag-to-reposition (distinguishes click vs drag)
+    const DRAG_THRESHOLD = 4;
+    let dragging = false;
+    let startX, startY, origLeft, origTop;
+
+    badge.addEventListener('pointerdown', (e) => {
+        dragging = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        const rect = container.getBoundingClientRect();
+        origLeft = rect.left;
+        origTop = rect.top;
+        badge.setPointerCapture(e.pointerId);
+    });
+
+    badge.addEventListener('pointermove', (e) => {
+        if (startX == null) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (!dragging && Math.abs(dx) + Math.abs(dy) < DRAG_THRESHOLD) return;
+        if (!dragging) {
+            dragging = true;
+            container.style.bottom = 'auto';
+            container.style.right = 'auto';
+            container.classList.add('sw-dragging');
+        }
+        container.style.left = Math.max(0, Math.min(origLeft + dx, window.innerWidth - badge.offsetWidth)) + 'px';
+        container.style.top = Math.max(0, Math.min(origTop + dy, window.innerHeight - badge.offsetHeight)) + 'px';
+    });
+
+    badge.addEventListener('pointerup', () => {
+        container.classList.remove('sw-dragging');
+        if (!dragging) setExpanded(!expanded);
+        startX = startY = null;
+    });
+
     document.body.appendChild(host);
     render();
 
@@ -330,6 +372,28 @@ export function mount({ subscribe, getKeys, clear }) {
         expanded = val;
         panel.classList.toggle('open', val);
         panel.setAttribute('aria-hidden', String(!val));
+        if (val) {
+            const rect = container.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const panelHeight = panel.offsetHeight || 300;
+            // Flip vertically
+            if (rect.top > panelHeight + 8 && spaceBelow < panelHeight + 8) {
+                panel.style.bottom = '44px';
+                panel.style.top = 'auto';
+            } else {
+                panel.style.top = '44px';
+                panel.style.bottom = 'auto';
+            }
+            // Flip horizontally
+            const panelWidth = 340;
+            if (rect.left + panelWidth > window.innerWidth) {
+                panel.style.right = '0';
+                panel.style.left = 'auto';
+            } else {
+                panel.style.left = '0';
+                panel.style.right = 'auto';
+            }
+        }
     }
 
     function copyKey(key, hintEl) {
