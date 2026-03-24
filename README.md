@@ -16,6 +16,8 @@ Svelte Whisper prioritizes a tiny footprint, zero configuration, and blazing-fas
 - **Interpolations**: Built-in support for auto-positional (`{}`), indexed (`{0}`), and named (`{user}`) variables.
 - **Deep Keys**: Access deeply nested JSON objects flawlessly (`app.ui.header.title`).
 - **Graceful Fallbacks**: Automatically falls back to your specified default language dictionary if a key is missing in the active locale.
+- **Missing Key Detection**: Fires an `onMissing` callback and `console.warn` for missing translation keys, with built-in deduplication. Navigate your entire app to collect every missing key.
+- **Dev Overlay** *(dev-only)*: A floating UI panel that collects and displays missing keys in real time. Uses Shadow DOM for style isolation. Automatically tree-shaken from production builds via `import.meta.env.DEV`.
 - **Sync Translation Helper**: Use `tr()` for translations outside Svelte component reactivity (stores, utilities, plain TS modules).
 
 ## Installation
@@ -126,6 +128,11 @@ mount(App, { target: document.getElementById('app') });
 | `initial` | String | — | Explicitly set the starting locale |
 | `persistKey` | String | — | localStorage key to save/restore the user's explicit locale choice. Auto-detected locales during init are not persisted. |
 | `detect` | Boolean \| Object | `true` | Auto-detect browser locale. `true` iterates `navigator.languages` and matches against registered locales (exact then prefix, e.g. `ja-JP` → `ja`). Pass an object for custom mapping (e.g. `{ ja: 'jp' }`). `false` disables detection. |
+| `onMissing` | Function | — | Callback fired when a missing key is encountered: `(entry: { locale, key }) => void`. Deduplicated per locale+key pair. When set, `console.warn` is suppressed by default. |
+| `warn` | Boolean | `true` * | Emit `console.warn` for missing keys. Defaults to `true` when no `onMissing` handler is set, `false` when one is. Pass `true` to force warnings alongside your handler, or `false` to silence them entirely. |
+| `devOverlay` | Boolean | `true` * | *(Dev-only)* Show a floating UI panel that collects missing keys in real time. Only active when `import.meta.env.DEV` is `true` (Vite dev mode). Completely tree-shaken from production builds. Pass `false` to disable in dev. |
+
+\* *`warn` defaults to `!onMissing`. `devOverlay` is only active in Vite dev mode regardless of this setting.*
 
 **Init priority chain:** `persistKey` (localStorage) → `detect` (browser language) → `initial` → `fallback`
 
@@ -187,6 +194,31 @@ import { getLocales } from 'svelte-whisper';
 const locales = getLocales(); // ['en', 'es', 'fr']
 ```
 
+### Missing Key Detection
+
+Svelte Whisper tracks missing translation keys at runtime with built-in deduplication — each unique locale+key pair is only reported once. Missing keys accumulate as you navigate through your app and switch locales, making it easy to audit coverage across your entire SPA.
+
+```javascript
+await init({
+  fallback: 'en',
+  onMissing: ({ locale, key }) => {
+    // Send to your logging service, collect in an array, etc.
+    console.log(`Missing: ${key} [${locale}]`);
+  },
+});
+```
+
+When no `onMissing` handler is provided, `console.warn` is emitted by default. When a handler is set, `console.warn` is suppressed (override with `warn: true`).
+
+#### Dev Overlay *(Vite dev mode only)*
+
+In Vite dev mode, a floating panel automatically appears in the bottom-right corner showing all missing keys in real time. Click any key to copy it to your clipboard.
+
+The overlay is loaded via dynamic `import()` gated on `import.meta.env.DEV`, so it is **completely tree-shaken from production builds** — zero bytes added to your production bundle. Disable it with `devOverlay: false`.
+
+> [!NOTE]
+> Missing key tracking only caches entries when there is an active consumer (`onMissing` handler, `console.warn` enabled, or the dev overlay). In production with `warn: false` and no `onMissing` handler, there is zero memory overhead.
+
 ## API Reference
 
 The `svelte-whisper` package provides the following exports to manage your application's internationalization state.
@@ -197,6 +229,9 @@ Bootstraps the Svelte Whisper configuration parameters. This is typically called
 - `options.initial` (String): Sets the default booting language. If provided, `svelte-whisper` will immediately set the `locale` store to this value.
 - `options.persistKey` (String): A localStorage key for persisting the user's locale choice. When set, the locale is restored from localStorage on init, and future explicit changes (via `locale.set()` after init) are saved. The auto-detected locale during init is not persisted — only deliberate user changes are saved.
 - `options.detect` (Boolean | Object): Browser locale auto-detection. Enabled by default — iterates `navigator.languages` (the full preference list) and matches each against registered locale IDs using exact match first, then prefix match (e.g. `ja-JP` matches registered `ja`). Pass an explicit mapping object (e.g. `{ ja: 'jp' }`) to map browser language prefixes to custom locale IDs. Pass `false` to disable.
+- `options.onMissing` (Function): Callback fired when a translation key is missing in both the active and fallback locale: `({ locale, key }) => void`. Deduplicated — each unique locale+key pair fires only once per session (reset on `init()`). When set, `console.warn` is suppressed by default.
+- `options.warn` (Boolean): Emit `console.warn` for missing keys. Defaults to `true` when no `onMissing` handler is set, `false` when one is. Use `warn: true` to force warnings alongside a handler, or `warn: false` to silence entirely.
+- `options.devOverlay` (Boolean): *(Dev-only)* Show a floating UI overlay for missing keys. Defaults to `true` in Vite dev mode (`import.meta.env.DEV`). Completely tree-shaken from production builds. Pass `false` to disable in dev.
 
 ### `addDictionary(locale, dict)`
 Synchronously merges a JSON object dictionary into a locale space in memory.

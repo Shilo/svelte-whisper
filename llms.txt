@@ -66,8 +66,18 @@ Bootstraps the Svelte Whisper configuration parameters.
 - `options.initial` (String): Set the default booting language.
 - `options.persistKey` (String): A localStorage key. When set, the locale is restored from localStorage on init, and future explicit locale changes (via `locale.set()` or `setLocale()` after init) are saved. The auto-detected or defaulted locale chosen during init is NOT persisted — only deliberate user-triggered changes are saved. This prevents stale auto-detected values from permanently overriding browser language detection on subsequent visits.
 - `options.detect` (Object | Boolean): Browser locale auto-detection. By default (`undefined` or `true`), iterates `navigator.languages` (the full browser preference list) and matches each against registered locale IDs using exact match first, then prefix match (e.g. `ja-JP` matches registered `ja`). Pass an explicit mapping object (e.g. `{ ja: 'jp' }`) to map browser prefixes to custom locale IDs. Pass `false` to disable detection entirely.
+- `options.onMissing` (Function): Callback `({ locale, key }) => void` fired when a translation key is missing in both active and fallback locales. Deduplicated per locale+key pair. Suppresses `console.warn` by default when set.
+- `options.warn` (Boolean): Emit `console.warn` for missing keys. Default `true` when no `onMissing` handler, `false` when one is set. `warn: true` forces warnings alongside a handler.
+- `options.devOverlay` (Boolean): *(Dev-only, tree-shaken in production)* Show a floating UI panel collecting missing keys in real time. Default `true` in Vite dev mode. Uses Shadow DOM. Pass `false` to disable.
 
 **Init priority chain:** persistKey (localStorage) → detect (browser language) → initial → fallback.
+
+### Missing Key Detection Behavior
+- When `$t('key')` resolves to `undefined` in both active and fallback locale dictionaries, the key string is returned as-is and `notifyMissing()` fires internally.
+- Deduplication: each unique `locale+key` pair fires handlers only once per session (reset on `init()`).
+- Missing key tracking only caches entries when there is an active consumer (`onMissing`, `warn`, or dev overlay listener). In production with `warn: false` and no handler, there is zero memory overhead.
+- The dev overlay (`dev-overlay.js`) is dynamically imported only when `import.meta.env.DEV` is `true`. Vite replaces this with `false` in production builds and the minifier eliminates the entire code path.
+- Internal functions `getMissingKeys()` and `clearMissingKeys()` are not exported — they are only used by the dev overlay and are tree-shaken from production builds.
 
 ### `addDictionary(locale, dict)`
 Synchronously merge a JSON object dictionary into a locale space. Useful for injecting the primary application language on boot.
