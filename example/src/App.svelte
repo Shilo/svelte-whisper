@@ -14,6 +14,7 @@
     <div class="features">
       <p>{$t('app.features', ['lazy loading', 'string interpolation', 'nested keys'])}</p>
       <p class="fallback-demo">{$t('only_en')}</p>
+      <p class="missing-demo">{$t('app.coming_soon')}</p>
     </div>
   </div>
 

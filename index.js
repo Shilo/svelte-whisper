@@ -12,11 +12,18 @@ let persistKey = null;
 let persistUnsub = null;
 let initOptions = {};
 const keyCache = new Map();
+let onMissingHandler = null;
+let warnOnMissing = true;
+const missingKeys = new Set();
+const missingKeyListeners = [];
 
 // --- Public API ---
 
 export async function init(options = {}) {
     initOptions = options;
+    onMissingHandler = options.onMissing || null;
+    warnOnMissing = options.warn !== undefined ? options.warn !== false : !onMissingHandler;
+    missingKeys.clear();
     if (options.fallback) fallbackLocale.set(options.fallback);
 
     // Clean up previous persistence
@@ -56,6 +63,23 @@ export async function init(options = {}) {
 
     // Persist only FUTURE explicit locale changes (not the auto-detected initial value)
     setupPersistence();
+
+    // Dev overlay — dynamically imported only in Vite dev mode, tree-shaken in production
+    try {
+        if (import.meta.env.DEV && options.devOverlay !== false) {
+            import('./dev-overlay.js').then(m => m.mount({
+                subscribe(fn) {
+                    missingKeyListeners.push(fn);
+                    return () => {
+                        const i = missingKeyListeners.indexOf(fn);
+                        if (i >= 0) missingKeyListeners.splice(i, 1);
+                    };
+                },
+                getKeys: getMissingKeys,
+                clear: clearMissingKeys,
+            }));
+        }
+    } catch {}
 }
 
 export async function resetLocale() {
@@ -141,7 +165,7 @@ export const t = derived(
                 val = resolveKey($dictionaries[$fallbackLocale], key);
             }
 
-            if (val === undefined) return key;
+            if (val === undefined) { notifyMissing($currentLocale, key); return key; }
             return interpolate(val, vars);
         };
     }
@@ -162,7 +186,30 @@ export function formatPercent(decimal, precision = 0) {
     return String(parseFloat(percent.toFixed(precision))) + '%';
 }
 
+export function getMissingKeys() {
+    return [...missingKeys].map(id => {
+        const i = id.indexOf('\0');
+        return { locale: id.slice(0, i), key: id.slice(i + 1) };
+    });
+}
+
+export function clearMissingKeys() {
+    missingKeys.clear();
+    for (const fn of missingKeyListeners) fn(null);
+}
+
 // --- Internal helpers ---
+
+function notifyMissing(locale, key) {
+    if (!key) return;
+    const id = locale + '\0' + key;
+    if (missingKeys.has(id)) return;
+    missingKeys.add(id);
+    const entry = { locale, key };
+    if (onMissingHandler) onMissingHandler(entry);
+    if (warnOnMissing) console.warn(`svelte-whisper: Missing "${key}" for locale "${locale}"`);
+    for (const fn of missingKeyListeners) fn(entry);
+}
 
 function setupPersistence() {
     if (persistUnsub) { persistUnsub(); persistUnsub = null; }

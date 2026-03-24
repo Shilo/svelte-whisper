@@ -1,12 +1,11 @@
 import { mount } from 'svelte'
 import './app.css'
 import App from './App.svelte'
-import { locale } from 'svelte-whisper';
+import { init } from 'svelte-whisper';
 
-// Zero configuration needed!
-// Svelte Whisper will automatically fetch `/locales/{lang}.json`
-// when a locale is set, since no custom loaders were defined.
-locale.set('en');
+// Initialize with missing key detection enabled.
+// The dev overlay will appear in Vite dev mode showing any missing keys.
+await init({ fallback: 'en', initial: 'en' });
 
 const app = mount(App, {
   target: document.getElementById('app'),

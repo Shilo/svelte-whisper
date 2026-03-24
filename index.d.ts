@@ -3,11 +3,19 @@ import type { Readable } from "svelte/store";
 export type WhisperDictionary = Record<string, unknown>;
 export type WhisperVars = Record<string, unknown> | unknown[];
 
+export interface MissingKeyEntry {
+    locale: string;
+    key: string;
+}
+
 export function init(options?: {
     fallback?: string;
     initial?: string;
     persistKey?: string;
     detect?: boolean | Record<string, string>;
+    onMissing?: (entry: MissingKeyEntry) => void;
+    warn?: boolean;
+    devOverlay?: boolean;
 }): Promise<void>;
 
 export function addDictionary(
@@ -45,3 +53,7 @@ export function tr(
 export function formatNumber(num: number): string;
 
 export function formatPercent(decimal: number, precision?: number): string;
+
+export function getMissingKeys(): MissingKeyEntry[];
+
+export function clearMissingKeys(): void;
