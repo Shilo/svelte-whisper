@@ -369,6 +369,20 @@ test('onMissing tracks multiple distinct keys', async () => {
     assert.ok(missing.every(e => e.locale === 'en'), 'all should be locale en');
 });
 
+test('onMissing fires when key exists in fallback but not active locale', async () => {
+    const missing = [];
+    await init({ fallback: 'en', initial: 'en', onMissing: (e) => missing.push(e) });
+    addDictionary('en', { shared: 'English', only_en: 'Only English' });
+    addDictionary('ja', { shared: 'Japanese' });
+
+    await setLocale('ja');
+    const result = get(t)('only_en');
+    assert.strictEqual(result, 'Only English', 'should return fallback value');
+    assert.strictEqual(missing.length, 1, 'should report missing key');
+    assert.strictEqual(missing[0].locale, 'ja');
+    assert.strictEqual(missing[0].key, 'only_en');
+});
+
 test('missing keys tracked across locale switches', async () => {
     const missing = [];
     await init({ fallback: 'en', initial: 'en', onMissing: (e) => missing.push(e) });

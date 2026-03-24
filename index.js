@@ -162,6 +162,7 @@ export const t = derived(
             let val = resolveKey($dictionaries[$currentLocale], key);
 
             if (val === undefined && $currentLocale !== $fallbackLocale) {
+                notifyMissing($currentLocale, key);
                 val = resolveKey($dictionaries[$fallbackLocale], key);
             }
 
