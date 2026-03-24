@@ -1,8 +1,8 @@
 # Svelte Whisper 🤫
 
-The minimalist, frictionless, and incredibly fast i18n localization library designed specifically for **Svelte 5** Single Page Applications.
+A pure-runtime i18n library built for **Svelte 5** client-side SPAs — tiny, zero-config, and lazy by design.
 
-Svelte Whisper prioritizes a tiny footprint, zero configuration, and blazing-fast runtime above all else. With pure vanilla JavaScript, it provides all the essential internationalization features without complex build steps or compile-time dependencies.
+Most i18n libraries are built around SSR routing, compile-time extraction, or heavyweight plugin ecosystems. Svelte Whisper takes a different approach: pure vanilla JavaScript, no build step, and true on-demand locale loading. It provides all the essential internationalization features in **~1 KB** with zero external dependencies. Written in plain JavaScript by intention — no TypeScript compile dependency — with type definitions shipped separately via `index.d.ts`.
 
 ## Features
 
@@ -292,8 +292,60 @@ formatPercent(0.123);     // "12%"
 formatPercent(0.123, 1);  // "12.3%"
 ```
 
-## Philosophy
-Svelte Whisper does **not** rely on compile-time integrations, routing manipulation, tree shaking dependencies, or heavy config maps. Its goal is strictly mapping dynamic dictionary values into memory securely & reactively without any configuration overhead for CSR SPAs.
+## Why Svelte Whisper?
+
+Most Svelte i18n libraries fall into two camps: **compile-time code generators** that bundle all your translations into JavaScript functions, or **heavyweight runtimes** that pull in large formatting ecosystems. Both assume server-side rendering, route-based locale splitting, or complex build pipelines.
+
+Svelte Whisper is built for a different reality: **client-side SPAs** — apps where the entire UI lives in the browser, locale switching happens at runtime without page reloads, and you only want to download a language file when the user actually asks for it.
+
+### The Core Difference: True Lazy Loading
+
+In a compile-time library like **Paraglide.js**, every translation becomes a JavaScript function baked into your bundle at build time. Tree-shaking removes *unused messages per route*, but **all locales for every used message are still compiled in**. This works well for SSR apps with route-based page splitting, but for a single-page app with no routing, you're bundling every language upfront — even ones the user never selects.
+
+In a runtime library like **svelte-i18n** or **i18next**, dictionaries are loaded at runtime, but the libraries themselves carry significant weight from ICU/MessageFormat parsing, plugin systems, and framework abstraction layers.
+
+Svelte Whisper loads **nothing until you need it**. Register a loader, and the locale's JSON is fetched only when `locale.set()` is called. The initial bundle contains only your default language. A 4-language app downloads one JSON file on boot and the rest on demand — no build-time extraction, no upfront bundling, no wasted bytes.
+
+### How the Approaches Compare
+
+| | Svelte Whisper | svelte-i18n | Paraglide.js | i18next |
+|---|---|---|---|---|
+| **Library size (gzip)** | **~1 KB** | ~14 KB | Near-zero runtime | ~9-22 KB |
+| **Dependencies** | None | FormatJS (ICU) | Vite plugin (build-only) | Plugin ecosystem |
+| **Architecture** | Pure runtime | Runtime + ICU parser | Compiler (Vite plugin) | Runtime + plugins |
+| **Locale loading** | On-demand fetch/import | Sync or async register | Compiled into bundle | Plugin-based |
+| **Switching locales** | Instant, no reload | Instant, no reload | Page reload (default) | Instant, no reload |
+| **Best suited for** | Client-side SPAs | General Svelte apps | SSR / SvelteKit routing | Cross-framework projects |
+| **Setup** | Zero-config or `init()` | `init()` + config | CLI + Vite plugin + hooks | Config + plugins |
+| **SSR support** | No (SPA-focused) | Yes (singleton issues) | Yes (first-class) | Yes (with context isolation) |
+| **Type safety** | Manual `.d.ts` | None built-in | Full (generated functions) | Optional |
+| **Pluralization** | No (use dictionary keys) | ICU MessageFormat | ICU (compiled) | Built-in + ICU plugin |
+| **Built-in persistence** | Yes (localStorage) | No (manual) | No (URL-based) | No (plugin) |
+| **Built-in detection** | Yes (navigator.languages) | Helper functions | URL routing | Plugin |
+| **Missing key tooling** | Dev overlay + callback | None | Compile-time errors | Debug plugin |
+| **Svelte version** | Svelte 5 only | Svelte 3/4/5 | Svelte 5 / SvelteKit | Any (via wrapper) |
+
+### When to Use Svelte Whisper
+
+Svelte Whisper is the right fit when your app:
+
+- Is a **client-side SPA or PWA** — no server-side rendering, no route-based page splitting
+- Needs **runtime locale switching** — users pick a language and the UI updates instantly, no page reload
+- Wants **on-demand locale loading** — download language files only when requested, not bundled upfront
+- Values **simplicity** — `$t('key')` in templates, `tr('key')` in scripts, done
+- Needs **zero build-step integration** — no Vite plugins, no code generators, no CLI scaffolding
+
+### Real-World Example
+
+[**Backpack Planner**](https://github.com/Shilo/rg-backpack-planner) is a Svelte 5 PWA that supports English, Japanese, Chinese, and French. It uses `import.meta.glob` to discover locale files and `registerLoader()` to register each one — so only the user's selected language is ever downloaded. Locale switching is instant with no page reload, and the choice persists across sessions via `persistKey`. A compile-time library would bundle all four languages into the app upfront (~120 KB of JSON), but with Svelte Whisper the initial load includes only the default language and the rest are fetched on demand.
+
+### When to Use Something Else
+
+- **Not using Svelte** → Svelte Whisper is built on Svelte's store primitives and only works with Svelte 5. For React, Vue, or other frameworks, look at i18next or a framework-specific solution. That said, the core logic is plain JavaScript with minimal Svelte coupling — it could be ported to another framework's reactivity system with little effort.
+- **SSR / SvelteKit with localized routes** → Paraglide.js is purpose-built for this and is the official SvelteKit integration.
+- **ICU message syntax** (plurals, gender, select) → svelte-i18n includes FormatJS for full ICU support.
+- **Cross-framework translation sharing** (React + Vue + Svelte) → i18next has 30+ framework adapters.
+- **Compile-time type safety on every key** → Paraglide.js and typesafe-i18n generate typed functions from your dictionaries.
 
 ## 🌐 Companion Localization Editor
 
