@@ -54,6 +54,3 @@ export function formatNumber(num: number): string;
 
 export function formatPercent(decimal: number, precision?: number): string;
 
-export function getMissingKeys(): MissingKeyEntry[];
-
-export function clearMissingKeys(): void;

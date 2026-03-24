@@ -186,25 +186,27 @@ export function formatPercent(decimal, precision = 0) {
     return String(parseFloat(percent.toFixed(precision))) + '%';
 }
 
-export function getMissingKeys() {
+// --- Internal helpers ---
+
+function getMissingKeys() {
     return [...missingKeys].map(id => {
         const i = id.indexOf('\0');
         return { locale: id.slice(0, i), key: id.slice(i + 1) };
     });
 }
 
-export function clearMissingKeys() {
+function clearMissingKeys() {
     missingKeys.clear();
     for (const fn of missingKeyListeners) fn(null);
 }
-
-// --- Internal helpers ---
 
 function notifyMissing(locale, key) {
     if (!key) return;
     const id = locale + '\0' + key;
     if (missingKeys.has(id)) return;
-    missingKeys.add(id);
+    if (warnOnMissing || onMissingHandler || missingKeyListeners.length) {
+        missingKeys.add(id);
+    }
     const entry = { locale, key };
     if (onMissingHandler) onMissingHandler(entry);
     if (warnOnMissing) console.warn(`svelte-whisper: Missing "${key}" for locale "${locale}"`);

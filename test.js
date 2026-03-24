@@ -1,7 +1,7 @@
 import { test, mock } from 'node:test';
 import assert from 'node:assert';
 import { get } from 'svelte/store';
-import { init, addDictionary, registerLoader, setLocale, resetLocale, locale, t, tr, getLocales, getMissingKeys, clearMissingKeys } from './index.js';
+import { init, addDictionary, registerLoader, setLocale, resetLocale, locale, t, tr, getLocales } from './index.js';
 
 test('initialization and dictionary addition', async () => {
     await init({ fallback: 'en', initial: 'en' });
@@ -357,41 +357,27 @@ test('warn: false disables console.warn', async () => {
     warnMock.mock.restore();
 });
 
-test('getMissingKeys returns tracked entries', async () => {
-    await init({ fallback: 'en', initial: 'en', onMissing: () => {} });
-
-    get(t)('alpha');
-    get(t)('beta');
-    const keys = getMissingKeys();
-    assert.ok(keys.some(e => e.key === 'alpha'), 'should contain alpha');
-    assert.ok(keys.some(e => e.key === 'beta'), 'should contain beta');
-    assert.ok(keys.every(e => e.locale === 'en'), 'all should be locale en');
-});
-
-test('clearMissingKeys resets tracking', async () => {
+test('onMissing tracks multiple distinct keys', async () => {
     const missing = [];
     await init({ fallback: 'en', initial: 'en', onMissing: (e) => missing.push(e) });
 
-    get(t)('clear.me');
-    assert.strictEqual(getMissingKeys().length, 1);
-
-    clearMissingKeys();
-    assert.strictEqual(getMissingKeys().length, 0);
-
-    // After clear, the same key should fire again
-    get(t)('clear.me');
-    assert.strictEqual(missing.length, 2, 'callback should fire again after clear');
+    get(t)('alpha');
+    get(t)('beta');
+    assert.strictEqual(missing.length, 2);
+    assert.ok(missing.some(e => e.key === 'alpha'), 'should contain alpha');
+    assert.ok(missing.some(e => e.key === 'beta'), 'should contain beta');
+    assert.ok(missing.every(e => e.locale === 'en'), 'all should be locale en');
 });
 
 test('missing keys tracked across locale switches', async () => {
-    await init({ fallback: 'en', initial: 'en', onMissing: () => {} });
+    const missing = [];
+    await init({ fallback: 'en', initial: 'en', onMissing: (e) => missing.push(e) });
     addDictionary('es', { hola: 'Hola' });
 
     get(t)('only.in.en.missing');
     await setLocale('es');
     get(t)('only.in.es.missing');
 
-    const keys = getMissingKeys();
-    assert.ok(keys.some(e => e.key === 'only.in.en.missing' && e.locale === 'en'));
-    assert.ok(keys.some(e => e.key === 'only.in.es.missing' && e.locale === 'es'));
+    assert.ok(missing.some(e => e.key === 'only.in.en.missing' && e.locale === 'en'));
+    assert.ok(missing.some(e => e.key === 'only.in.es.missing' && e.locale === 'es'));
 });
