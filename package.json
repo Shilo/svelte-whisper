@@ -35,10 +35,15 @@
     "./dev-overlay": "./dev-overlay.js",
     "./package.json": "./package.json"
   },
+  "bin": {
+    "svelte-whisper": "./bin/svelte-whisper.js"
+  },
   "files": [
     "index.js",
     "index.d.ts",
     "dev-overlay.js",
+    "bin",
+    "skills",
     "llms.txt"
   ],
   "scripts": {

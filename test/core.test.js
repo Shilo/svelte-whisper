@@ -58,6 +58,14 @@ describe('translation', () => {
         assert.equal(w.tr('hello'), 'Hello');
     });
 
+    test('a null value counts as not translated', async () => {
+        const w = await english({ hello: 'Hello', nav: { home: 'Home' } });
+        w.addDictionary('fr', { hello: null, nav: { home: null } });
+        await w.setLocale('fr');
+        assert.equal(w.tr('hello'), 'Hello');
+        assert.equal(w.tr('nav.home'), 'Home');
+    });
+
     test('addDictionary merges deeply into an existing locale', async () => {
         const w = await english({ app: { title: 'Title' } });
         w.addDictionary('en', { app: { subtitle: 'Subtitle' } });

@@ -215,8 +215,9 @@ function interpolate(text, vars) {
 function flatten(node, prefix, out) {
     for (const key in node) {
         const value = node[key];
+        if (value == null) continue; // a null in JSON reads as "not translated yet"
         out[prefix + key] = value;
-        if (value && typeof value === 'object') flatten(value, prefix + key + '.', out);
+        if (typeof value === 'object') flatten(value, prefix + key + '.', out);
     }
 }
 
