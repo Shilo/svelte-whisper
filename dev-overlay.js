@@ -284,11 +284,11 @@ const TEMPLATE = `
 
 let mounted = false;
 
-export function mount({ subscribe, getKeys, clear }) {
+export function mount({ keys, listen, clear }) {
     if (mounted || typeof document === 'undefined') return;
     mounted = true;
 
-    const entries = getKeys();
+    const entries = keys();
     let expanded = false;
 
     // Build Shadow DOM
@@ -362,9 +362,8 @@ export function mount({ subscribe, getKeys, clear }) {
     document.body.appendChild(host);
     render();
 
-    subscribe(entry => {
-        if (entry === null) { entries.length = 0; }
-        else entries.push(entry);
+    listen(entry => {
+        entries.push(entry);
         render();
     });
 

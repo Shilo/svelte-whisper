@@ -1,24 +1,56 @@
 {
   "name": "svelte-whisper",
-  "version": "1.2.2",
-  "description": "",
-  "main": "index.js",
-  "types": "./index.d.ts",
-  "scripts": {
-    "test": "node --test test.js"
-  },
-  "keywords": [],
-  "author": "",
+  "version": "2.0.0",
+  "description": "Tiny runtime i18n for Svelte 5 single-page apps: lazy-loaded locales, plurals and Intl formatting in about 1.5 kB.",
+  "keywords": [
+    "svelte",
+    "svelte5",
+    "i18n",
+    "l10n",
+    "internationalization",
+    "localization",
+    "translation",
+    "lazy-loading",
+    "spa"
+  ],
   "license": "ISC",
+  "author": "Shilo",
+  "homepage": "https://github.com/Shilo/svelte-whisper#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shilo/svelte-whisper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Shilo/svelte-whisper/issues"
+  },
   "type": "module",
+  "sideEffects": false,
+  "main": "./index.js",
+  "types": "./index.d.ts",
   "exports": {
-    ".": "./index.js",
-    "./dev-overlay": "./dev-overlay.js"
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./dev-overlay": "./dev-overlay.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "dev-overlay.js",
+    "llms.txt"
+  ],
+  "scripts": {
+    "test": "node --conditions=browser --test",
+    "bench": "node scripts/bench.js",
+    "size": "node scripts/size.js"
   },
   "peerDependencies": {
-    "svelte": "^5.0.0"
+    "svelte": "^5.7.0"
   },
   "devDependencies": {
-    "svelte": "^5.53.6"
+    "esbuild": "^0.28.2",
+    "svelte": "^5.57.3"
   }
 }

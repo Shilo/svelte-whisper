@@ -1,285 +1,316 @@
-import { writable, derived, get } from 'svelte/store';
+// svelte-whisper — tiny runtime i18n for Svelte 5 single-page apps.
+import { createSubscriber } from 'svelte/reactivity';
 
-const currentLocale = writable('');
-const fallbackLocale = writable('en');
-const dictionaries = writable({});
+const RTL = /^(ar|ckb|dv|fa|he|ps|sd|ug|ur|yi)\b/i;
+
+// Dictionaries are stored flattened, so `a.b.c` is a single property lookup.
+const dictionaries = {};
 const loaders = {};
+const pending = {};
+const formatters = {};
+const missingListeners = new Set();
+const localeSubscribers = new Set();
+const tSubscribers = new Set();
 
-let dictionariesVal = {};
-dictionaries.subscribe(v => dictionariesVal = v);
+let current = '';
+let fallback = 'en';
+let options = {};
+let warn = true;
+let request = 0;
+let fallbackTried = false;
+let missing = {};
+let active, backup, tFn;
 
-let persistKey = null;
-let persistUnsub = null;
-let initOptions = {};
-const keyCache = new Map();
-let onMissingHandler = null;
-let warnOnMissing = true;
-const missingKeys = new Set();
-const missingKeyListeners = [];
+// Vite replaces import.meta.env.* at build time; elsewhere the lookup throws and '/' stays.
+let base = '/';
+try { base = import.meta.env.BASE_URL || base; } catch { }
 
-// --- Public API ---
+// Lets plain function calls (tr, formatNumber, …) re-run inside Svelte 5 templates,
+// $derived and $effect when the locale or a dictionary changes. A no-op elsewhere.
+let ping = () => { };
+const track = createSubscriber(update => { ping = update; });
 
-export async function init(options = {}) {
-    initOptions = options;
-    onMissingHandler = options.onMissing || null;
-    warnOnMissing = options.warn !== undefined ? options.warn !== false : !onMissingHandler;
-    missingKeys.clear();
-    if (options.fallback) fallbackLocale.set(options.fallback);
+refresh();
 
-    // Clean up previous persistence
-    if (persistUnsub) {
-        persistUnsub();
-        persistUnsub = null;
-    }
-    persistKey = null;
+// --- Setup ---
 
-    // Determine initial locale: persist → detect → initial → fallback
-    let initial = '';
+export async function init(opts = {}) {
+    options = opts;
+    fallback = opts.fallback || fallback;
+    warn = opts.warn ?? !opts.onMissing;
+    fallbackTried = false;
+    missing = {};
+    refresh();
+    await pick(persisted('getItem'));
 
-    if (options.persistKey && typeof localStorage !== 'undefined') {
-        persistKey = options.persistKey;
-        try {
-            const stored = localStorage.getItem(persistKey);
-            if (stored && (loaders[stored] || dictionariesVal[stored])) {
-                initial = stored;
-            }
-        } catch { }
-    }
-
-    if (!initial && options.detect !== false) {
-        const mapping = typeof options.detect === 'object' ? options.detect : null;
-        initial = detectBrowserLocale(mapping, '');
-    }
-
-    if (!initial && options.initial) {
-        initial = options.initial;
-    }
-
-    if (!initial) {
-        initial = options.fallback || get(fallbackLocale) || '';
-    }
-
-    if (initial) await setLocale(initial);
-
-    // Persist only FUTURE explicit locale changes (not the auto-detected initial value)
-    setupPersistence();
-
-    // Dev overlay — dynamically imported only in Vite dev mode, tree-shaken in production
+    // Dev overlay: a separate chunk, requested only by the Vite dev server.
+    // In production builds this whole branch is removed.
     try {
-        if (import.meta.env.DEV && options.devOverlay !== false) {
+        if (import.meta.env.DEV && opts.devOverlay !== false && !navigator.webdriver) {
             import('./dev-overlay.js').then(m => m.mount({
-                subscribe(fn) {
-                    missingKeyListeners.push(fn);
-                    return () => {
-                        const i = missingKeyListeners.indexOf(fn);
-                        if (i >= 0) missingKeyListeners.splice(i, 1);
-                    };
-                },
-                getKeys: getMissingKeys,
-                clear: clearMissingKeys,
+                keys: () => Object.keys(missing).flatMap(locale => [...missing[locale]].map(key => ({ locale, key }))),
+                listen: fn => missingListeners.add(fn),
+                clear() { missing = {}; },
             }));
         }
-    } catch {}
-}
-
-export async function resetLocale() {
-    if (persistKey && typeof localStorage !== 'undefined') {
-        try { localStorage.removeItem(persistKey); } catch { }
-    }
-
-    // Tear down persistence so re-detected locale isn't stored
-    if (persistUnsub) { persistUnsub(); persistUnsub = null; }
-
-    let next = '';
-
-    if (initOptions.detect !== false) {
-        const mapping = typeof initOptions.detect === 'object' ? initOptions.detect : null;
-        next = detectBrowserLocale(mapping, '');
-    }
-
-    if (!next && initOptions.initial) {
-        next = initOptions.initial;
-    }
-
-    if (!next) {
-        next = initOptions.fallback || get(fallbackLocale) || '';
-    }
-
-    if (next) await setLocale(next);
-
-    // Re-establish persistence for future explicit changes only
-    setupPersistence();
+    } catch { }
 }
 
 export function addDictionary(locale, dict) {
-    dictionaries.update(d => {
-        d[locale] = { ...d[locale], ...dict };
-        return d;
-    });
+    flatten(dict, '', dictionaries[locale] ??= Object.create(null));
+    if (locale === current || locale === fallback) refresh();
 }
 
+/**
+ * registerLoader('es', () => import('./locales/es.json'))
+ * registerLoader(import.meta.glob('./locales/*.json'))
+ */
 export function registerLoader(locale, loader) {
-    loaders[locale] = loader;
+    if (loader) loaders[locale] = loader;
+    else if (typeof locale === 'object') {
+        for (const path in locale) loaders[path.replace(/^.*\/|\.[^.]*$/g, '')] = locale[path];
+    }
 }
 
-export async function setLocale(locale) {
-    if (!dictionariesVal[locale]) {
+export function loadLocale(locale) {
+    if (dictionaries[locale]) return Promise.resolve(true);
+    return pending[locale] ??= (async () => {
+        let dict;
         try {
-            let dict;
             if (loaders[locale]) {
-                const module = await loaders[locale]();
-                dict = module.default || module;
-            } else if (typeof fetch !== 'undefined') {
-                // Zero-Config Auto Fallback
-                const res = await fetch(`/locales/${locale}.json`);
-                if (res.ok) dict = await res.json();
+                dict = await loaders[locale]();
+                if (dict && typeof dict.default === 'object') dict = dict.default;
+            } else if (!Object.keys(loaders).length) {
+                // Zero-config: with no loaders registered, locales are fetched by convention.
+                const response = await fetch(`${base}locales/${locale}.json`);
+                if (response.ok) dict = await response.json();
             }
-            if (dict) addDictionary(locale, dict);
-        } catch (e) {
-            console.error(`svelte-whisper: Failed to load dictionary for ${locale}`, e);
+        } catch (error) {
+            console.error(`svelte-whisper: Failed to load locale "${locale}"`, error);
         }
-    }
-    currentLocale.set(locale);
+        delete pending[locale];
+        if (dict) addDictionary(locale, dict);
+        return !!dict;
+    })();
+}
+
+// --- Locale ---
+
+/** Resolves true once `locale` is active, false if it could not be loaded or a newer call won. */
+export function setLocale(locale) {
+    return change(locale, true).then(Boolean);
+}
+
+export function resetLocale() {
+    persisted('removeItem');
+    return pick();
+}
+
+export function getLocale() {
+    track();
+    return current;
 }
 
 export function getLocales() {
-    return [...new Set([...Object.keys(loaders), ...Object.keys(dictionariesVal)])];
+    return Object.keys({ ...loaders, ...dictionaries });
 }
 
 export function getFallbackLocale() {
-    return get(fallbackLocale);
+    return fallback;
 }
 
-export const locale = {
-    subscribe: currentLocale.subscribe,
-    set: setLocale
-};
-
-export const t = derived(
-    [currentLocale, dictionaries, fallbackLocale],
-    ([$currentLocale, $dictionaries, $fallbackLocale]) => {
-        return (key, vars) => {
-            let val = resolveKey($dictionaries[$currentLocale], key);
-
-            if (val === undefined && $currentLocale !== $fallbackLocale) {
-                notifyMissing($currentLocale, key);
-                val = resolveKey($dictionaries[$fallbackLocale], key);
-            }
-
-            if (val === undefined) { notifyMissing($currentLocale, key); return key; }
-            return interpolate(val, vars);
-        };
+/** Best match for the browser's preferred languages among known locales, or ''. */
+export function detectLocale(mapping) {
+    if (typeof navigator === 'undefined') return '';
+    const known = mapping ? Object.keys(mapping) : getLocales();
+    for (const language of [...navigator.languages || [], navigator.language || '']) {
+        const lang = language.toLowerCase();
+        for (const matches of [
+            tag => tag === lang,                                    // ja-JP → ja-JP
+            tag => lang.startsWith(tag + '-'),                      // ja-JP → ja
+            tag => tag.split('-')[0] === lang.split('-')[0],        // pt → pt-BR, en-GB → en-US
+        ]) {
+            const id = known.find(id => matches(id.toLowerCase()));
+            if (id) return mapping ? mapping[id] : id;
+        }
     }
-);
+    return '';
+}
 
+/** Store of the active locale: `$locale` to read, `locale.set('fr')` to switch. */
+export const locale = { ...store(localeSubscribers, () => current), set: setLocale };
+
+// --- Translation ---
+
+/** Store of the translate function: `$t('key', vars)` in markup. */
+export const t = store(tSubscribers, () => tFn);
+
+/** Translate anywhere. Reactive when called from a template, $derived or $effect. */
 export function tr(key, vars) {
-    return get(t)(key, vars);
+    track();
+    return translate(key, vars);
 }
 
-export function formatNumber(num) {
-    return num.toLocaleString(get(currentLocale) || undefined);
+// --- Formatting (Intl, bound to the active locale) ---
+
+export function formatNumber(value, opts, loc) {
+    return intl('NumberFormat', opts, loc).format(value);
 }
 
-export function formatPercent(decimal, precision = 0) {
-    if (decimal === 0) return '0%';
-    const percent = decimal * 100;
-    if (Number.isInteger(percent)) return formatNumber(percent) + '%';
-    return String(parseFloat(percent.toFixed(precision))) + '%';
+export function formatPercent(value, precision = 0) {
+    return formatNumber(value, { style: 'percent', maximumFractionDigits: precision });
 }
 
-// --- Internal helpers ---
-
-function getMissingKeys() {
-    return [...missingKeys].map(id => {
-        const i = id.indexOf('\0');
-        return { locale: id.slice(0, i), key: id.slice(i + 1) };
-    });
+export function formatDate(value, opts, loc) {
+    return intl('DateTimeFormat', opts, loc).format(value);
 }
 
-function clearMissingKeys() {
-    missingKeys.clear();
-    for (const fn of missingKeyListeners) fn(null);
-}
-
-function notifyMissing(locale, key) {
-    if (!key) return;
-    const id = locale + '\0' + key;
-    if (missingKeys.has(id)) return;
-    if (warnOnMissing || onMissingHandler || missingKeyListeners.length) {
-        missingKeys.add(id);
+/** Language name for a locale id: its own name by default ('ja' → '日本語'). */
+export function localeName(id, displayLocale = id) {
+    try {
+        return intl('DisplayNames', { type: 'language' }, displayLocale).of(id) || id;
+    } catch {
+        return id;
     }
-    const entry = { locale, key };
-    if (onMissingHandler) onMissingHandler(entry);
-    if (warnOnMissing) console.warn(`svelte-whisper: Missing "${key}" for locale "${locale}"`);
-    for (const fn of missingKeyListeners) fn(entry);
 }
 
-function setupPersistence() {
-    if (persistUnsub) { persistUnsub(); persistUnsub = null; }
-    if (!persistKey) return;
-    let skip = true;
-    persistUnsub = currentLocale.subscribe(val => {
-        if (skip) { skip = false; return; }
-        if (val) {
-            try { localStorage.setItem(persistKey, val); } catch { }
-        }
-    });
-}
+// --- Internals ---
 
-function detectBrowserLocale(mapping, fallback) {
-    if (typeof navigator === 'undefined') return fallback || '';
-    const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
-
-    // Explicit mapping: { prefix: localeId }
-    if (mapping) {
-        for (const lang of langs) {
-            const lower = lang.toLowerCase();
-            for (const [prefix, loc] of Object.entries(mapping)) {
-                if (lower.startsWith(prefix.toLowerCase())) return loc;
+function translate(key, vars) {
+    let value = active?.[key];
+    if (value === undefined) {
+        if (current) reportMissing(key);
+        value = backup?.[key];
+        if (value === undefined) {
+            // A lazily registered fallback is fetched on the first miss, then the text heals itself.
+            if (current && !fallbackTried && !dictionaries[fallback]) {
+                fallbackTried = true;
+                loadLocale(fallback);
             }
+            return key;
         }
-        return fallback || '';
     }
-
-    // Auto-detect: iterate browser language preferences in priority order
-    const knownLocales = [...new Set([...Object.keys(loaders), ...Object.keys(dictionariesVal)])];
-    for (const lang of langs) {
-        const lower = lang.toLowerCase();
-        // Exact match first (e.g. "ja-JP" matches registered "ja-JP")
-        const exact = knownLocales.find(l => lower === l.toLowerCase());
-        if (exact) return exact;
-        // Prefix match (e.g. "ja-JP" matches registered "ja")
-        const prefix = knownLocales.find(l => lower.startsWith(l.toLowerCase()));
-        if (prefix) return prefix;
+    if (vars == null) return value;
+    if (typeof value === 'object' && typeof vars.count === 'number') {
+        value = value[vars.count] ?? value[intl('PluralRules', undefined, current).select(vars.count)] ?? value.other;
     }
-    return fallback || '';
-}
-
-function resolveKey(dict, key) {
-    if (!dict) return undefined;
-    if (dict[key] !== undefined) return dict[key]; // Fast path for flat keys
-
-    let keys = keyCache.get(key);
-    if (!keys) {
-        keys = key.split('.');
-        keyCache.set(key, keys);
-    }
-
-    let val = dict;
-    for (let i = 0; i < keys.length; i++) {
-        val = val[keys[i]];
-        if (val == null) return undefined;
-    }
-    return val;
+    return typeof value === 'string' ? interpolate(value, vars) : value;
 }
 
 function interpolate(text, vars) {
-    if (!text || typeof text !== 'string') return text;
-    if (!vars || text.indexOf('{') === -1) return text;
+    let open = text.indexOf('{');
+    if (open < 0) return text;
+    let out = '', last = 0, auto = 0, close;
+    while (open >= 0 && (close = text.indexOf('}', open)) >= 0) {
+        const value = vars[text.slice(open + 1, close).trim() || auto++];
+        if (value != null) {
+            out += text.slice(last, open) + value;
+            last = close + 1;
+        }
+        open = text.indexOf('{', close);
+    }
+    return out + text.slice(last);
+}
 
-    let autoIndex = 0;
-    return text.replace(/{([^}]*)}/g, (match, p1) => {
-        let key = p1.trim() || autoIndex++;
-        return vars[key] !== undefined ? String(vars[key]) : match;
-    });
+function flatten(node, prefix, out) {
+    for (const key in node) {
+        const value = node[key];
+        out[prefix + key] = value;
+        if (value && typeof value === 'object') flatten(value, prefix + key + '.', out);
+    }
+}
+
+// Intl objects are slow to construct and fast to reuse, so each one is built once.
+function intl(type, opts, loc) {
+    if (loc === undefined) {
+        track();
+        loc = current;
+    }
+    const cache = formatters[type] ??= new Map();
+    const id = opts ? loc + JSON.stringify(opts) : loc;
+    let formatter = cache.get(id);
+    if (!formatter) {
+        try {
+            formatter = new Intl[type](loc || undefined, opts);
+        } catch {
+            formatter = new Intl[type](undefined, opts); // the locale id is not a valid language tag
+        }
+        cache.set(id, formatter);
+    }
+    return formatter;
+}
+
+// The Svelte store contract, without importing svelte/store.
+function store(subscribers, value) {
+    return {
+        subscribe(fn) {
+            subscribers.add(fn);
+            fn(value());
+            return () => subscribers.delete(fn);
+        },
+    };
+}
+
+function refresh() {
+    active = dictionaries[current];
+    backup = current === fallback ? undefined : dictionaries[fallback];
+    tFn = (key, vars) => translate(key, vars);
+    for (const fn of tSubscribers) fn(tFn);
+    ping();
+}
+
+// true: applied · false: could not load · undefined: superseded by a newer call
+function change(next, persist) {
+    const id = ++request;
+    if (dictionaries[next]) return Promise.resolve(apply(next, persist));
+    return loadLocale(next).then(ok => ok && (id === request ? apply(next, persist) : undefined));
+}
+
+function apply(next, persist) {
+    if (persist) persisted('setItem', next);
+    if (next !== current) {
+        current = next;
+        if (typeof document !== 'undefined') {
+            const root = document.documentElement;
+            root.lang = next;
+            root.dir = RTL.test(next) ? 'rtl' : 'ltr';
+        }
+        refresh();
+        for (const fn of localeSubscribers) fn(next);
+    }
+    return true;
+}
+
+// First candidate that loads wins: stored choice → browser language → initial → fallback.
+// Nothing chosen here is persisted; only explicit setLocale() calls are.
+async function pick(stored) {
+    const detect = options.detect;
+    for (const candidate of [
+        stored,
+        detect !== false && detectLocale(typeof detect === 'object' ? detect : undefined),
+        options.initial,
+        fallback,
+    ]) {
+        if (candidate && await change(candidate) !== false) return;
+    }
+    apply(fallback); // nothing could be loaded: keep a defined locale, keys render as-is
+}
+
+// localStorage can be missing or throw (private mode, sandboxed iframes): persistence is best-effort.
+function persisted(method, value) {
+    try {
+        return options.persistKey && localStorage[method](options.persistKey, value);
+    } catch { }
+}
+
+function reportMissing(key) {
+    const onMissing = options.onMissing;
+    if (!key || (!warn && !onMissing && !missingListeners.size)) return;
+    const seen = missing[current] ??= new Set();
+    if (seen.has(key)) return;
+    seen.add(key);
+    const entry = { locale: current, key };
+    if (onMissing) onMissing(entry);
+    if (warn) console.warn(`svelte-whisper: Missing "${key}" for locale "${current}"`);
+    for (const fn of missingListeners) fn(entry);
 }
