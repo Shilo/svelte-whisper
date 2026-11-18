@@ -143,7 +143,7 @@ An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules`
 
 ## Legacy components
 
-Svelte 5 compiles a component in its legacy mode when it still uses `export let`, `$:`, `$$props` or `$$restProps`, or when runes are switched off for it (`runes: false`). There it follows **stores only**: a plain function call such as `{t('key')}` is evaluated once and never again. So `t` is also a store, and so is `locale`. Prefix them with a dollar sign:
+Svelte 5 compiles a component in its legacy mode when it still uses `export let`, `$:`, `$$props` or `$$restProps`, or when runes are switched off for it (`runes: false`). There it follows **stores only**: a plain function call such as `{t('key')}` is not followed, and current Svelte evaluates it once and never again. So `t` is also a store, and so is `locale`. Prefix them with a dollar sign:
 
 ```svelte
 <script>
@@ -201,7 +201,7 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
     value={getLocale()}
     onchange={async event => {
         const select = event.currentTarget;
-        // false: the language did not change (the download failed, or a newer switch won). Put the control back.
+        // false: this switch did not happen (the download failed, or a newer one won). Show the active language.
         if (!await setLocale(select.value)) select.value = getLocale();
     }}
 >
@@ -406,7 +406,9 @@ npx svelte-whisper apply fr new.json   # merge translations, drop stale keys, ke
 npx svelte-whisper sync                # tidy every locale without translating
 ```
 
-`check` exits with an error when a locale is out of step with the source, or when `--usage` finds code using a key that does not exist, so it works as a CI gate. It finds the locale folder itself, or reads it from `package.json`:
+`check` exits with an error when a locale is out of step with the source, or when `--usage` finds code using a key that does not exist, so it works as a CI gate. The scan reads your code as text: it checks every key written as a string straight inside `t(` or `$t(`, in comments too, and takes `` t(`nav.${id}`) `` as using everything under `nav.`. A key passed in a variable is not checked.
+
+`check` finds the locale folder itself, or reads it from `package.json`:
 
 ```json
 { "svelte-whisper": { "locales": "src/locales", "source": "en" } }

@@ -54,7 +54,7 @@ await setupI18n();
 mount(App, { target: document.getElementById('app') });
 ```
 
-`init` picks the starting locale in this order: the user's stored choice, the browser's language, `initial`, then `fallback`. Awaiting it before `mount` means the first paint is already translated.
+`init` picks the starting locale in this order: the user's stored choice, the browser's language, `initial`, then `fallback`. Awaiting it before `mount` means the first paint is already in that language.
 
 To skip the extra request for the main language, bundle it and lazy-load the rest. The whole of `src/lib/i18n.js` then reads:
 

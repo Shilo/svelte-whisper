@@ -281,8 +281,9 @@ function isPlural(value) {
 const text = value => typeof value === 'string' ? value : JSON.stringify(value);
 const same = (a, b) => text(a) === text(b);
 const hasWords = value => /\p{L}{2}/u.test(text(value).replace(/\{[^{}]*\}/g, ''));
-// The distinct {placeholders} of a message. Empty braces are plain text, not a placeholder.
-const placeholders = value => [...new Set(text(value).match(/\{[^{}"]*[^{}"\s][^{}"]*\}/g) || [])].sort();
+// The distinct {placeholders} of a message, named as the library reads them: `{ name }` is `{name}`.
+// Empty braces are plain text, not a placeholder.
+const placeholders = value => [...new Set((text(value).match(/\{[^{}"]*[^{}"\s][^{}"]*\}/g) || []).map(p => `{${p.slice(1, -1).trim()}}`))].sort();
 
 function localeEntries(project, id) {
     const file = join(project.dir, id + '.json');
@@ -315,32 +316,37 @@ function usage(project, dir, source) {
     const call = /(?<![\w$.])\$?t\(\s*(?:'([^'\n]*)'|"([^"\n]*)"|`([^`\n]*)`)(\s*\+)?/g;
     const literal = /'([^'\n]+)'|"([^"\n]+)"|`([^`\n]+)`/g;
 
-    // One form of a plural, asked for by name: `t('items.one')`.
-    const pluralOf = key => {
+    // The source keys that `t(key)` returns text from, as the library resolves it. None: users see the key.
+    const message = value => value != null && !(typeof value === 'object' && !Object.keys(value).length);
+    const resolved = key => {
+        if (message(source.get(key))) return [key];
+        // A plural written as flat keys: "items.one", "items.other".
+        if (message(source.get(key + '.other'))) return sourceKeys.filter(k => k.startsWith(key + '.'));
+        // One form of a plural, asked for by name: `t('items.one')`.
         const dot = key.lastIndexOf('.'), group = source.get(key.slice(0, dot));
-        return dot > 0 && typeof group === 'object' && Object.hasOwn(group, key.slice(dot + 1)) ? key.slice(0, dot) : undefined;
+        if (dot > 0 && group && typeof group === 'object' && message(group[key.slice(dot + 1)])) return [key.slice(0, dot)];
     };
 
     for (const file of statSync(dir).isDirectory() ? walk(dir) : [dir]) {
-        const text = readFileSync(file, 'utf8');
+        const code = readFileSync(file, 'utf8');
         // Keys are often kept in data (`{ label: 'nav.home' }`) and translated elsewhere,
         // so any string literal that is exactly a source key counts as a use.
-        for (const match of text.matchAll(literal)) {
+        for (const match of code.matchAll(literal)) {
             const value = match[1] ?? match[2] ?? match[3];
             if (source.has(value)) used.add(value);
         }
         // The whole file at once: a formatter may put the key on the line after `t(`.
-        for (const match of text.matchAll(call)) {
+        for (const match of code.matchAll(call)) {
             const key = match[1] ?? match[2] ?? match[3];
+            const keys = resolved(key);
             if (match[3]?.includes('${')) prefixes.add(key.slice(0, key.indexOf('${')));
             else if (match[4]) prefixes.add(key);
-            else if (source.has(key)) used.add(key);
-            else if (pluralOf(key)) used.add(pluralOf(key));
+            else if (keys) keys.forEach(k => used.add(k));
             else if (key) {
                 undefinedKeys.push({
                     key,
                     file: relative(project.cwd, file).replaceAll('\\', '/'),
-                    line: text.slice(0, match.index).split('\n').length,
+                    line: code.slice(0, match.index).split('\n').length,
                 });
             }
         }

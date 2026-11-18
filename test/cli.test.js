@@ -429,6 +429,28 @@ describe('review round 6', () => {
         assert.equal(p.run('check', '--usage', 'src').code, 1);
     });
 
+    test('the usage scan resolves a key the way the library does', t => {
+        const p = project({
+            'src/locales/en.json': {
+                'cart.one': '{count} item', 'cart.other': '{count} items',
+                items: { one: 'One', zero: null, other: 'Many' },
+                empty: [], group: {},
+            },
+            'src/app.js': "t('cart'); t('items.one');\nt('items.zero'); t('empty'); t('group');",
+        }, t);
+        const report = p.json('check', '--usage', 'src');
+        assert.deepEqual(report.undefined.map(entry => `${entry.key}:${entry.line}`), ['items.zero:2', 'empty:2', 'group:2']);
+        assert.deepEqual(report.unused, []);
+    });
+
+    test('a placeholder written with spaces is the same placeholder', t => {
+        const p = project({
+            'src/locales/en.json': { hello: 'Hello {name}!' },
+            'src/locales/fr.json': { hello: 'Bonjour { name } !' },
+        }, t);
+        assert.equal(p.run('check').code, 0);
+    });
+
     test('diff reads a source file that had a byte order mark at the old commit', t => {
         const p = project({ 'src/locales/en.json': '﻿' + JSON.stringify({ keep: 'Keep', change: 'Old' }) }, t);
         const git = (...args) => execFileSync('git', args, { cwd: p.cwd, stdio: 'ignore' });

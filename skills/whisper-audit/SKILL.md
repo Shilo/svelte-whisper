@@ -22,7 +22,7 @@ Add `--json` when you want to process the result. Pass `--dir <folder> --source 
 | `placeholder mismatch` | The translation dropped, renamed or invented a `{placeholder}`. The value will render wrongly. | Correct the translation. |
 | `differs from the glossary` | A fixed term in `glossary/<locale>.json` was overwritten. | `npx svelte-whisper sync` |
 | `identical to source` | Same text as the source. Often a brand name or an untranslated string. | Review; translate the real ones. Not an error. |
-| `undefined` | Code references a key that is not a message in the source locale (a typo, or the name of a group or list). Users see the raw key. | Fix the typo or add the key to the source, then translate. |
+| `undefined` | Code references a key that is not a message in the source locale (a typo, or the name of a group or list). Users see the raw key. The scan reads code as text, so a call inside a comment is reported too. | Fix the typo or add the key to the source, then translate; delete a commented-out call. |
 | `unused` | A source key that no code references. | Confirm, then delete it from the source and run `npx svelte-whisper sync`. |
 
 ## Before deleting an unused key
