@@ -69,7 +69,10 @@ export function init(options?: WhisperOptions): Promise<void>;
 /** Merge translations into a locale that is already in memory, such as a bundled default. */
 export function addDictionary(locale: string, dict: WhisperDictionary): void;
 
-/** Register a lazy loader. It runs once, the first time the locale is needed. */
+/**
+ * Register a lazy loader: it resolves to a dictionary, or to the module of one
+ * (`() => import('./fr.json')`). It runs the first time the locale is needed.
+ */
 export function registerLoader(locale: string, loader: WhisperLoader): void;
 /**
  * Register every file of a glob, using each file name as the locale id:

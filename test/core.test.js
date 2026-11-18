@@ -163,10 +163,10 @@ describe('plurals', () => {
 });
 
 describe('loading', () => {
-    test('a loader runs once, on first use, and module defaults are unwrapped', async () => {
+    test('a loader runs once, on first use', async () => {
         const w = await english({ hello: 'Hello' });
         let calls = 0;
-        w.registerLoader('fr', async () => { calls++; return { default: { hello: 'Bonjour' } }; });
+        w.registerLoader('fr', async () => { calls++; return { hello: 'Bonjour' }; });
         assert.equal(calls, 0);
         assert.equal(await w.setLocale('fr'), true);
         await w.setLocale('en');
@@ -175,38 +175,32 @@ describe('loading', () => {
         assert.equal(w.t('hello'), 'Bonjour');
     });
 
-    test('a dictionary may have a top-level "default" group', async () => {
+    test('a module is unwrapped; a dictionary with a "default" key is used as written', async () => {
         const w = await english();
-        w.registerLoader('fr', async () => ({ default: { label: 'Défaut' }, other: 'Autre' }));
-        await w.setLocale('fr');
-        assert.equal(w.t('default.label'), 'Défaut');
-        assert.equal(w.t('other'), 'Autre');
-    });
+        // What `import('./fr.json')` resolves to.
+        const module = Object.defineProperty({ default: { hello: 'Bonjour' }, hello: 'Bonjour' }, Symbol.toStringTag, { value: 'Module' });
+        w.registerLoader('fr', async () => module);
+        w.registerLoader('de', async () => ({ default: { label: 'Standard' }, other: 'Andere' }));
+        w.registerLoader('es', async () => ({ default: { label: 'Predeterminado' } }));
+        w.registerLoader('it', async () => ({ default: 'Predefinito' }));
 
-    test('unwraps an ES module namespace', async () => {
-        const w = await english();
-        const namespace = Object.defineProperty(
-            { default: { hello: 'Bonjour' }, hello: 'Bonjour' }, Symbol.toStringTag, { value: 'Module' },
-        );
-        w.registerLoader('fr', async () => namespace);
         await w.setLocale('fr');
         assert.equal(w.t('hello'), 'Bonjour');
         assert.equal(w.t('default.hello'), 'default.hello');
-    });
-
-    test('a dictionary may have a top-level "default" string', async () => {
-        const w = await english();
-        w.registerLoader('fr', async () => ({ default: 'Défaut', other: 'Autre' }));
-        await w.setLocale('fr');
-        assert.equal(w.t('default'), 'Défaut');
-        assert.equal(w.t('other'), 'Autre');
+        await w.setLocale('de');
+        assert.equal(w.t('default.label'), 'Standard');
+        assert.equal(w.t('other'), 'Andere');
+        await w.setLocale('es');
+        assert.equal(w.t('default.label'), 'Predeterminado');
+        await w.setLocale('it');
+        assert.equal(w.t('default'), 'Predefinito');
     });
 
     test('registers a whole glob, naming locales after their files', async () => {
         const w = await english();
         w.registerLoader({
-            './locales/fr.json': async () => ({ default: { hello: 'Bonjour' } }),
-            '../i18n/pt-BR.json': async () => ({ default: { hello: 'Olá' } }),
+            './locales/fr.json': async () => ({ hello: 'Bonjour' }),
+            '../i18n/pt-BR.json': async () => ({ hello: 'Olá' }),
             '/src/locales/zh-Hant.json5': async () => ({ hello: '你好' }),
         });
         assert.deepEqual(w.getLocales().sort(), ['en', 'fr', 'pt-BR', 'zh-Hant']);
@@ -832,13 +826,6 @@ describe('review round 2', () => {
         assert.equal(w.t('extra'), 'Extra');
     });
 
-    test('a single-key dictionary named "default" is not mistaken for a wrapper', async () => {
-        const w = await english();
-        w.registerLoader('fr', async () => ({ default: 'Défaut' }));
-        await w.setLocale('fr');
-        assert.equal(w.t('default'), 'Défaut');
-    });
-
     test('a failed switch does not re-run readers, so an effect that keeps the locale in step cannot loop', async () => {
         const w = await english({ hello: 'Hello' });
         let loads = 0;
@@ -999,5 +986,52 @@ describe('formatPercent', () => {
         assert.match(w.formatPercent(0.2, 0, 'fr'), /^20\s%$/);
         await w.setLocale('fr');
         assert.match(w.formatPercent(0.256, 1), /^25,6\s%$/);
+    });
+});
+
+describe('review round 4', () => {
+    test('a locale that every startup candidate names is tried once', async () => {
+        const w = await load();
+        let attempts = 0;
+        w.registerLoader('en', async () => { attempts++; throw new Error('offline'); });
+        w.addDictionary('en', { hello: 'Hello' });
+        await withGlobals({ navigator: browser('en'), localStorage: storage({ key: 'en' }) }, async () => {
+            await captureConsole('error', () => w.init({ persistKey: 'key', initial: 'en', fallback: 'en', warn: false }));
+        });
+        assert.equal(attempts, 1);
+        assert.equal(w.getLocale(), 'en');
+        assert.equal(w.t('hello'), 'Hello');
+    });
+
+    test('a loader that returns a list is refused and can be retried', async () => {
+        const w = await english();
+        let attempts = 0;
+        w.registerLoader('fr', async () => (++attempts === 1 ? [] : { full: 'Complet' }));
+        assert.equal(await w.setLocale('fr'), false);
+        assert.equal(await w.setLocale('fr'), true);
+        assert.equal(w.t('full'), 'Complet');
+    });
+
+    test('a loader registered for a locale that was fetched by convention still runs', async () => {
+        const w = await load();
+        const fetch = async () => ({ ok: true, json: async () => ({ fetched: 'Fetched' }) });
+        await withGlobals({ fetch }, () => w.setLocale('fr'));
+        w.registerLoader('fr', async () => ({ bundled: 'Bundled' }));
+        assert.equal(await w.loadLocale('fr'), true);
+        assert.equal(w.t('bundled'), 'Bundled');
+        assert.equal(w.t('fetched'), 'Fetched');
+    });
+
+    test('regions are compared as written, whatever else the id carries', async () => {
+        const detect = async (known, languages) => {
+            const lib = await load();
+            for (const id of known) lib.addDictionary(id, {});
+            return withGlobals({ navigator: browser(...languages) }, () => lib.detectLocale());
+        };
+        assert.equal(await detect(['en-US-posix', 'en'], ['en-AU']), 'en');
+        assert.equal(await detect(['en-US-u-nu-latn', 'en'], ['en-AU']), 'en');
+        assert.equal(await detect(['zh-Hant', 'zh-Hant-TW'], ['zh-TW']), 'zh-Hant-TW');
+        assert.equal(await detect(['en-x-us', 'en-GB'], ['en-AU']), 'en-x-us', 'a private-use tag has no region');
+        assert.equal(await detect(['es-419', 'es'], ['es-MX']), 'es');
     });
 });

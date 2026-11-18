@@ -74,25 +74,22 @@ export function registerLoader(locale, loader) {
 export function loadLocale(locale) {
     if (ready(locale)) return Promise.resolve(true);
     return pending[locale] ??= (async () => {
+        const loader = loaders[locale];
         try {
             let dict;
-            if (loaders[locale]) {
-                dict = await loaders[locale]();
-                // Unwrap `import('./fr.json')` and `{ default: dict }`, but not a dictionary
-                // that merely has a "default" key among others.
-                const inner = dict?.default;
-                if (inner && typeof inner === 'object' && (dict[Symbol.toStringTag] === 'Module' || Object.keys(dict).length === 1)) {
-                    dict = inner;
-                }
+            if (loader) {
+                dict = await loader();
+                // `import('./fr.json')` resolves to a module: its dictionary is the default export.
+                if (dict?.[Symbol.toStringTag] === 'Module') dict = dict.default;
             } else if (!Object.keys(loaders).length) {
                 // Zero-config: with no loaders registered, locales are fetched by convention.
                 const response = await fetch(`${base}locales/${locale}.json`);
                 if (response.ok) dict = await response.json();
             }
-            if (dict && typeof dict === 'object') {
+            if (dict && typeof dict === 'object' && !Array.isArray(dict)) {
                 // Anything added with addDictionary() stays on top of the loaded file.
                 dictionaries[locale] = Object.assign(flatten(dict, '', blank()), dictionaries[locale]);
-                loaded[locale] = true;
+                if (loader) loaded[locale] = true;
                 if (locale === current || locale === fallback) refresh();
                 return true;
             }
@@ -137,7 +134,8 @@ export function detectLocale() {
             // Same language in the same script: zh-TW is Hant, so it matches zh-Hant and never zh-Hans.
             if (want && have?.language === want.language && have.script === want.script) {
                 // Then: the very id, the same region, a locale without a region, any other region.
-                const score = id.toLowerCase() === tag.toLowerCase() ? 4 : have.region === want.region ? 3 : /-\w\w\w?$/.test(id) ? 1 : 2;
+                const region = new Intl.Locale(id).region;
+                const score = id.toLowerCase() === tag.toLowerCase() ? 4 : !region ? 2 : region === want.region ? 3 : 1;
                 if (score > rank) rank = score, best = id;
             }
         }
@@ -316,7 +314,8 @@ function expand(tag) {
 // First candidate that loads wins: stored choice → browser language → initial → fallback.
 // Nothing chosen here is persisted; only explicit setLocale() calls are.
 async function pick(stored) {
-    for (const candidate of [stored, options.detect !== false && detectLocale(), options.initial, fallback]) {
+    // A Set: when several of them name the same locale, it is tried once.
+    for (const candidate of new Set([stored, options.detect !== false && detectLocale(), options.initial, fallback])) {
         if (!candidate) continue;
         const mine = request + 1;
         // Stop on success, and also when a newer setLocale() took over while this one was loading.

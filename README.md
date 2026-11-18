@@ -13,7 +13,7 @@ Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on
 <button onclick={() => setLocale('fr')}>Français</button>
 ```
 
-- **Small.** 1.8 kB gzipped for a typical app, under 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
+- **Small.** 1.8 kB gzipped for a typical app, 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
 - **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. Components that do not use runes write `$t()` instead, and get the same thing.
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
@@ -81,7 +81,7 @@ await init({ fallback: 'en', persistKey: 'my-app-locale' });
 mount(App, { target: document.getElementById('app') });
 ```
 
-`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and downloads only that one, so the first paint is already in that language. (If your build target has no top-level `await`, write `init({ … }).then(() => mount(…))`.)
+`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and waits for its dictionary, so the first paint is already in that language. (If your build target has no top-level `await`, write `init({ … }).then(() => mount(…))`.)
 
 ### Without any setup
 
@@ -137,7 +137,7 @@ A placeholder with no matching value is left as written, so mistakes are visible
 {t('items', { count })}
 ```
 
-An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the active locale, then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given.
+An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the language the text is in (the fallback's rules when the text comes from the fallback), then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given.
 
 **Always a string.** `t()` returns text and nothing else. A number or boolean in the JSON comes back as text, and items of a list are addressed by index: `t('rules.0')`. A key that points at a group or a list is not a message, so it comes back as the key, like any other missing key.
 
@@ -158,7 +158,7 @@ Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on
 <button onclick={() => setLocale('fr')}>Français</button>
 ```
 
-- **Small.** 1.8 kB gzipped for a typical app, under 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
+- **Small.** 1.8 kB gzipped for a typical app, 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
 - **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. Components that do not use runes write `$t()` instead, and get the same thing.
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
@@ -226,7 +226,7 @@ await init({ fallback: 'en', persistKey: 'my-app-locale' });
 mount(App, { target: document.getElementById('app') });
 ```
 
-`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and downloads only that one, so the first paint is already in that language. (If your build target has no top-level `await`, write `init({ … }).then(() => mount(…))`.)
+`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and waits for its dictionary, so the first paint is already in that language. (If your build target has no top-level `await`, write `init({ … }).then(() => mount(…))`.)
 
 ### Without any setup
 
@@ -282,7 +282,7 @@ A placeholder with no matching value is left as written, so mistakes are visible
 {t('items', { count })}
 ```
 
-An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the active locale, then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given.
+An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the language the text is in (the fallback's rules when the text comes from the fallback), then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given.
 
 **Always a string.** `t()` returns text and nothing else. A number or boolean in the JSON comes back as text, and items of a list are addressed by index: `t('rules.0')`. A key that points at a group or a list is not a message, so it comes back as the key, like any other missing key.
 
@@ -322,7 +322,7 @@ Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on
 <button onclick={() => setLocale('fr')}>Français</button>
 ```
 
-- **Small.** 1.8 kB gzipped for a typical app, under 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
+- **Small.** 1.8 kB gzipped for a typical app, 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
 - **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. Components that do not use runes write `$t()` instead, and get the same thing.
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
@@ -390,7 +390,7 @@ await init({ fallback: 'en', persistKey: 'my-app-locale' });
 mount(App, { target: document.getElementById('app') });
 ```
 
-`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and downloads only that one, so the first paint is already in that language. (If your build target has no top-level `await`, write `init({ … }).then(() => mount(…))`.)
+`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and waits for its dictionary, so the first paint is already in that language. (If your build target has no top-level `await`, write `init({ … }).then(() => mount(…))`.)
 
 ### Without any setup
 
@@ -446,7 +446,7 @@ A placeholder with no matching value is left as written, so mistakes are visible
 {t('items', { count })}
 ```
 
-An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the active locale, then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given.
+An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the language the text is in (the fallback's rules when the text comes from the fallback), then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given.
 
 **Always a string.** `t()` returns text and nothing else. A number or boolean in the JSON comes back as text, and items of a list are addressed by index: `t('rules.0')`. A key that points at a group or a list is not a message, so it comes back as the key, like any other missing key.
 
@@ -466,7 +466,7 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
 {formatNumber(1500000, { notation: 'compact' })}                 <!-- 1.5M · 150万 -->
 {formatPercent(0.256)}                                           <!-- 26% · 26 % -->
 {formatPercent(0.256, 1)}                                        <!-- 25.6% · 25,6 % -->
-{formatDate(Date.now(), { dateStyle: 'long' })}                  <!-- March 5, 2026 · 5 mars 2026 -->
+{formatDate(new Date(2026, 2, 5), { dateStyle: 'long' })}        <!-- March 5, 2026 · 5 mars 2026 -->
 ```
 
 `formatNumber` and `formatDate` take any [`Intl.NumberFormat`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat#options) or [`Intl.DateTimeFormat`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/DateTimeFormat#options) option, and an optional third argument to format in a specific locale. For anything else `Intl` offers, pass `getLocale()` to it yourself.
@@ -547,7 +547,7 @@ t('nav.home');   // ok
 t('nav.hmoe');   // type error
 ```
 
-This needs `"resolveJsonModule": true`. Valid keys are the paths that hold a message: strings, plural groups, arrays and their items. For a key built at runtime, cast it: `` t(`skills.${id}` as WhisperKey) ``.
+This needs `"resolveJsonModule": true`. Valid keys are the paths that hold a message: strings, plural groups and the items of lists. For a key built at runtime, cast it: `` t(`skills.${id}` as WhisperKey) ``.
 
 ## API
 
@@ -565,7 +565,7 @@ t('greeting', { name: 'Ada' });                         // 'Hello Ada!'
 t('cart.items', { count: 3 });                          // '3 items'
 formatNumber(1234.5);                                   // '1,234.5'
 formatPercent(0.256);                                   // '26%'
-formatDate(Date.now(), { dateStyle: 'long' });          // 'March 5, 2026'
+formatDate(new Date(2026, 2, 5), { dateStyle: 'long' }); // 'March 5, 2026'
 
 // Locale
 getLocale();                                            // 'en'
@@ -586,7 +586,7 @@ $locale;                                                // 'en'
 | | |
 |---|---|
 | `init(options?)` | Choose the starting locale and load it. Returns a promise. |
-| `registerLoader(id, loader)` | Register a function that returns a dictionary, or a module whose default export is one. It runs once, on first use. |
+| `registerLoader(id, loader)` | Register an async function that returns a dictionary, or the module of one (`() => import('./fr.json')`). It runs once, on first use, and again only if it failed. |
 | `registerLoader(globRecord)` | Register every entry of an `import.meta.glob` result. The file name is the locale id. |
 | `addDictionary(id, dict)` | Add translations that are already in memory. Merges with what is there, and stays on top of whatever the locale's loader delivers. Without a loader, this alone makes the locale usable. |
 

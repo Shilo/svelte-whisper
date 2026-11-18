@@ -43,7 +43,7 @@ Requires `svelte@^5.9.0`.
 - **Unknown locales are not fetched once loaders exist.** The zero-config request for `{base}locales/{locale}.json` applies only while no loader is registered, and it honours Vite's `base`.
 - **Detection** matches by language and script as the browser understands them: `zh-TW` selects `zh-Hant` and never `zh-Hans`, `pt` selects `pt-BR`, `en-GB` prefers a plain `en` and otherwise falls back to `en-US`, and a different language that shares a prefix no longer matches (`fil` no longer selects `fi`).
 - **`null` interpolation values** leave the placeholder in place, as `undefined` does.
-- **Loader results** are unwrapped only when they are an ES module or an object whose single key is `default`.
+- **Loader results** are unwrapped only when they are an ES module (`() => import('./fr.json')`). A loader you write yourself returns the dictionary itself.
 - **`addDictionary`** merges nested groups deeply and `null` values read as "not translated". For a locale that also has a loader, added translations sit on top of the loaded file and the loader still runs; in 1.x an added dictionary stopped the loader from ever running.
 - Keys and locale ids named like `Object.prototype` members (`constructor`, `toString`) are ordinary strings.
 - Missing keys are not reported before a locale is active, and the dev overlay is not mounted under browser automation.
