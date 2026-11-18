@@ -46,7 +46,7 @@ h2 { margin: 0; font-size: 13px; font-weight: 650; }
 .close:hover, .chip:hover, .action:hover, .key:hover, .key:focus-visible { background: var(--hover); color: #fff; }
 
 .list { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0 8px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
-h3 { margin: 10px 14px 4px; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
+h3 { display: flex; gap: 6px; margin: 10px 14px 4px; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
 ul { margin: 0; padding: 0; list-style: none; }
 .key { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 14px; border: 0; background: none; text-align: left; }
 .key:focus-visible { outline-offset: -2px; }
