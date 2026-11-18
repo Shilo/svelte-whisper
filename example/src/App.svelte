@@ -28,6 +28,7 @@
         }
     }
 
+    /** @param {string} id */
     async function choose(id) {
         await setLocale(id); // remembered, because init() was given a persistKey
         saved = readSaved();

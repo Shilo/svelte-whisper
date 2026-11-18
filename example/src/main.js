@@ -10,4 +10,4 @@ registerLoader(import.meta.glob('./locales/*.json'));
 // In `vite dev`, keys that are missing appear in a small overlay in the corner.
 await init({ fallback: 'en', persistKey: 'whisper-demo-locale' });
 
-mount(App, { target: document.getElementById('app') });
+mount(App, { target: document.body });

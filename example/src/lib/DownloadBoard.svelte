@@ -4,6 +4,7 @@
     import { downloads } from './downloads.svelte.js';
 
     // formatNumber's `unit` style localizes the unit too: "1.2 kB", "1,2 ko", "1.2 كيلوبايت".
+    /** @param {number} bytes */
     function size(bytes) {
         return bytes < 1024
             ? formatNumber(bytes, { style: 'unit', unit: 'byte', unitDisplay: 'narrow' })

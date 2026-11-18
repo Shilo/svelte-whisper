@@ -1,7 +1,5 @@
 <script>
     // Small sign pictograms, drawn on a 24 × 24 grid with one stroke weight.
-    let { name } = $props();
-
     const paths = {
         mark: 'M4 7h16M4 12h11M4 17h6',
         languages: 'M3.5 4.5h11v8H8l-3.5 3v-3h-1zM14.5 8.5h6v8h-1v3l-3.5-3h-4.5v-4',
@@ -15,6 +13,9 @@
         plus: 'M5.5 12h13M12 5.5v13',
         arrow: 'M4.5 12h15M13.5 6l6 6-6 6',
     };
+
+    /** @type {{ name: keyof typeof paths }} */
+    let { name } = $props();
 </script>
 
 <svg viewBox="0 0 24 24" aria-hidden="true" class:flip={name === 'arrow' || name === 'detour'}>

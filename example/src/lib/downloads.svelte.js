@@ -3,16 +3,17 @@
 // Dev serves `/src/locales/es.json?import`; a build serves `/assets/locales/es-<hash>.js`.
 const LOCALE_FILE = /\/locales\/([^/?]+?)(?:-[\w-]{8})?\.js(?:on)?(?:\?|$)/;
 
+/** @type {{ locale: string, file: string, bytes: number, cached: boolean, at: number }[]} */
 export const downloads = $state([]);
 
 if (typeof PerformanceObserver !== 'undefined') {
     new PerformanceObserver(list => {
-        for (const entry of list.getEntries()) {
+        for (const entry of /** @type {PerformanceResourceTiming[]} */ (list.getEntries())) {
             const match = LOCALE_FILE.exec(entry.name);
             if (!match) continue;
             downloads.push({
                 locale: match[1],
-                file: entry.name.split('/').pop().split('?')[0],
+                file: entry.name.replace(/^.*\/|\?.*$/g, ''),
                 bytes: entry.encodedBodySize,
                 // 0 bytes over the wire, or a 304 revalidation: the body came from the HTTP cache.
                 cached: entry.transferSize === 0 || entry.encodedBodySize === 0,
