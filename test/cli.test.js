@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -383,7 +383,9 @@ describe('review round 3', () => {
         const p = project({ 'src/locales/en.json': { a: 'A' }, 'src/locales/fr.json': { a: 'A fr' }, 'x.json': { a: 'HACKED' } }, t);
         assert.throws(() => p.run('apply', 'EN', 'x.json'), /is the source locale/);
         assert.deepEqual(JSON.parse(p.read('src/locales/en.json')), { a: 'A' });
-        assert.deepEqual(Object.keys(p.json('check', '--source', 'EN').locales), ['fr']);
+        // Only a file system that ignores case finds en.json under the name EN.json.
+        if (existsSync(join(p.cwd, 'src/locales/EN.json'))) assert.deepEqual(Object.keys(p.json('check', '--source', 'EN').locales), ['fr']);
+        else assert.throws(() => p.run('check', '--source', 'EN'), /Source locale not found/);
     });
 });
 
