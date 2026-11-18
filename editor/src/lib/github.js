@@ -35,7 +35,8 @@ export async function api(token, path, opts = {}) {
 		throw new GitHubError(explain(res.status, detail.message, path), res.status);
 	}
 	if (res.status === 204) return null;
-	return opts.raw ? res.text() : res.json();
+	// Decoded by hand: res.text() drops a byte order mark, and the file must keep it.
+	return opts.raw ? new TextDecoder('utf-8', { ignoreBOM: true }).decode(await res.arrayBuffer()) : res.json();
 }
 
 /** @param {number} status @param {string | undefined} message @param {string} path */

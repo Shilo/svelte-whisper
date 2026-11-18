@@ -1,9 +1,9 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { api, listLocaleFiles, submit } from '../src/lib/github.js';
-import { makeDoc } from './helpers.js';
+import { api, listLocaleFiles, readFile, submit } from '../src/lib/github.js';
+import { makeDoc, LocaleDoc } from './helpers.js';
 
-// A fake GitHub API: routes are "METHOD /path" -> handler(body) returning [status, json].
+// A fake GitHub API: routes are "METHOD /path" -> handler(body) returning [status, json or bytes].
 // Moving a branch (PATCH) succeeds unless a test says otherwise.
 /** @type {Record<string, (body: any) => [number, any]>} */
 let routes;
@@ -20,7 +20,8 @@ beforeEach(() => {
 		calls.push({ method, path, body });
 		const route = routes[`${method} ${path.split('?')[0]}`] ?? (method === 'PATCH' && (() => [200, {}]));
 		const [status, json] = route ? route(body) : [404, { message: 'Not Found' }];
-		return new Response(status === 204 ? null : JSON.stringify(json), { status });
+		// Raw file contents are bytes, as GitHub sends them.
+		return new Response(status === 204 ? null : json instanceof Uint8Array ? json : JSON.stringify(json), { status });
 	};
 });
 
@@ -131,4 +132,21 @@ test('GitHub errors map to messages a translator can act on', async () => {
 			return true;
 		});
 	}
+});
+
+test('a file with a byte order mark is read, edited and sent back with it, every other byte unchanged', async () => {
+	repo();
+	const original = '﻿{\r\n    "a": "Ah",\r\n    "b": "Bé"\r\n}';
+	const bytes = new TextEncoder().encode(original);
+	assert.deepEqual([...bytes.slice(0, 3)], [0xef, 0xbb, 0xbf]);
+	routes['GET /repos/o/app/contents/src/locales/fr.json'] = () => [200, bytes];
+	const text = await readFile('t', 'o/app', 'main', 'src/locales/fr.json');
+	assert.equal(text, original);
+	const doc = new LocaleDoc([{ name: 'fr.json', path: 'src/locales/fr.json', sha: 'sha-fr', text }], 'src/locales', 'fr');
+	doc.set('fr', 'a', 'Ahh');
+	const files = doc.outputFiles().map((f) => ({ path: f.path, text: f.text, sha: f.sha }));
+	await submit(options(files, { mode: 'commit' }));
+	const sent = calls.find((c) => c.path === '/repos/o/app/git/trees')?.body.tree[0].content;
+	const expected = new TextEncoder().encode(original.replace('"Ah"', '"Ahh"'));
+	assert.deepEqual([...new TextEncoder().encode(sent)], [...expected]);
 });
