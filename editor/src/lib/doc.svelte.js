@@ -3,13 +3,11 @@
 // current values with what was loaded, so undoing an edit by hand clears it.
 
 import { parseFile, flatten, serialize, comparePlaceholders } from './json.js';
+import { LANG_PATTERN } from './lang.js';
 
 /** @typedef {{ name: string, path: string, sha: string | null, text: string }} SourceFile */
 /** @typedef {{ key: string, before: string | undefined, after: string | undefined }} Change */
 /** @typedef {{ lang: string, path: string, sha: string | null, isNew: boolean, changes: Change[], text: string }} OutFile */
-
-/** BCP 47-ish file names: en, pt-BR, zh_Hant, sr-Latn-RS */
-export const LANG_PATTERN = /^[A-Za-z]{2,3}([_-][A-Za-z0-9]{2,8})*$/;
 
 /** Names svelte-whisper accepts inside a plural group: CLDR categories and exact counts. */
 const PLURAL_CATEGORY = /^(zero|one|two|few|many|other|\d+)$/;
@@ -28,6 +26,10 @@ export class LocaleDoc {
 	base = {};
 	/** @type {Record<string, Record<string, string>>} non-string leaves, shown read-only */
 	fixed = {};
+	/** @type {Record<string, Set<string>>} keys whose value is null: "not translated yet" */
+	empty = {};
+	/** Every key that some file has, in any form. */
+	known = new Set();
 	/** @type {Record<string, { path: string, sha: string | null, parsed: import('./json.js').ParsedFile | null }>} */
 	files = {};
 
@@ -42,6 +44,8 @@ export class LocaleDoc {
 		const seen = new Set();
 		/** @type {Record<string, Record<string, string>>} */
 		const values = {};
+		/** @type {Record<string, string[]>} */
+		const fileKeys = {};
 		for (const f of list) {
 			const lang = f.name.replace(/\.json$/i, '');
 			let parsed;
@@ -50,20 +54,23 @@ export class LocaleDoc {
 			} catch (e) {
 				throw new Error(`${f.name} is not valid JSON (${e.message}). Fix it in the repository first.`);
 			}
-			const { strings, other } = flatten(parsed.data);
+			const { strings, other, empty, keys } = flatten(parsed.data);
 			this.files[lang] = { path: f.path, sha: f.sha, parsed };
 			this.base[lang] = strings;
 			this.fixed[lang] = other;
+			this.empty[lang] = new Set(empty);
 			values[lang] = { ...strings };
+			fileKeys[lang] = keys;
 		}
 		const langs = Object.keys(values).sort();
 		const source = langs.includes(preferredSource) ? preferredSource : langs.includes('en') ? 'en' : langs[0] || '';
 		// Key order follows the source file, then anything only other files have.
 		for (const lang of [source, ...langs]) {
-			for (const k of Object.keys({ ...this.base[lang], ...this.fixed[lang] })) {
+			for (const k of fileKeys[lang] ?? []) {
 				if (!seen.has(k)) seen.add(k), order.push(k);
 			}
 		}
+		this.known = seen;
 		this.source = source;
 		this.langs = [source, ...langs.filter((l) => l !== source)].filter(Boolean);
 		this.keys = order;
@@ -73,6 +80,12 @@ export class LocaleDoc {
 	/** @param {string} lang @param {string} key */
 	isFixed(lang, key) {
 		return this.fixed[lang]?.[key] !== undefined;
+	}
+
+	/** True when some file holds a non-string value for the key: it cannot be renamed or deleted here. */
+	/** @param {string} key */
+	isFixedKey(key) {
+		return this.langs.some((l) => this.isFixed(l, key));
 	}
 
 	/** @param {string} lang @param {string} key */
@@ -166,15 +179,10 @@ export class LocaleDoc {
 		return this.#missing[lang] ?? 0;
 	}
 
-	get liveKeyCount() {
-		return this.keys.filter((k) => !this.deleted[k]).length;
-	}
-
 	/** True when the key is new in this session. */
 	/** @param {string} key */
 	isNewKey(key) {
-		if (this.renamed[key]) return false;
-		return this.langs.every((l) => this.base[l]?.[key] === undefined && this.fixed[l]?.[key] === undefined);
+		return !this.renamed[key] && !this.known.has(key);
 	}
 
 	/**
@@ -210,7 +218,7 @@ export class LocaleDoc {
 	/** @param {string} from @param {string} to */
 	renameKey(from, to) {
 		const i = this.keys.indexOf(from);
-		if (i === -1 || from === to) return;
+		if (i === -1 || from === to || this.isFixedKey(from)) return;
 		this.keys[i] = to;
 		const original = this.renamed[from] ?? from;
 		delete this.renamed[from];
@@ -227,6 +235,7 @@ export class LocaleDoc {
 	/** Mark a key for deletion; it stays visible, struck through, until restored or sent. */
 	/** @param {string} key */
 	deleteKey(key) {
+		if (this.isFixedKey(key)) return;
 		if (this.isNewKey(key)) {
 			this.keys.splice(this.keys.indexOf(key), 1);
 			for (const lang of this.langs) delete this.values[lang][key];
@@ -246,6 +255,7 @@ export class LocaleDoc {
 		this.values[lang] = {};
 		this.base[lang] = {};
 		this.fixed[lang] = {};
+		this.empty[lang] = new Set();
 		this.files[lang] = { path: `${this.dir}/${lang}.json`, sha: null, parsed: null };
 		this.langs.push(lang);
 	}
@@ -274,14 +284,16 @@ export class LocaleDoc {
 			const e = {};
 			const base = this.base[lang];
 			const cur = this.values[lang];
+			const empty = this.empty[lang];
 			for (const k of this.keys) {
 				if (this.isFixed(lang, k)) continue;
 				const before = base[k];
 				const after = this.deleted[k] ? undefined : cur[k];
 				if (before !== after) e[k] = after ?? null;
+				else if (this.deleted[k] && empty.has(k)) e[k] = null; // a deleted key loses its null too
 			}
 			// Keys renamed away disappear from this.keys entirely.
-			for (const k of Object.keys(base)) if (!live.has(k)) e[k] = null;
+			for (const k of [...Object.keys(base), ...empty]) if (!live.has(k)) e[k] = null;
 			const isNew = this.files[lang].sha === null && !this.files[lang].parsed;
 			if (Object.keys(e).length || isNew) out[lang] = e;
 		}
@@ -319,7 +331,7 @@ export class LocaleDoc {
 		return {
 			edits: this.edits(),
 			deleted: Object.keys(this.deleted),
-			removed: this.langs.flatMap((l) => Object.keys(this.base[l])).filter((k) => !live.has(k)),
+			removed: [...this.known].filter((k) => !live.has(k)),
 			added: this.keys.filter((k) => this.isNewKey(k)),
 			renamed: $state.snapshot(this.renamed),
 			langs: this.langs.filter((l) => !this.files[l].parsed)
@@ -329,6 +341,16 @@ export class LocaleDoc {
 	/** @param {ReturnType<LocaleDoc['toDraft']>} d */
 	applyDraft(d) {
 		for (const lang of d.langs || []) if (LANG_PATTERN.test(lang)) this.addLanguage(lang);
+		// Renames first: they move the row, and the draft holds its text under the new name.
+		for (const [to, from] of Object.entries(d.renamed || {})) {
+			if (!this.keys.includes(from) || this.keys.includes(to)) continue;
+			this.renameKey(from, to);
+			for (const lang of this.langs) {
+				const v = d.edits?.[lang]?.[to];
+				if (typeof v === 'string') this.values[lang][to] = v;
+				else delete this.values[lang][to];
+			}
+		}
 		const removed = new Set(d.removed || []);
 		const deleted = new Set(d.deleted || []);
 		if (removed.size) this.keys = this.keys.filter((k) => !removed.has(k));
@@ -342,6 +364,5 @@ export class LocaleDoc {
 			}
 		}
 		for (const k of deleted) if (this.keys.includes(k)) this.deleted[k] = true;
-		for (const [to, from] of Object.entries(d.renamed || {})) if (this.keys.includes(to) && !this.keys.includes(from)) this.renamed[to] = from;
 	}
 }

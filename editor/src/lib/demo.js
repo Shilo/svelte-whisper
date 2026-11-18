@@ -1,6 +1,6 @@
 // Sample locale files for the no-sign-in demo. Loaded on demand only.
-// They mix nested objects and flat dotted keys, use {name}, {0} and {}
-// placeholders, and leave deliberate gaps so every editor state is visible.
+// They mix nested objects and flat dotted keys, use named {name} and indexed
+// {0} placeholders, and leave deliberate gaps so every editor state is visible.
 
 const en = {
 	app: {
@@ -26,7 +26,7 @@ const en = {
 		title: 'Share notebook',
 		invite: 'Invite people by email',
 		link_copied: 'Link copied',
-		people: 'Shared with {} and {} others'
+		people: 'Shared with {0} and {1} others'
 	},
 	sync: {
 		offline: 'You are offline. Changes will sync when you reconnect.',
@@ -54,7 +54,7 @@ const es = {
 		title: 'Compartir cuaderno',
 		invite: 'Invitar por correo',
 		link_copied: 'Enlace copiado',
-		people: 'Compartido con {} y {} más'
+		people: 'Compartido con {0} y {1} más'
 	},
 	sync: {
 		offline: 'Sin conexión. Los cambios se sincronizarán al volver.',
@@ -121,23 +121,3 @@ export const demoFiles = Object.entries(files).map(([lang, data]) => ({
 	sha: `demo-${lang}`,
 	text: JSON.stringify(data, null, '\t') + '\n'
 }));
-
-/**
- * A synthetic large set for checking performance (?demo=large):
- * `count` keys in 5 languages, nested three levels deep, with gaps.
- * @param {number} count
- */
-export function largeDemoFiles(count = 3000) {
-	const langs = ['en', 'de', 'es', 'fr', 'ja'];
-	return langs.map((lang, li) => {
-		/** @type {Record<string, any>} */
-		const data = {};
-		for (let i = 0; i < count; i++) {
-			if (li && (i * 7 + li * 13) % 11 === 0) continue; // leave gaps
-			const group = (data[`section${i % 30}`] ??= {});
-			const sub = (group[`group${i % 7}`] ??= {});
-			sub[`item${i}`] = `${lang.toUpperCase()} string ${i} for {name}`;
-		}
-		return { name: `${lang}.json`, path: `src/locales/${lang}.json`, sha: `large-${lang}`, text: JSON.stringify(data, null, '\t') + '\n' };
-	});
-}

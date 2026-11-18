@@ -3,9 +3,10 @@
 // svelte-whisper resolves a key by first looking for a literal (flat) key and then
 // by walking a dotted path through nested objects. The editor shows every string
 // under the dotted key the library would use, and writes changes back in the
-// shape the file already has, so a diff only touches the lines that changed.
+// shape the file already has: indentation, line endings, final newline, nested
+// or flat keys, and key order. JSON.stringify normalises the rest (see README).
 
-/** @typedef {{ text: string, data: Record<string, any>, indent: string, eol: string, finalNewline: boolean, nested: boolean }} ParsedFile */
+/** @typedef {{ text: string, data: Record<string, any>, bom: boolean, indent: string, eol: string, finalNewline: boolean, nested: boolean }} ParsedFile */
 
 /**
  * Parse a locale file and remember how it was formatted.
@@ -13,7 +14,9 @@
  * @returns {ParsedFile}
  */
 export function parseFile(text) {
-	const data = text.trim() ? JSON.parse(text) : {};
+	const bom = text.startsWith('﻿');
+	const body = bom ? text.slice(1) : text;
+	const data = body.trim() ? JSON.parse(body) : {};
 	if (!data || typeof data !== 'object' || Array.isArray(data)) {
 		throw new Error('A locale file must contain a JSON object.');
 	}
@@ -22,6 +25,7 @@ export function parseFile(text) {
 	return {
 		text,
 		data,
+		bom,
 		indent,
 		eol,
 		finalNewline: text === '' || /\n$/.test(text),
@@ -33,8 +37,9 @@ export function parseFile(text) {
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 /**
- * Flatten a locale object to dotted keys. Non-string leaves (numbers, arrays,
- * booleans) are returned separately: they are kept in the file but not editable.
+ * Flatten a locale object to dotted keys. `null` means "not translated yet", as in
+ * svelte-whisper: its keys are listed in `empty`. Other non-string leaves (numbers,
+ * arrays, booleans) are returned in `other`: kept in the file but not editable.
  * @param {Record<string, any>} data
  */
 export function flatten(data) {
@@ -42,16 +47,26 @@ export function flatten(data) {
 	const strings = {};
 	/** @type {Record<string, string>} */
 	const other = {};
+	/** @type {string[]} */
+	const empty = [];
+	/** @type {string[]} every leaf, in file order */
+	const keys = [];
+	/** @param {Record<string, any>} obj @param {string} prefix */
 	const walk = (obj, prefix) => {
 		for (const [k, v] of Object.entries(obj)) {
 			const key = prefix ? `${prefix}.${k}` : k;
+			if (isObject(v)) {
+				walk(v, key);
+				continue;
+			}
+			keys.push(key);
 			if (typeof v === 'string') strings[key] = v;
-			else if (isObject(v)) walk(v, key);
+			else if (v === null) empty.push(key);
 			else other[key] = JSON.stringify(v);
 		}
 	};
 	walk(data, '');
-	return { strings, other };
+	return { strings, other, empty, keys };
 }
 
 /**
@@ -63,6 +78,7 @@ export function flatten(data) {
  *   `order`: every key in the source language's order, so a new key lands where the source has it.
  */
 export function serialize(file, edits, hint = {}) {
+	if (file && !Object.keys(edits).length) return file.text;
 	const data = structuredClone(file?.data ?? {});
 	const nested = file ? file.nested : !!hint.nested;
 	const order = hint.order ?? [];
@@ -74,7 +90,27 @@ export function serialize(file, edits, hint = {}) {
 	const eol = file?.eol ?? '\n';
 	let out = JSON.stringify(data, null, indent);
 	if (eol !== '\n') out = out.replace(/\n/g, eol);
+	if (file?.bom) out = '﻿' + out;
 	return (file ? file.finalNewline : true) ? out + eol : out;
+}
+
+/**
+ * Find where a dotted key already lives, following nested objects and literal
+ * dotted keys at any level: `a.b.c` may be `{"a":{"b.c":…}}` or `{"a.b":{"c":…}}`.
+ * Returns the [object, property] steps down to the leaf, or null when it is new.
+ * @param {Record<string, any>} obj @param {string[]} parts
+ * @returns {[Record<string, any>, string][] | null}
+ */
+function locate(obj, parts) {
+	for (let n = parts.length; n > 0; n--) {
+		const name = parts.slice(0, n).join('.');
+		if (!Object.hasOwn(obj, name)) continue;
+		if (n === parts.length) return isObject(obj[name]) ? null : [[obj, name]];
+		if (!isObject(obj[name])) continue;
+		const rest = locate(obj[name], parts.slice(n));
+		if (rest) return [[obj, name], ...rest];
+	}
+	return null;
 }
 
 /**
@@ -82,7 +118,13 @@ export function serialize(file, edits, hint = {}) {
  * @param {boolean} nested @param {string[]} order
  */
 function set(data, key, value, nested, order) {
-	if (Object.hasOwn(data, key) || !key.includes('.')) {
+	const found = locate(data, key.split('.'));
+	if (found) {
+		const [obj, name] = found[found.length - 1];
+		obj[name] = value; // an existing property keeps its position
+		return;
+	}
+	if (!key.includes('.')) {
 		place(data, key, value, '', order);
 		return;
 	}
@@ -138,35 +180,26 @@ function place(obj, name, value, prefix, order) {
 
 /** @param {Record<string, any>} data @param {string} key */
 function remove(data, key) {
-	if (Object.hasOwn(data, key)) {
-		delete data[key];
-		return;
-	}
-	const parts = key.split('.');
-	const trail = [data];
-	for (let i = 0; i < parts.length - 1; i++) {
-		const next = trail[i][parts[i]];
-		if (!isObject(next)) return;
-		trail.push(next);
-	}
-	delete trail[trail.length - 1][parts[parts.length - 1]];
-	// Prune objects the removal left empty.
-	for (let i = trail.length - 1; i > 0; i--) {
-		if (Object.keys(trail[i]).length) break;
-		delete trail[i - 1][parts[i - 1]];
+	const found = locate(data, key.split('.'));
+	if (!found) return;
+	// Delete the leaf, then any objects the removal left empty.
+	for (let i = found.length - 1; i >= 0; i--) {
+		const [obj, name] = found[i];
+		if (i < found.length - 1 && Object.keys(obj[name]).length) break;
+		delete obj[name];
 	}
 }
 
 const PLACEHOLDER = /\{([^{}]*)\}/g;
 
 /**
- * Interpolation placeholders in a string, as svelte-whisper reads them:
- * `{name}`, `{0}` and positional `{}` (returned as an empty string).
+ * Interpolation placeholders in a string, as svelte-whisper reads them: named
+ * `{name}` and indexed `{0}`, each listed once. Empty braces `{}` are plain text.
  * @param {string | undefined} text
  */
 export function placeholders(text) {
 	if (!text || !text.includes('{')) return [];
-	return [...text.matchAll(PLACEHOLDER)].map((m) => m[1].trim());
+	return [...new Set([...text.matchAll(PLACEHOLDER)].map((m) => m[1].trim()).filter(Boolean))];
 }
 
 /**

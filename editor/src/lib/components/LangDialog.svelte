@@ -1,7 +1,6 @@
 <script>
 	import Dialog from './Dialog.svelte';
-	import { LANG_PATTERN } from '../doc.svelte.js';
-	import { languageName } from '../lang.js';
+	import { languageName, LANG_PATTERN } from '../lang.js';
 
 	/** @type {{ open: boolean, doc: import('../doc.svelte.js').LocaleDoc, ondone: (lang: string) => void }} */
 	let { open = $bindable(), doc, ondone } = $props();
