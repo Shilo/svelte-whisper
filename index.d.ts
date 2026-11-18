@@ -110,8 +110,8 @@ interface Subscribable<T> {
  * Reactive: `{t('key', vars)}` in markup, or inside `$derived` and `$effect`, updates when the
  * locale or a dictionary changes.
  *
- * In a legacy component (one that uses `export let` or `$:`), Svelte only follows stores, so write
- * `{$t('key', vars)}`: `t` is also a store of itself.
+ * In a legacy component (one that uses `export let`, `$:` or `$$props`, or has runes switched off),
+ * Svelte only follows stores, so write `{$t('key', vars)}`: `t` is also a store of itself.
  */
 export const t: Translate & Subscribable<Translate>;
 

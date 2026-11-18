@@ -143,7 +143,7 @@ An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules`
 
 ## Legacy components
 
-Svelte 5 compiles a component that still uses `export let` or `$:` in its legacy mode, and there it follows **stores only**: a plain function call such as `{t('key')}` is evaluated once and never again. So `t` is also a store, and so is `locale`. Prefix them with a dollar sign:
+Svelte 5 compiles a component in its legacy mode when it still uses `export let`, `$:`, `$$props` or `$$restProps`, or when runes are switched off for it (`runes: false`). There it follows **stores only**: a plain function call such as `{t('key')}` is evaluated once and never again. So `t` is also a store, and so is `locale`. Prefix them with a dollar sign:
 
 ```svelte
 <script>
@@ -160,7 +160,7 @@ Svelte 5 compiles a component that still uses `export let` or `$:` in its legacy
 </select>
 ```
 
-| | Runes component, or any component without `export let` and `$:` | Legacy component |
+| | Any other component | Legacy component |
 |---|---|---|
 | Translate | `t('key')` | `$t('key')` |
 | Read the locale | `getLocale()` | `$locale` |
@@ -168,6 +168,8 @@ Svelte 5 compiles a component that still uses `export let` or `$:` in its legacy
 | Format | `formatNumber(n)`, `formatPercent(x)` | `formatNumber(n, options, $locale)`, `formatPercent(x, 0, $locale)` |
 
 The dollar forms work in every component, so an app that mixes both kinds can use `$t` everywhere and convert at its own pace. Plain `.js` and `.ts` modules always use the functions.
+
+`bind:value={$locale}` leaves the control on the chosen language when its download fails. Where that can happen, use the picker under [Locales](#locales) with `value={$locale}`.
 
 ## Formatting
 
@@ -199,7 +201,7 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
     value={getLocale()}
     onchange={async event => {
         const select = event.currentTarget;
-        // false: the download failed, so the language did not change. Put the control back.
+        // false: the language did not change (the download failed, or a newer switch won). Put the control back.
         if (!await setLocale(select.value)) select.value = getLocale();
     }}
 >
@@ -211,10 +213,10 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
 <button onclick={resetLocale}>Use my browser's language</button>
 ```
 
-When every language is bundled, or a failed download is handled elsewhere, the picker is one line: `<select bind:value={getLocale, setLocale}>`.
+When every language is bundled, or a failed download is handled elsewhere, the picker is one line: `<select bind:value={getLocale, setLocale}>`. In a [legacy component](#legacy-components), read the locale as `$locale` in either form.
 
 - `getLocale()` is the active locale, and is reactive. `setLocale(id)` switches.
-- Switching downloads the dictionary if needed and only then changes the text, so users never see a flash of raw keys. The promise resolves `true` once active, or `false` if the download failed, in which case the locale stays as it was.
+- Switching downloads the dictionary if needed and only then changes the text, so the page never shows a half-loaded language. The promise resolves `true` once active, or `false` if the download failed or a newer switch won, in which case this call changed nothing.
 - `localeName('ja')` returns `日本語`: every language is listed under its own name, with no translation keys to maintain. `localeName('ja', 'en')` returns `Japanese`.
 - `loadLocale(id)` downloads a locale without switching, for example on hover.
 - `<html lang>` and `dir` are kept in step. Direction comes from the script the browser associates with the locale, so Arabic, Hebrew, Persian, Urdu and the rest are `rtl` without a list of languages.
@@ -286,7 +288,7 @@ registerLoader('fr', () => import('./fr.json'));        // or one locale at a ti
 addDictionary('en', en);                                // or already in memory, with no loader for 'en'
 await init({ fallback: 'en', persistKey: 'locale' });
 
-// Translate and format: reactive wherever they are called
+// Translate and format: reactive in markup, $derived and $effect
 t('greeting', { name: 'Ada' });                         // 'Hello Ada!'
 t('cart.items', { count: 3 });                          // '3 items'
 formatNumber(1234.5);                                   // '1,234.5'
@@ -349,7 +351,7 @@ In [legacy components](#legacy-components) the same two reactive things are stor
 | `formatPercent(value, precision?, locale?)` | `0.256` → `26%`. `precision` is the maximum number of decimals. Reactive unless `locale` is given. |
 | `formatDate(value, options?, locale?)` | `Intl.DateTimeFormat`. Takes a `Date` or a timestamp. Reactive unless `locale` is given. |
 
-"Reactive" means that markup, `$derived` and `$effect` calling the function run again after a locale or dictionary change. A component that uses `export let` or `$:` does not track function calls, so there use the two stores.
+"Reactive" means that markup, `$derived` and `$effect` calling the function run again after a locale or dictionary change. A [legacy component](#legacy-components) does not track function calls, so there use the two stores.
 
 ## Recipes
 

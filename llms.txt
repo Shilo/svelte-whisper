@@ -33,7 +33,7 @@ mount(App, { target: document.getElementById('app') });
 
 ## Rules for writing code with it
 
-- First check whether the component is a legacy one, meaning it uses `export let` or `$:`. If not, call the functions: `t('key')`, `getLocale()`. In a legacy component Svelte only follows stores, so write `$t('key')` and `$locale` (both are exported as stores too) and pass the locale to formatters: `formatNumber(n, options, $locale)`. `$t` and `$locale` also work in every other component. `tr()` was 1.x and does not exist.
+- First check whether the component is a legacy one, meaning it uses `export let`, `$:`, `$$props` or `$$restProps`, or runes are switched off for it (`<svelte:options runes={false} />`, or `runes: false` in the compiler options). If not, call the functions: `t('key')`, `getLocale()`. In a legacy component Svelte only follows stores, so write `$t('key')` and `$locale` (both are exported as stores too) and pass the locale to formatters: `formatNumber(n, options, $locale)`. `$t` and `$locale` also work in every other component. `tr()` was 1.x and does not exist.
 - `t('key', vars)` is the only translate function. Use it in markup, `<script>`, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive: callers inside markup, `$derived` or `$effect` re-run when the locale or a dictionary changes. It always returns a string: the key itself when the key is missing everywhere. List items are addressed by index (`rules.0`).
 - Keys are dotted paths into nested JSON: `nav.settings.title`.
 - Placeholders: `{name}` with an object, `{0}` with an array. Unmatched placeholders stay visible.
