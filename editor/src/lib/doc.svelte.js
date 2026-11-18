@@ -54,7 +54,13 @@ export class LocaleDoc {
 			} catch (e) {
 				throw new Error(`${f.name} is not valid JSON (${e.message}). Fix it in the repository first.`);
 			}
-			const { strings, other, empty, keys } = flatten(parsed.data);
+			let flat;
+			try {
+				flat = flatten(parsed.data);
+			} catch (e) {
+				throw new Error(`${f.name} ${e.message}. Fix it in the repository first.`);
+			}
+			const { strings, other, empty, keys } = flat;
 			this.files[lang] = { path: f.path, sha: f.sha, parsed };
 			this.base[lang] = strings;
 			this.fixed[lang] = other;
@@ -305,11 +311,24 @@ export class LocaleDoc {
 		return this.#changeCount;
 	}
 
+	/**
+	 * Renamed keys that were `null` ("not translated yet") in a language's file and still
+	 * have no text there: the `null` moves with the key, so the file keeps saying so.
+	 * @param {string} lang
+	 */
+	movedNulls(lang) {
+		return this.keys.filter((k) => {
+			const from = this.renamed[k];
+			return from && !this.deleted[k] && this.empty[lang].has(from) && this.values[lang][k] === undefined;
+		});
+	}
+
 	/** @returns {OutFile[]} */
 	outputFiles() {
 		const sourceNested = this.files[this.source]?.parsed?.nested ?? false;
 		return Object.entries(this.edits()).map(([lang, e]) => {
 			const f = this.files[lang];
+			const nulls = this.movedNulls(lang);
 			return {
 				lang,
 				path: f.path,
@@ -320,7 +339,7 @@ export class LocaleDoc {
 					before: this.base[lang][key],
 					after: after ?? undefined
 				})),
-				text: serialize(f.parsed, e, { nested: sourceNested, order: this.keys })
+				text: serialize(f.parsed, e, { nested: sourceNested, order: this.keys, nulls })
 			};
 		});
 	}
@@ -341,17 +360,29 @@ export class LocaleDoc {
 	/** @param {ReturnType<LocaleDoc['toDraft']>} d */
 	applyDraft(d) {
 		for (const lang of d.langs || []) if (LANG_PATTERN.test(lang)) this.addLanguage(lang);
-		// Renames first: they move the row, and the draft holds its text under the new name.
-		for (const [to, from] of Object.entries(d.renamed || {})) {
-			if (!this.keys.includes(from) || this.keys.includes(to)) continue;
-			this.renameKey(from, to);
-			for (const lang of this.langs) {
-				const v = d.edits?.[lang]?.[to];
-				if (typeof v === 'string') this.values[lang][to] = v;
-				else delete this.values[lang][to];
-			}
+		// Renames first: they move rows. They are applied all at once, so a chain (x to y,
+		// then a to x) and a swap work. A rename needs its source, and a target that is free
+		// or itself moving away; dropping one rename can block another, so filter until stable.
+		const all = Object.entries(d.renamed || {}).filter(([to, from]) => to !== from && this.keys.includes(from) && !this.isFixedKey(from));
+		let renames = all;
+		for (let n = -1; n !== renames.length; ) {
+			n = renames.length;
+			const moving = new Set(renames.map(([, from]) => from));
+			renames = renames.filter(([to]) => !this.keys.includes(to) || moving.has(to));
 		}
-		const removed = new Set(d.removed || []);
+		const target = new Map(renames.map(([to, from]) => [from, to]));
+		this.keys = this.keys.map((k) => target.get(k) ?? k);
+		for (const [to, from] of renames) this.renamed[to] = from;
+		for (const lang of this.langs) {
+			// Each new name starts from what the file has under that name; the edits below
+			// then put back the text that was typed or moved there.
+			const row = this.values[lang];
+			for (const [, from] of renames) delete row[from];
+			for (const [to] of renames) if (this.base[lang][to] !== undefined) row[to] = this.base[lang][to];
+		}
+		// A rename that could not be applied keeps its source row instead of losing it.
+		const kept = new Set(all.filter(([, from]) => !target.has(from)).map(([, from]) => from));
+		const removed = new Set((d.removed || []).filter((k) => !kept.has(k)));
 		const deleted = new Set(d.deleted || []);
 		if (removed.size) this.keys = this.keys.filter((k) => !removed.has(k));
 		for (const k of d.added || []) if (!this.keys.includes(k)) this.addKey(k);

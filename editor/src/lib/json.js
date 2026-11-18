@@ -40,6 +40,8 @@ const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
  * Flatten a locale object to dotted keys. `null` means "not translated yet", as in
  * svelte-whisper: its keys are listed in `empty`. Other non-string leaves (numbers,
  * arrays, booleans) are returned in `other`: kept in the file but not editable.
+ * Throws when two properties flatten to the same key, as in `{"a.b": …, "a": {"b": …}}`:
+ * the file holds two values for one message, and only its author can say which is right.
  * @param {Record<string, any>} data
  */
 export function flatten(data) {
@@ -51,6 +53,7 @@ export function flatten(data) {
 	const empty = [];
 	/** @type {string[]} every leaf, in file order */
 	const keys = [];
+	const seen = new Set();
 	/** @param {Record<string, any>} obj @param {string} prefix */
 	const walk = (obj, prefix) => {
 		for (const [k, v] of Object.entries(obj)) {
@@ -59,6 +62,8 @@ export function flatten(data) {
 				walk(v, key);
 				continue;
 			}
+			if (seen.has(key)) throw new Error(`defines ${key} twice, once nested and once as a dotted key`);
+			seen.add(key);
 			keys.push(key);
 			if (typeof v === 'string') strings[key] = v;
 			else if (v === null) empty.push(key);
@@ -74,11 +79,13 @@ export function flatten(data) {
  * `edits` maps a dotted key to its new string, or to `null` to remove it.
  * @param {ParsedFile | null} file  null for a language file that does not exist yet
  * @param {Record<string, string | null>} edits
- * @param {{ nested?: boolean, order?: string[] }} [hint]  `nested`: shape to use for a new file.
+ * @param {{ nested?: boolean, order?: string[], nulls?: string[] }} [hint]  `nested`: shape to use for a new file.
  *   `order`: every key in the source language's order, so a new key lands where the source has it.
+ *   `nulls`: keys to write as `null` ("not translated yet"), such as a renamed key that was null.
  */
 export function serialize(file, edits, hint = {}) {
-	if (file && !Object.keys(edits).length) return file.text;
+	const nulls = hint.nulls ?? [];
+	if (file && !Object.keys(edits).length && !nulls.length) return file.text;
 	const data = structuredClone(file?.data ?? {});
 	const nested = file ? file.nested : !!hint.nested;
 	const order = hint.order ?? [];
@@ -86,6 +93,7 @@ export function serialize(file, edits, hint = {}) {
 		if (value === null) remove(data, key);
 		else set(data, key, value, nested, order);
 	}
+	for (const key of nulls) set(data, key, null, nested, order);
 	const indent = file?.indent ?? '\t';
 	const eol = file?.eol ?? '\n';
 	let out = JSON.stringify(data, null, indent);
@@ -114,7 +122,7 @@ function locate(obj, parts) {
 }
 
 /**
- * @param {Record<string, any>} data @param {string} key @param {string} value
+ * @param {Record<string, any>} data @param {string} key @param {string | null} value
  * @param {boolean} nested @param {string[]} order
  */
 function set(data, key, value, nested, order) {
@@ -212,15 +220,9 @@ export function comparePlaceholders(source, translation) {
 	if (!translation) return null;
 	const want = placeholders(source);
 	const have = placeholders(translation);
-	if (!want.length && !have.length) return null;
-	const left = [...have];
-	const missing = [];
-	for (const p of want) {
-		const i = left.indexOf(p);
-		if (i === -1) missing.push(p);
-		else left.splice(i, 1);
-	}
-	return missing.length || left.length ? { missing, extra: left } : null;
+	const missing = want.filter((p) => !have.includes(p));
+	const extra = have.filter((p) => !want.includes(p));
+	return missing.length || extra.length ? { missing, extra } : null;
 }
 
 /** @param {string} p */

@@ -102,9 +102,13 @@ test('plural categories other than `other` are optional once `other` is there', 
 	assert.ok(doc.isMissing('de', 'items.other'));
 	assert.ok(doc.isMissing('de', 'items.one')); // no `other` yet, so every form is needed
 	// A category the source does not have is checked against the source's `other`.
+	assert.equal(doc.get('ru', 'items.few'), '{count} предмета');
 	assert.equal(doc.warning('ru', 'items.few'), null);
-	doc.set('ru', 'items.few', 'предмета');
-	assert.deepEqual(doc.warning('ru', 'items.few'), { missing: ['count'], extra: [] });
+	doc.set('ru', 'items.many', 'предметов');
+	assert.equal(doc.get('ru', 'items.many'), 'предметов');
+	assert.deepEqual(doc.warning('ru', 'items.many'), { missing: ['count'], extra: [] });
+	doc.set('ru', 'items.few', '{n} предмета');
+	assert.deepEqual(doc.warning('ru', 'items.few'), { missing: ['count'], extra: ['n'] });
 });
 
 test('placeholder warnings for {name} and {0}, none for {}', () => {
@@ -129,4 +133,103 @@ test('an unchanged file is not sent, and an edited file keeps CRLF and its inden
 	assert.deepEqual(doc.outputFiles(), []);
 	doc.set('en', 'b', 'Bee');
 	assert.equal(output(doc, 'en'), '{\r\n  "a": "A",\r\n  "b": "Bee"\r\n}\r\n');
+});
+
+test('a chain of renames survives a draft reload', () => {
+	const files = { en: { a: 'A', x: 'X' }, fr: { a: 'Ah', x: 'Iks' } };
+	const doc = makeDoc(files);
+	doc.renameKey('x', 'y');
+	doc.renameKey('a', 'x');
+	assert.deepEqual(JSON.parse(output(doc, 'en')), { x: 'A', y: 'X' });
+	const next = reload(files, doc);
+	assert.deepEqual([...next.keys].sort(), ['x', 'y']);
+	for (const lang of ['en', 'fr']) assert.equal(output(next, lang), output(doc, lang), lang);
+	assert.equal(next.changeCount(), doc.changeCount());
+});
+
+test('a swap through a temporary name survives a draft reload', () => {
+	// fr has the same text under both names, so the swap leaves no edit there.
+	const files = { en: { a: 'A', b: 'B', c: 'C' }, fr: { a: 'Même', b: 'Même', c: 'Cé' } };
+	const doc = makeDoc(files);
+	doc.renameKey('a', 'tmp');
+	doc.renameKey('b', 'a');
+	doc.renameKey('tmp', 'b');
+	assert.deepEqual(JSON.parse(output(doc, 'en')), { a: 'B', b: 'A', c: 'C' });
+	const next = reload(files, doc);
+	assert.deepEqual(next.keys, ['b', 'a', 'c']);
+	assert.equal(next.get('en', 'a'), 'B');
+	assert.equal(next.get('fr', 'a'), 'Même');
+	assert.equal(output(next, 'en'), output(doc, 'en'));
+	assert.equal(output(next, 'fr'), output(doc, 'fr'));
+});
+
+test('a rename followed by an edit and a clear survives a draft reload', () => {
+	const files = { en: { a: 'A', b: 'B' }, fr: { a: 'Ah', b: 'Bé' }, de: { a: 'Ach', b: 'Be' } };
+	const doc = makeDoc(files);
+	doc.renameKey('a', 'c');
+	doc.set('fr', 'c', 'Cé');
+	doc.set('de', 'c', '');
+	const next = reload(files, doc);
+	assert.equal(next.get('en', 'c'), 'A');
+	assert.equal(next.get('fr', 'c'), 'Cé');
+	assert.equal(next.get('de', 'c'), '');
+	for (const lang of ['en', 'fr', 'de']) assert.equal(output(next, lang), output(doc, lang), lang);
+	assert.deepEqual(JSON.parse(output(next, 'de')), { b: 'Be' });
+});
+
+test('an added language survives a draft reload', () => {
+	const files = sample();
+	const doc = makeDoc(files);
+	doc.addLanguage('de');
+	doc.set('de', 'greeting', 'Hallo {name}');
+	const next = reload(files, doc);
+	assert.deepEqual(next.langs, ['en', 'fr', 'de']);
+	assert.equal(next.get('de', 'greeting'), 'Hallo {name}');
+	const de = next.outputFiles().find((f) => f.lang === 'de');
+	assert.ok(de?.isNew);
+	assert.equal(de.path, 'src/locales/de.json');
+	assert.deepEqual(JSON.parse(de.text), { greeting: 'Hallo {name}' });
+});
+
+test('a renamed key that is null in one file keeps its null under the new name', () => {
+	const files = { en: { a: 'A', b: 'B' }, fr: { a: null, b: 'Bé' } };
+	const doc = makeDoc(files);
+	doc.renameKey('a', 'c');
+	assert.equal(output(doc, 'fr'), '{\n\t"c": null,\n\t"b": "Bé"\n}\n'); // in the renamed row's place
+	assert.equal(output(reload(files, doc), 'fr'), output(doc, 'fr'));
+	// Text typed under the new name replaces the null.
+	doc.set('fr', 'c', 'Cé');
+	assert.deepEqual(JSON.parse(output(doc, 'fr')), { b: 'Bé', c: 'Cé' });
+	// A deleted key loses its null.
+	doc.set('fr', 'c', '');
+	doc.deleteKey('c');
+	assert.deepEqual(JSON.parse(output(doc, 'fr')), { b: 'Bé' });
+});
+
+test('changing the source language re-evaluates the warnings', () => {
+	const doc = makeDoc({ en: { greet: 'Hi {name}' }, fr: { greet: 'Salut {nom}' } });
+	assert.deepEqual(doc.warning('fr', 'greet'), { missing: ['name'], extra: ['nom'] });
+	assert.equal(doc.warning('en', 'greet'), null);
+	doc.setSource('fr');
+	flushSync();
+	assert.equal(doc.warning('fr', 'greet'), null);
+	assert.deepEqual(doc.warning('en', 'greet'), { missing: ['nom'], extra: ['name'] });
+});
+
+test('validateKey accepts new keys and explains what is wrong with the rest', () => {
+	const doc = makeDoc({ en: { app: { title: 'T' }, greeting: 'Hi' } });
+	assert.equal(doc.validateKey('app.subtitle'), null);
+	assert.equal(doc.validateKey('greeting', 'greeting'), null); // renaming to itself
+	assert.equal(doc.validateKey('  '), 'Enter a key.');
+	assert.equal(doc.validateKey('a b'), 'Keys cannot contain spaces.');
+	for (const key of ['.a', 'a.', 'a..b']) assert.match(doc.validateKey(key) ?? '', /segment cannot be empty/, key);
+	assert.equal(doc.validateKey('greeting'), 'That key already exists.');
+	assert.match(doc.validateKey('app') ?? '', /Conflicts with “app.title”/);
+	assert.match(doc.validateKey('greeting.formal') ?? '', /Conflicts with “greeting”/);
+});
+
+test('a file that defines a key both nested and dotted is refused', () => {
+	assert.throws(() => makeDoc({ en: { a: { b: 'x' } }, fr: '{"a.b":"literal","a":{"b":"nested"}}' }), {
+		message: 'fr.json defines a.b twice, once nested and once as a dotted key. Fix it in the repository first.'
+	});
 });

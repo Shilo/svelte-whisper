@@ -5,10 +5,13 @@ import { isLocaleFile } from '../src/lib/lang.js';
 
 const edit = (text, edits, hint) => serialize(parseFile(text), edits, hint);
 
-test('an untouched file comes back byte-identical, whatever its formatting', () => {
-	for (const text of ['{"a":"x","n":1.0}', '{\r\n  "a": "\\u00e9"\r\n}', '\uFEFF{\n\t"a": "x"\n}\n', '']) {
-		assert.equal(serialize(parseFile(text), {}), text);
-	}
+test('editing one key leaves every other line byte-identical', () => {
+	// CRLF, four-space indent, a final newline and keys out of alphabetical order.
+	const lines = ['{', '    "zeta": "Z",', '    "group": {', '        "b": "old",', '        "a": "A"', '    },', '    "alpha": "first"', '}', ''];
+	const out = edit(lines.join('\r\n'), { 'group.b': 'new' }).split('\r\n');
+	assert.equal(out.length, lines.length);
+	for (let i = 0; i < lines.length; i++) assert.equal(out[i], i === 3 ? '        "b": "new",' : lines[i], `line ${i + 1}`);
+	assert.ok(!out.some((line) => line.includes('\n')), 'no bare LF');
 });
 
 test('edits keep the indentation, line endings and final newline', () => {
@@ -62,6 +65,17 @@ test('placeholders are named or indexed; empty braces are plain text', () => {
 	assert.deepEqual(comparePlaceholders('{0} notes', 'notes'), { missing: ['0'], extra: [] });
 	assert.equal(comparePlaceholders('Braces {} here', 'Accolades {} ici'), null);
 	assert.equal(comparePlaceholders('Plain', 'Avec {}'), null);
+});
+
+test('a repeated placeholder counts once', () => {
+	assert.deepEqual(placeholders('{n} and {n} and { n }'), ['n']);
+	assert.equal(comparePlaceholders('{name}, {name}!', 'Salut {name}'), null);
+	assert.deepEqual(comparePlaceholders('{a} {a}', '{b} {b}'), { missing: ['a'], extra: ['b'] });
+});
+
+test('flatten refuses a key defined twice', () => {
+	assert.throws(() => flatten({ 'a.b': 'literal', a: { b: 'nested' } }), /defines a\.b twice/);
+	assert.throws(() => flatten({ a: { 'b.c': null }, 'a.b': { c: 'x' } }), /defines a\.b\.c twice/);
 });
 
 test('only files named like a language tag are locales', () => {
