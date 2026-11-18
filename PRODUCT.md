@@ -28,7 +28,7 @@ svelte-whisper is a pure-runtime i18n library of under 2 kB for Svelte 5 client-
 
 - Hosted on GitHub Pages at https://shilo.github.io/svelte-whisper/ (a plain Vite + Svelte single-page app, base path `/svelte-whisper`), deployed by `.github/workflows/deploy-editor.yml`.
 - Talks directly to `api.github.com` from the browser. OAuth device flow needs a Cloudflare Worker (or similar) CORS proxy for GitHub's two OAuth endpoints; without it, only PAT sign-in is offered.
-- Locale files are one JSON file per language in a folder (default `src/locales`, the library's zero-config default is `/locales/<lang>.json` under `public/`). Values may be flat keys (`"app.title"`) or nested objects resolved by dotted paths; strings may contain interpolation placeholders `{name}`, `{0}` and positional `{}`.
+- Locale files are one JSON file per language in a folder (default `src/locales`, the library's zero-config default is `/locales/<lang>.json` under `public/`). Values may be flat keys (`"app.title"`) or nested objects resolved by dotted paths; strings may contain named `{name}` and indexed `{0}` placeholders. A plural is a group of sibling keys (`one`, `few`, `many`, `other`, or an exact number), of which only `other` is required in every language. `null` means not translated yet.
 - Sessions are short and task-shaped: open, find the gaps, fill them, submit.
 
 ## Capabilities and Constraints
@@ -50,7 +50,7 @@ svelte-whisper is a pure-runtime i18n library of under 2 kB for Svelte 5 client-
 ## Evidence on Hand
 
 - The library itself (`index.svelte.js`, under 2 kB) and its README.
-- Example locale files in `example/public/locales/{en,es,fr}.json` showing nested keys and `{user}` / `{}` placeholders.
+- Example locale files in `example/src/locales/{en,es,fr,ja,ar}.json` showing nested keys, `{user}` and `{0}` placeholders and plural groups.
 - No testimonials, user counts, benchmarks for the editor, or customer logos exist. Do not invent them.
 
 ## Product Principles
