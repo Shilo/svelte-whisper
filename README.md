@@ -18,6 +18,10 @@ Tiny runtime i18n for Svelte 5 single-page apps. Locales load on demand, the API
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
 - **Fast.** A key lookup is one property read, under 10 ns. See [Size and speed](#size-and-speed).
 
+[![The demo app: a language switcher, a list of the locale files downloaded so far, and live examples of interpolation, plurals, formatting, fallback and missing keys](docs/assets/demo-light.png)](https://shilo.github.io/svelte-whisper/demo/)
+
+**[Try the live demo](https://shilo.github.io/svelte-whisper/demo/)**, or read its source in [`example/`](example): it is the recommended setup in about a hundred lines.
+
 It is built for client-side apps: a Vite SPA, a PWA, or SvelteKit with `ssr = false`. See [How it compares](#how-it-compares) for when another library fits better.
 
 ## Contents
@@ -134,7 +138,7 @@ A placeholder with no matching value is left as written, so mistakes are visible
 
 An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the active locale, then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`.
 
-**Other values.** A key that points at an array or an object returns it as is, so `$t('rules')` can drive an `{#each}` block.
+**Other values.** A key that points at an array returns the array, so `$t('rules')` can drive an `{#each}` block.
 
 ## Formatting
 
@@ -203,7 +207,7 @@ Without `onMissing`, each one is logged with `console.warn`. Pass `warn: false` 
 
 ### Dev overlay
 
-In Vite's dev server a small badge appears when keys are missing. Open it to see them listed as you move through the app, and click one to copy it.
+In Vite's dev server a small badge appears when keys are missing. Open it to see them grouped by locale as you move through the app. Click a key to copy it, or use **Copy JSON** to get a skeleton of every missing key, ready to paste into a locale file.
 
 ![The dev overlay listing missing keys](docs/assets/dev-overlay.png)
 
@@ -231,7 +235,7 @@ $t('nav.home');   // ok
 $t('nav.hmoe');   // type error
 ```
 
-This needs `"resolveJsonModule": true`. For a key built at runtime, cast it: `` $t(`skills.${id}` as WhisperKey) ``.
+This needs `"resolveJsonModule": true`. Valid keys are the paths that hold a message: strings, plural groups, arrays and their items. For a key built at runtime, cast it: `` $t(`skills.${id}` as WhisperKey) ``.
 
 ## API
 

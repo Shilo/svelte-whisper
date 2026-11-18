@@ -33,7 +33,7 @@ npm run preview
 ```
 
 The example depends on the library in the parent folder (`"svelte-whisper": "file:.."`).
-To deploy under a sub-path, set `BASE_PATH`: `BASE_PATH=/svelte-whisper/ npm run build`.
+To deploy under a sub-path, set `BASE_PATH`: `BASE_PATH=/svelte-whisper/demo/ npm run build`. The Pages workflow does this and serves the demo at https://shilo.github.io/svelte-whisper/demo/.
 
 ## Source map
 

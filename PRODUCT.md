@@ -49,7 +49,7 @@ svelte-whisper is a pure-runtime i18n library of under 2 kB for Svelte 5 client-
 
 ## Evidence on Hand
 
-- The library itself (`index.js`, ~1 KB) and its README.
+- The library itself (`index.js`, under 2 kB) and its README.
 - Example locale files in `example/public/locales/{en,es,fr}.json` showing nested keys and `{user}` / `{}` placeholders.
 - No testimonials, user counts, benchmarks for the editor, or customer logos exist. Do not invent them.
 
