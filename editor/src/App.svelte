@@ -61,7 +61,7 @@
 			saveConfig({
 				repo: p.get('repo') ?? config.repo,
 				branch: p.get('branch') || config.branch,
-				dir: p.get('path') || p.get('dir') || config.dir
+				dir: p.get('path') || config.dir
 			});
 		}
 		focusLang = p.get('lang') || '';

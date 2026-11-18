@@ -39,23 +39,6 @@ function storage(name) {
 const local = storage('localStorage');
 const session = storage('sessionStorage');
 
-// Older builds kept settings under bare keys and could leave a token in
-// localStorage. Move the settings once and delete every legacy key.
-try {
-	if (local && local.getItem('repo') != null && !local.getItem(CONFIG_KEY)) {
-		write(local, CONFIG_KEY, {
-			repo: local.getItem('repo') || '',
-			branch: local.getItem('branch') || 'main',
-			dir: local.getItem('localesPath') || 'src/locales',
-			mode: local.getItem('submitMode') === 'direct' ? 'commit' : 'pr'
-		});
-	}
-	for (const k of ['token', 'repo', 'branch', 'localesPath', 'submitMode', 'authMethod', 'userLogin', 'userAvatar']) {
-		local?.removeItem(k);
-	}
-	session?.removeItem('authToken');
-} catch {}
-
 /**
  * @typedef {{ repo: string, branch: string, dir: string, source: string, mode: 'pr' | 'commit' }} Config
  */
