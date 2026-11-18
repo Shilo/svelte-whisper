@@ -7,7 +7,7 @@ A tiny runtime i18n library for Svelte 5 single-page apps. Read `README.md` for 
 In this order: simplicity, runtime speed, bundle size, and as little network traffic as possible. A change that adds API surface, bytes or a dependency needs a concrete user problem behind it. Prefer a platform feature (`Intl`, dynamic `import()`) over code of our own, and prefer a recipe in the README over a new export.
 
 - The core is one Svelte runes module, `index.svelte.js`, with a hand-written `index.d.ts`. It is shipped as source and compiled by the consuming app's Svelte plugin; there is no build step of our own, so keep it that way.
-- Runes only, everywhere in this repository: no `svelte/store`, no legacy component syntax, and no SvelteKit. `example/` and `editor/` are plain Vite + Svelte apps with `compilerOptions.runes` switched on.
+- Runes only, everywhere in this repository: no `svelte/store` import, no legacy component syntax, and no SvelteKit. The library still serves apps that have components without runes: `t` and `locale` implement the store contract by hand, because stores are all Svelte follows in such components. `example/` and `editor/` are plain Vite + Svelte apps with `compilerOptions.runes` switched on.
 - The module imports nothing but its own dev overlay (in dev mode) and has one `$state` signal. Do not add dependencies, and keep dictionaries as plain non-reactive data.
 - This is a 2.0 with no compatibility layer: do not add aliases, deprecated exports or shims for 1.x.
 - Anything not needed at startup must stay lazy: locale files load on demand, and `dev-overlay.js` is requested only by the Vite dev server.

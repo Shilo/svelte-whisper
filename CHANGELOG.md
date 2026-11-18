@@ -2,21 +2,22 @@
 
 ## 2.0.0
 
-A rewrite on Svelte 5 runes. The API is smaller and is not compatible with 1.x: there are no stores, no aliases and no deprecated paths.
+A rewrite on Svelte 5 runes with a smaller API. Runes code calls plain functions; components that do not use runes keep `$t` and `$locale`, because stores are the only thing Svelte follows there.
 
 ### Replaced
 
 | 1.x | 2.0 |
 |---|---|
-| `$t('key')` (store) and `tr('key')` | `t('key')`: one reactive function for markup, `$derived`, `$effect` and plain modules |
-| `$locale` (store) | `getLocale()`, reactive |
-| `locale.set('fr')`, `$locale = 'fr'` | `setLocale('fr')`; in a form control, `bind:value={getLocale, setLocale}` |
+| `tr('key')` | `t('key')`: one reactive function for markup, `$derived`, `$effect` and plain modules |
+| `$t('key')` | Unchanged in components without runes (`t` is also a store). In runes components, `t('key')`. |
+| `$locale` | Unchanged in components without runes. In runes code, `getLocale()`. |
+| `locale.set('fr')` | Still there; `setLocale('fr')` is the usual call. In a runes form control, `bind:value={getLocale, setLocale}`. |
 | `formatPercent(0.2, 1)` | `formatNumber(0.2, { style: 'percent', maximumFractionDigits: 1 })` |
 | `getFallbackLocale()` | Removed. You passed the fallback to `init`. |
 | Automatic `{}` placeholders | `{0}`, `{1}`: indexed placeholders can be reordered by a translation |
 | `t()` returning arrays and objects | `t()` always returns a string; address list items by index (`rules.0`) |
 | `init({ detect: { ja: 'jp' } })` mapping | Removed. Detection needs no configuration; name locale files with real language tags. |
-| `index.js` importing `svelte/store` | `index.svelte.js`, a runes module with no dependencies, compiled by your app's Svelte plugin |
+| `index.js` importing `svelte/store` | `index.svelte.js`, a runes module with no dependencies, compiled by your app's Svelte plugin. The two stores implement the store contract directly. |
 | `svelte-whisper/dev-overlay` export | Removed. The overlay is internal. |
 
 Requires `svelte@^5.9.0`.
@@ -25,7 +26,7 @@ Requires `svelte@^5.9.0`.
 
 - **Plurals.** A dictionary value that is an object with an `other` form (`one`, `few`, `many`, `other`, or an exact number such as `"0"`) is selected by a numeric `count`, using the browser's `Intl.PluralRules`.
 - **Formatting.** `formatNumber(value, options?, locale?)` accepts every `Intl.NumberFormat` option (currency, percent, compact, units). New `formatDate(value, options?, locale?)` and `localeName(id, displayLocale?)`.
-- **Everything is reactive.** `t()`, `getLocale()` and the formatters re-run inside markup, `$derived` and `$effect` when the locale or a dictionary changes. In 1.x, `{formatNumber(n)}` kept the old locale's format after a switch.
+- **Everything is reactive in runes code.** `t()`, `getLocale()` and the formatters re-run inside markup, `$derived` and `$effect` when the locale or a dictionary changes. In 1.x, `{formatNumber(n)}` kept the old locale's format after a switch. In a component without runes, pass the locale: `formatNumber(n, options, $locale)`.
 - **Glob registration.** `registerLoader(import.meta.glob('./locales/*.json'))` registers every file, using the file name as the locale id.
 - **Lazy fallback.** A fallback locale that is registered with a loader is downloaded the first time a key is missing, then the text updates. In 1.x it was never loaded, so users saw raw keys.
 - `loadLocale(id)` to preload a locale, `getLocale()`, and `detectLocale()`.

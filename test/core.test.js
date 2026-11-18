@@ -953,3 +953,35 @@ describe('review round 3', () => {
         assert.equal(w.t('nope'), 'nope', 'and it is reported once');
     });
 });
+
+describe('stores, for components without runes', () => {
+    test('t and locale follow the Svelte store contract', async () => {
+        const { get } = await import('svelte/store');
+        const w = await english({ hello: 'Hello' });
+        w.addDictionary('fr', { hello: 'Bonjour' });
+
+        assert.equal(get(w.locale), 'en');
+        assert.equal(get(w.t)('hello'), 'Hello');
+
+        const locales = [];
+        const texts = [];
+        const stopLocale = w.locale.subscribe(value => locales.push(value));
+        const stopT = w.t.subscribe(translate => texts.push(translate('hello')));
+        assert.equal(await w.locale.set('fr'), true);
+        w.addDictionary('fr', { hello: 'Salut' });
+        stopLocale();
+        stopT();
+        await w.setLocale('en');
+
+        assert.deepEqual(texts, ['Hello', 'Bonjour', 'Salut'], 'called at once, then on every change, never after unsubscribing');
+        assert.deepEqual([...new Set(locales)], ['en', 'fr']);
+        assert.equal(w.getLocale(), 'en');
+    });
+
+    test('the store value is t itself, so $t(key) and t(key) are the same call', async () => {
+        const w = await english({ hello: 'Hello' });
+        let seen;
+        w.t.subscribe(value => { seen = value; })();
+        assert.equal(seen, w.t);
+    });
+});

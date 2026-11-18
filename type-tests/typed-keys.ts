@@ -1,6 +1,6 @@
 // Compile-time checks for index.d.ts. Run with `npm run check:types`; nothing here executes.
 import {
-    t, init, registerLoader, addDictionary, setLocale, loadLocale, resetLocale,
+    t, locale, init, registerLoader, addDictionary, setLocale, loadLocale, resetLocale,
     getLocale, getLocales, detectLocale, localeName, formatNumber, formatDate,
     type WhisperKey, type Translate,
 } from 'svelte-whisper';
@@ -53,6 +53,13 @@ const dynamic = 'nav.home' as string;
 t(dynamic as WhisperKey);
 
 t('greeting') satisfies string;
+
+// Stores, for components without runes.
+const stopT: () => void = t.subscribe(translate => { translate('nav.home') satisfies string; });
+const stopLocale: () => void = locale.subscribe(id => { id satisfies string; });
+locale.set('fr') satisfies Promise<boolean>;
+stopT();
+stopLocale();
 const translate: Translate = t;
 translate('nav.home');
 

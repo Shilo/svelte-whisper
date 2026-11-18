@@ -1,6 +1,6 @@
 # Svelte Whisper 🤫
 
-Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.7 kB** to your bundle.
+Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.8 kB** to your bundle.
 
 ```svelte
 <script>
@@ -13,9 +13,9 @@ Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on
 <button onclick={() => setLocale('fr')}>Français</button>
 ```
 
-- **Small.** 1.7 kB gzipped for a typical app, 1.9 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
+- **Small.** 1.8 kB gzipped for a typical app, under 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
-- **Runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. There are no stores.
+- **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. Components that do not use runes write `$t()` instead, and get the same thing.
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
 - **Fast.** A lookup is one signal read and one property read, about 11 ns. See [Size and speed](#size-and-speed).
 
@@ -30,6 +30,7 @@ It is built for client-side apps: a Vite single-page app or a PWA. See [How it c
 - [Install](#install)
 - [Quick start](#quick-start)
 - [Translating](#translating)
+- [Components without runes](#components-without-runes)
 - [Formatting](#formatting)
 - [Locales](#locales)
 - [Missing keys](#missing-keys)
@@ -140,6 +141,317 @@ An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules`
 
 **Always a string.** `t()` returns text and nothing else. A number or boolean in the JSON comes back as text, and items of a list are addressed by index: `t('rules.0')`. A key that points at a group or a list is not a message, so it comes back as the key, like any other missing key.
 
+## Components without runes
+
+Svelte 5 still compiles components that use no runes (`export let`, `$:`) in its legacy mode, and in those components Svelte follows **stores only**: a plain function call such as `{t('key')}` is evaluated once and never again. So `t` is also a store, and so is `locale`. Put a `# Svelte Whisper 🤫
+
+Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.8 kB** to your bundle.
+
+```svelte
+<script>
+    import { t, setLocale } from 'svelte-whisper';
+</script>
+
+<h1>{t('greeting', { name: 'Ada' })}</h1>
+<p>{t('cart.items', { count: 3 })}</p>
+
+<button onclick={() => setLocale('fr')}>Français</button>
+```
+
+- **Small.** 1.8 kB gzipped for a typical app, under 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
+- **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
+- **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. Components that do not use runes write `$t()` instead, and get the same thing.
+- **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
+- **Fast.** A lookup is one signal read and one property read, about 11 ns. See [Size and speed](#size-and-speed).
+
+[![The demo app: a language switcher, a list of the locale files downloaded so far, and live examples of interpolation, plurals, formatting, fallback and missing keys](docs/assets/demo-light.png)](https://shilo.github.io/svelte-whisper/demo/)
+
+**[Try the live demo](https://shilo.github.io/svelte-whisper/demo/)**, or read its source in [`example/`](example): it is the recommended setup in about a hundred lines.
+
+It is built for client-side apps: a Vite single-page app or a PWA. See [How it compares](#how-it-compares) for when another library fits better.
+
+## Contents
+
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Translating](#translating)
+- [Components without runes](#components-without-runes)
+- [Formatting](#formatting)
+- [Locales](#locales)
+- [Missing keys](#missing-keys)
+- [Typed keys](#typed-keys)
+- [API](#api)
+- [Recipes](#recipes)
+- [Locale tools and agent skills](#locale-tools-and-agent-skills)
+- [Editor](#editor)
+- [Size and speed](#size-and-speed)
+- [How it compares](#how-it-compares)
+- [Changes from 1.x](#changes-from-1x)
+
+## Install
+
+```bash
+npm install github:Shilo/svelte-whisper
+```
+
+Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.0.0`. Requires `svelte@^5.9.0`.
+
+The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other. There is nothing else to configure. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
+
+## Quick start
+
+Put one JSON file per language in `src/locales/`. The file name is the locale id.
+
+```json
+{
+    "greeting": "Hello {name}!",
+    "nav": { "home": "Home", "settings": "Settings" },
+    "cart": {
+        "items": { "0": "Your cart is empty", "one": "{count} item", "other": "{count} items" }
+    }
+}
+```
+
+Register the files and initialise before mounting the app:
+
+```js
+// src/main.js
+import { mount } from 'svelte';
+import { init, registerLoader } from 'svelte-whisper';
+import App from './App.svelte';
+
+registerLoader(import.meta.glob('./locales/*.json'));
+await init({ fallback: 'en', persistKey: 'my-app-locale' });
+
+mount(App, { target: document.getElementById('app') });
+```
+
+`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and downloads only that one, so the first paint is already in that language. (If your build target has no top-level `await`, write `init({ … }).then(() => mount(…))`.)
+
+### Without any setup
+
+If you register nothing, locales are fetched from `locales/{locale}.json` in your public folder:
+
+```svelte
+<script>
+    import { t, setLocale } from 'svelte-whisper';
+    setLocale('en'); // fetches /locales/en.json
+</script>
+
+<h1>{t('greeting', { name: 'Ada' })}</h1>
+```
+
+This is handy for prototypes. The fetched files are not hashed or bundled, so prefer loaders for production.
+
+## Translating
+
+`t(key, vars?)` is the whole translation API, and it works the same everywhere:
+
+```svelte
+<script>
+    import { t } from 'svelte-whisper';
+
+    const title = $derived(t('nav.settings').toUpperCase());
+</script>
+
+<h1>{t('nav.home')}</h1>
+<h2>{title}</h2>
+<button onclick={() => alert(t('greeting', { name: 'Ada' }))}>…</button>
+```
+
+It is reactive in the Svelte sense: markup, `$derived` and `$effect` that call it run again when the locale or a dictionary changes. The same holds when the call is inside a helper in a plain `.js` or `.ts` module, such as a toast or a formatter of your own.
+
+**Keys** are dotted paths into your JSON: `nav.home`. A key that is missing from the active locale is looked up in the fallback locale, and if it is missing there too, the key itself is returned.
+
+**Interpolation** replaces placeholders with values:
+
+| Dictionary | Call | Result |
+|---|---|---|
+| `"Hello {name}!"` | `t('greeting', { name: 'Ada' })` | Hello Ada! |
+| `"{0} of {1}"` | `t('progress', [3, 10])` | 3 of 10 |
+
+A placeholder with no matching value is left as written, so mistakes are visible. Indexed placeholders can appear in any order, which lets a translation reorder them.
+
+**Plurals** are objects keyed by plural category, chosen by a numeric `count`:
+
+```json
+{ "items": { "0": "Your cart is empty", "one": "{count} item", "other": "{count} items" } }
+```
+
+```svelte
+{t('items', { count })}
+```
+
+An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the active locale, then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given.
+
+**Always a string.** `t()` returns text and nothing else. A number or boolean in the JSON comes back as text, and items of a list are addressed by index: `t('rules.0')`. A key that points at a group or a list is not a message, so it comes back as the key, like any other missing key.
+
+ in front:
+
+```svelte
+<script>
+    import { t, locale, formatNumber } from 'svelte-whisper';
+    export let total;
+</script>
+
+<h1>{$t('greeting', { name: 'Ada' })}</h1>
+<p>{formatNumber(total, { style: 'currency', currency: 'EUR' }, $locale)}</p>
+
+<select bind:value={$locale}>…</select>
+```
+
+| | With runes | Without runes |
+|---|---|---|
+| Translate | `t('key')` | `$t('key')` |
+| Read the locale | `getLocale()` | `$locale` |
+| Switch | `setLocale(id)` | `setLocale(id)`, `$locale = id` or `bind:value={$locale}` |
+| Format | `formatNumber(n)` | `formatNumber(n, options, $locale)` |
+
+The `# Svelte Whisper 🤫
+
+Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.8 kB** to your bundle.
+
+```svelte
+<script>
+    import { t, setLocale } from 'svelte-whisper';
+</script>
+
+<h1>{t('greeting', { name: 'Ada' })}</h1>
+<p>{t('cart.items', { count: 3 })}</p>
+
+<button onclick={() => setLocale('fr')}>Français</button>
+```
+
+- **Small.** 1.8 kB gzipped for a typical app, under 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
+- **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
+- **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. Components that do not use runes write `$t()` instead, and get the same thing.
+- **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
+- **Fast.** A lookup is one signal read and one property read, about 11 ns. See [Size and speed](#size-and-speed).
+
+[![The demo app: a language switcher, a list of the locale files downloaded so far, and live examples of interpolation, plurals, formatting, fallback and missing keys](docs/assets/demo-light.png)](https://shilo.github.io/svelte-whisper/demo/)
+
+**[Try the live demo](https://shilo.github.io/svelte-whisper/demo/)**, or read its source in [`example/`](example): it is the recommended setup in about a hundred lines.
+
+It is built for client-side apps: a Vite single-page app or a PWA. See [How it compares](#how-it-compares) for when another library fits better.
+
+## Contents
+
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Translating](#translating)
+- [Components without runes](#components-without-runes)
+- [Formatting](#formatting)
+- [Locales](#locales)
+- [Missing keys](#missing-keys)
+- [Typed keys](#typed-keys)
+- [API](#api)
+- [Recipes](#recipes)
+- [Locale tools and agent skills](#locale-tools-and-agent-skills)
+- [Editor](#editor)
+- [Size and speed](#size-and-speed)
+- [How it compares](#how-it-compares)
+- [Changes from 1.x](#changes-from-1x)
+
+## Install
+
+```bash
+npm install github:Shilo/svelte-whisper
+```
+
+Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.0.0`. Requires `svelte@^5.9.0`.
+
+The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other. There is nothing else to configure. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
+
+## Quick start
+
+Put one JSON file per language in `src/locales/`. The file name is the locale id.
+
+```json
+{
+    "greeting": "Hello {name}!",
+    "nav": { "home": "Home", "settings": "Settings" },
+    "cart": {
+        "items": { "0": "Your cart is empty", "one": "{count} item", "other": "{count} items" }
+    }
+}
+```
+
+Register the files and initialise before mounting the app:
+
+```js
+// src/main.js
+import { mount } from 'svelte';
+import { init, registerLoader } from 'svelte-whisper';
+import App from './App.svelte';
+
+registerLoader(import.meta.glob('./locales/*.json'));
+await init({ fallback: 'en', persistKey: 'my-app-locale' });
+
+mount(App, { target: document.getElementById('app') });
+```
+
+`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and downloads only that one, so the first paint is already in that language. (If your build target has no top-level `await`, write `init({ … }).then(() => mount(…))`.)
+
+### Without any setup
+
+If you register nothing, locales are fetched from `locales/{locale}.json` in your public folder:
+
+```svelte
+<script>
+    import { t, setLocale } from 'svelte-whisper';
+    setLocale('en'); // fetches /locales/en.json
+</script>
+
+<h1>{t('greeting', { name: 'Ada' })}</h1>
+```
+
+This is handy for prototypes. The fetched files are not hashed or bundled, so prefer loaders for production.
+
+## Translating
+
+`t(key, vars?)` is the whole translation API, and it works the same everywhere:
+
+```svelte
+<script>
+    import { t } from 'svelte-whisper';
+
+    const title = $derived(t('nav.settings').toUpperCase());
+</script>
+
+<h1>{t('nav.home')}</h1>
+<h2>{title}</h2>
+<button onclick={() => alert(t('greeting', { name: 'Ada' }))}>…</button>
+```
+
+It is reactive in the Svelte sense: markup, `$derived` and `$effect` that call it run again when the locale or a dictionary changes. The same holds when the call is inside a helper in a plain `.js` or `.ts` module, such as a toast or a formatter of your own.
+
+**Keys** are dotted paths into your JSON: `nav.home`. A key that is missing from the active locale is looked up in the fallback locale, and if it is missing there too, the key itself is returned.
+
+**Interpolation** replaces placeholders with values:
+
+| Dictionary | Call | Result |
+|---|---|---|
+| `"Hello {name}!"` | `t('greeting', { name: 'Ada' })` | Hello Ada! |
+| `"{0} of {1}"` | `t('progress', [3, 10])` | 3 of 10 |
+
+A placeholder with no matching value is left as written, so mistakes are visible. Indexed placeholders can appear in any order, which lets a translation reorder them.
+
+**Plurals** are objects keyed by plural category, chosen by a numeric `count`:
+
+```json
+{ "items": { "0": "Your cart is empty", "one": "{count} item", "other": "{count} items" } }
+```
+
+```svelte
+{t('items', { count })}
+```
+
+An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the active locale, then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given.
+
+**Always a string.** `t()` returns text and nothing else. A number or boolean in the JSON comes back as text, and items of a list are addressed by index: `t('rules.0')`. A key that points at a group or a list is not a message, so it comes back as the key, like any other missing key.
+
+ forms work in runes components too, so an app that mixes both kinds can use `$t` everywhere and convert at its own pace. Plain `.js` and `.ts` modules always use the functions.
+
 ## Formatting
 
 Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cached, and calls update when the locale changes, exactly like `t()`.
@@ -238,7 +550,7 @@ This needs `"resolveJsonModule": true`. Valid keys are the paths that hold a mes
 
 ## API
 
-Thirteen functions, all named exports of `svelte-whisper`:
+Thirteen functions and one store, all named exports of `svelte-whisper`:
 
 ```js
 // Setup, once, before mounting
@@ -262,6 +574,10 @@ await resetLocale();                                    // forget the stored cho
 getLocales();                                           // ['en', 'fr', 'ja']
 detectLocale();                                         // best match for the browser, or ''
 localeName('ja');                                       // '日本語'
+
+// Components without runes: the same two things as stores
+$t('greeting', { name: 'Ada' });                        // t is a store of itself
+$locale;                                                // 'en'
 ```
 
 ### Setup
@@ -290,6 +606,7 @@ localeName('ja');                                       // '日本語'
 | | |
 |---|---|
 | `getLocale()` | The active locale id. Reactive. |
+| `locale` | The same as a store, for [components without runes](#components-without-runes): `$locale`, `bind:value={$locale}`. |
 | `setLocale(id)` | Switch, loading first if needed. Resolves `true`, or `false` if the load failed or a newer call replaced this one. |
 | `loadLocale(id)` | Load without switching. Resolves `true` or `false`. |
 | `resetLocale()` | Forget the stored choice and choose again. |
@@ -301,11 +618,11 @@ localeName('ja');                                       // '日本語'
 
 | | |
 |---|---|
-| `t(key, vars?)` | Translate. Reactive. |
+| `t(key, vars?)` | Translate. Reactive. Also a store of itself: `$t(key, vars?)` in components without runes. |
 | `formatNumber(value, options?, locale?)` | `Intl.NumberFormat`. Reactive unless `locale` is given. |
 | `formatDate(value, options?, locale?)` | `Intl.DateTimeFormat`. Takes a `Date` or a timestamp. Reactive unless `locale` is given. |
 
-"Reactive" means that markup, `$derived` and `$effect` calling the function run again after a locale or dictionary change.
+"Reactive" means that markup, `$derived` and `$effect` calling the function run again after a locale or dictionary change. That is how runes work, so it applies to components in runes mode; elsewhere use the two stores.
 
 ## Recipes
 
@@ -398,8 +715,8 @@ Measured with `npm run size` (compiled as an app's Svelte plugin would, minified
 
 | Imports | Minified | Gzip | Brotli |
 |---|---|---|---|
-| Typical app: `init`, `t`, `getLocale`, `setLocale`, `registerLoader` | 3.3 kB | 1.7 kB | 1.6 kB |
-| Every export | 3.7 kB | 1.9 kB | 1.7 kB |
+| Typical app: `init`, `t`, `getLocale`, `setLocale`, `registerLoader` | 3.4 kB | 1.8 kB | 1.6 kB |
+| Every export | 3.9 kB | 2.0 kB | 1.8 kB |
 
 The module has no dependencies: its only import is its own dev overlay, in dev mode. A size budget is enforced in CI.
 
@@ -421,7 +738,7 @@ Svelte Whisper is deliberately small: a runtime library with no compiler, no mes
 
 | | Approach | Library size, gzip | Build step |
 |---|---|---|---|
-| **svelte-whisper 2.0** | Runtime on runes, lazy JSON per locale | 1.7 kB | None |
+| **svelte-whisper 2.0** | Runtime on runes, lazy JSON per locale | 1.8 kB | None |
 | [typesafe-i18n](https://github.com/codingcommons/typesafe-i18n) 5.27 | Generated typed functions plus a small runtime | 1.3 kB plus generated code | Generator |
 | [svelte-i18n](https://github.com/kaisermann/svelte-i18n) 4.0 | Runtime with ICU MessageFormat | 14.6 kB | None |
 | [i18next](https://www.i18next.com) 27.1 | Runtime with plugins | 15.5 kB before plugins | None |
@@ -439,7 +756,7 @@ Choose something else when you need:
 
 ## Changes from 1.x
 
-Version 2 is a rewrite on runes with a smaller API, and it does not keep compatibility with 1.x. The [changelog](CHANGELOG.md) lists what was replaced and by what.
+Version 2 is a rewrite on runes with a smaller API. `$t` and `$locale` still work, because components without runes need them; the rest of the 1.x API was replaced. The [changelog](CHANGELOG.md) lists what was replaced and by what.
 
 ## License
 

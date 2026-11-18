@@ -1,6 +1,6 @@
 # svelte-whisper
 
-> Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locale files load on demand. About 1.7 kB gzipped, no dependencies beyond Svelte, no extra build plugin. Client-side only: it keeps state in the module, so do not use it for server-side rendering.
+> Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locale files load on demand. About 1.8 kB gzipped, no dependencies beyond Svelte, no extra build plugin. Client-side only: it keeps state in the module, so do not use it for server-side rendering.
 
 Requires `svelte@^5.9.0`. Install with `npm install github:Shilo/svelte-whisper`. The package is a runes module (`index.svelte.js`) that the app's Svelte plugin compiles.
 
@@ -33,7 +33,7 @@ mount(App, { target: document.getElementById('app') });
 
 ## Rules for writing code with it
 
-- There are no stores. Do not write `$t`, `$locale`, `tr()` or `locale.set()`: those were 1.x and do not exist.
+- First check whether the component uses runes (`$props`, `$state`, `$derived`) or not (`export let`, `$:`). With runes, call the functions: `t('key')`, `getLocale()`. Without runes, Svelte only follows stores, so write `$t('key')` and `$locale` (both are exported as stores too) and pass the locale to formatters: `formatNumber(n, options, $locale)`. `tr()` and `formatPercent()` were 1.x and do not exist.
 - `t('key', vars)` is the only translate function. Use it in markup, `<script>`, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive: callers inside markup, `$derived` or `$effect` re-run when the locale or a dictionary changes. It always returns a string: the key itself when the key is missing everywhere. List items are addressed by index (`rules.0`).
 - Keys are dotted paths into nested JSON: `nav.settings.title`.
 - Placeholders: `{name}` with an object, `{0}` with an array. Unmatched placeholders stay visible.
@@ -51,7 +51,7 @@ mount(App, { target: document.getElementById('app') });
 
 ## Exports
 
-`init`, `registerLoader`, `addDictionary`, `loadLocale`, `setLocale`, `resetLocale`, `getLocale`, `getLocales`, `detectLocale`, `localeName`, `t`, `formatNumber`, `formatDate`. Types: `WhisperOptions`, `WhisperKey`, `WhisperVars`, `WhisperDictionary`, `WhisperLoader`, `Translate`, `MissingKeyEntry`, `Register`.
+`init`, `registerLoader`, `addDictionary`, `loadLocale`, `setLocale`, `resetLocale`, `getLocale`, `getLocales`, `detectLocale`, `localeName`, `t`, `locale`, `formatNumber`, `formatDate`. Types: `WhisperOptions`, `WhisperKey`, `WhisperVars`, `WhisperDictionary`, `WhisperLoader`, `Translate`, `MissingKeyEntry`, `Register`.
 
 ## Locale tools
 

@@ -10,6 +10,8 @@ const loaded = blank();
 const pending = blank();
 const formatters = blank();
 const missingListeners = new Set();
+// Components that do not use runes cannot follow a signal, only a store. `$t` and `$locale` serve them.
+const subscribers = new Set();
 
 // The only reactive state. t(), getLocale() and the formatters read it, so markup, $derived and
 // $effect that call them re-run when the locale or a dictionary changes. Everything else is plain data.
@@ -146,7 +148,10 @@ export function detectLocale() {
 
 // --- Translation ---
 
-/** Translate. Always returns a string. Reactive: `{t('key', vars)}` in markup, or inside $derived and $effect. */
+/**
+ * Translate. Always returns a string. Reactive: `{t('key', vars)}` in markup, or inside $derived and $effect.
+ * In a component without runes, write `{$t('key', vars)}`: `t` is also a store of itself.
+ */
 export function t(key, vars) {
     void version;
     let value = find(active, key, vars, current);
@@ -165,6 +170,11 @@ export function t(key, vars) {
     if (typeof value !== 'string') value = '' + value; // a number or boolean in the JSON
     return vars == null ? value : interpolate(value, vars);
 }
+
+t.subscribe = store(() => t);
+
+/** The active locale as a store, for components without runes: `$locale`, `bind:value={$locale}`. */
+export const locale = { subscribe: /* @__PURE__ */ store(() => current), set: setLocale };
 
 // --- Formatting (Intl, bound to the active locale) ---
 
@@ -250,12 +260,23 @@ function intl(type, opts, loc = getLocale()) {
     return formatter;
 }
 
+// The Svelte store contract: call back now and on every change, return an unsubscribe function.
+function store(read) {
+    return fn => {
+        const run = () => fn(read());
+        subscribers.add(run);
+        run();
+        return () => subscribers.delete(run);
+    };
+}
+
 function refresh() {
     active = dictionaries[current];
     backup = current === fallback ? undefined : dictionaries[fallback];
     // Written from a plain counter, never read back, so calling this inside an effect
     // does not make that effect depend on (and re-run from) its own change.
     version = ++stamp;
+    for (const run of subscribers) run();
 }
 
 // true: applied · false: could not load · undefined: superseded by a newer call

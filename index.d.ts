@@ -98,12 +98,26 @@ export function getLocales(): string[];
 /** The known locale that best matches the browser's languages, or `''`. */
 export function detectLocale(): string;
 
+interface Subscribable<T> {
+    subscribe(run: (value: T) => void): () => void;
+}
+
 /**
  * Translate. Always returns a string: the message, or the key itself when there is none.
  * Reactive: `{t('key', vars)}` in markup, or inside `$derived` and `$effect`, updates when the
  * locale or a dictionary changes.
+ *
+ * In a component that does not use runes, Svelte only follows stores, so write `{$t('key', vars)}`:
+ * `t` is also a store of itself.
  */
-export const t: Translate;
+export const t: Translate & Subscribable<Translate>;
+
+/**
+ * The active locale as a store, for components that do not use runes: `{$locale}`,
+ * `bind:value={$locale}`, `formatNumber(n, undefined, $locale)`. In runes code use
+ * `getLocale()` and `setLocale()`.
+ */
+export const locale: Subscribable<string> & { set: (locale: string) => Promise<boolean> };
 
 /** `Intl.NumberFormat` for the active locale (or `locale`). Reactive. */
 export function formatNumber(
