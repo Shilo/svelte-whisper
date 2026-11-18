@@ -121,10 +121,13 @@ export function getLocales() {
     return Object.keys({ ...loaders, ...dictionaries });
 }
 
-/** Best match for the browser's preferred languages among known locales, or ''. */
-export function detectLocale(mapping) {
+/**
+ * Best match for the browser's preferred languages among known locales, or ''.
+ * `aliases` adds language tags that should select one of your locales: { 'zh-TW': 'zh-Hant' }.
+ */
+export function detectLocale(aliases = {}) {
     if (typeof navigator === 'undefined') return '';
-    const known = mapping ? Object.keys(mapping) : getLocales();
+    const known = [...Object.keys(aliases), ...getLocales()];
     const tags = known.map(id => id.toLowerCase());
     for (const language of [...navigator.languages || [], navigator.language || '']) {
         const parts = language.toLowerCase().split('-');
@@ -132,7 +135,7 @@ export function detectLocale(mapping) {
         // Most specific first: zh-Hant-TW → zh-Hant → zh. Then any region: pt → pt-BR, en-GB → en-US.
         for (let n = parts.length; n && i < 0; n--) i = tags.indexOf(parts.slice(0, n).join('-'));
         if (i < 0) i = tags.findIndex(tag => tag.startsWith(parts[0] + '-'));
-        if (i >= 0) return mapping ? mapping[known[i]] : known[i];
+        if (i >= 0) return aliases[known[i]] ?? known[i];
     }
     return '';
 }

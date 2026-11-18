@@ -1,7 +1,7 @@
 {
     "meta": { "title": "svelte-whisper · demostración en vivo" },
     "nav": { "languages": "Idioma", "size": "{size} kB gzip" },
-    "day": { "morning": "Buenos días.", "afternoon": "Buenas tardes.", "evening": "Buenas noches." },
+    "day": { "morning": "Buenos días.", "afternoon": "Buenas tardes.", "evening": "Buenas tardes." },
     "hero": {
         "speaks": "Esta página ahora habla {language}.",
         "lede": "Cada idioma vive en su propio archivo pequeño. Elige uno arriba: solo se descarga ese archivo, una sola vez, y cada línea cambia en el mismo instante.",
@@ -34,7 +34,7 @@
         "title": "Números y fechas",
         "number": "Número",
         "price": "Precio",
-        "share": "Proporción",
+        "share": "Porcentaje",
         "date": "Hoy",
         "currency": "EUR"
     },

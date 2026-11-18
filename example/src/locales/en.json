@@ -34,7 +34,7 @@
         "title": "Numbers and dates",
         "number": "Number",
         "price": "Price",
-        "share": "Share",
+        "share": "Percentage",
         "date": "Today",
         "currency": "USD"
     },

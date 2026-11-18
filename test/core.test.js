@@ -559,10 +559,18 @@ describe('detectLocale', () => {
         assert.equal(await detect(['zh-Hant', 'zh'], ['zh-Hans-CN']), 'zh');
     });
 
-    test('maps language tags to custom locale ids', async () => {
+    test('aliases send extra language tags to one of your locales', async () => {
+        const chinese = { 'zh-TW': 'zh-Hant', 'zh-HK': 'zh-Hant' };
+        assert.equal(await detect(['zh-Hans', 'zh-Hant', 'en'], ['zh-TW'], chinese), 'zh-Hant');
+        assert.equal(await detect(['zh-Hans', 'zh-Hant', 'en'], ['zh-HK', 'en'], chinese), 'zh-Hant');
         assert.equal(await detect([], ['ja-JP'], { ja: 'jp' }), 'jp');
-        assert.equal(await detect([], ['zh-TW', 'en'], { 'zh-TW': 'tw', zh: 'cn' }), 'tw');
         assert.equal(await detect([], ['ko-KR'], { ja: 'jp' }), '');
+    });
+
+    test('everything without an alias is still matched automatically', async () => {
+        const chinese = { 'zh-TW': 'zh-Hant' };
+        assert.equal(await detect(['zh-Hant', 'fr', 'en'], ['fr-CA'], chinese), 'fr');
+        assert.equal(await detect(['zh-Hant', 'fr', 'en'], ['de', 'en-GB'], chinese), 'en');
     });
 
     test('returns an empty string without a navigator or without a match', async () => {

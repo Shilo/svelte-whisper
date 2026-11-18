@@ -52,7 +52,8 @@ export interface WhisperOptions {
     persistKey?: string;
     /**
      * Match the browser's languages against known locales. Default `true`.
-     * Pass `{ 'zh-TW': 'zh-Hant' }` to map language tags to your own locale ids.
+     * An object adds aliases on top: `{ 'zh-TW': 'zh-Hant' }` sends Taiwanese browsers to your
+     * `zh-Hant` locale. Everything else is still matched automatically.
      */
     detect?: boolean | Record<string, string>;
     /** Called once per locale + key that is missing from the active locale. */
@@ -99,7 +100,7 @@ export function getLocale(): string;
 export function getLocales(): string[];
 
 /** The known locale that best matches the browser's languages, or `''`. */
-export function detectLocale(mapping?: Record<string, string>): string;
+export function detectLocale(aliases?: Record<string, string>): string;
 
 /**
  * Translate. Reactive: `{t('key', vars)}` in markup, or inside `$derived` and `$effect`,

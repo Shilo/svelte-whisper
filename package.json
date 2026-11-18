@@ -14,7 +14,7 @@
     "lazy-loading",
     "spa"
   ],
-  "license": "ISC",
+  "license": "MIT",
   "author": "Shilo",
   "homepage": "https://github.com/Shilo/svelte-whisper#readme",
   "repository": {

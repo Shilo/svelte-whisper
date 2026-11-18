@@ -239,6 +239,31 @@ This needs `"resolveJsonModule": true`. Valid keys are the paths that hold a mes
 
 ## API
 
+Thirteen functions, all named exports of `svelte-whisper`:
+
+```js
+// Setup, once, before mounting
+registerLoader(import.meta.glob('./locales/*.json'));   // or registerLoader('fr', () => import('./fr.json'))
+addDictionary('en', { hello: 'Hello' });                // translations already in memory
+await init({ fallback: 'en', persistKey: 'locale' });
+
+// Translate and format: reactive wherever they are called
+t('greeting', { name: 'Ada' });                         // 'Hello Ada!'
+t('cart.items', { count: 3 });                          // '3 items'
+formatNumber(1234.5);                                   // '1,234.5'
+formatNumber(0.256, { style: 'percent' });              // '26%'
+formatDate(Date.now(), { dateStyle: 'long' });          // 'March 5, 2026'
+
+// Locale
+getLocale();                                            // 'en'
+await setLocale('fr');                                  // true once active
+await loadLocale('ja');                                 // preload without switching
+await resetLocale();                                    // forget the stored choice
+getLocales();                                           // ['en', 'fr', 'ja']
+detectLocale();                                         // best match for the browser, or ''
+localeName('ja');                                       // '日本語'
+```
+
 ### Setup
 
 | | |
@@ -255,7 +280,7 @@ This needs `"resolveJsonModule": true`. Valid keys are the paths that hold a mes
 | `fallback` | `'en'` | Locale used for keys missing from the active one. |
 | `initial` | | Starting locale when nothing is stored or detected. |
 | `persistKey` | | `localStorage` key for the user's explicit choice. |
-| `detect` | `true` | Match browser languages to your locales. `false` turns it off. An object maps language tags to your own ids: `{ 'zh-TW': 'zh-Hant' }`. |
+| `detect` | `true` | Match browser languages to your locales. `false` turns it off. An object adds aliases on top of the automatic matching: `{ 'zh-TW': 'zh-Hant' }`. |
 | `onMissing` | | `({ locale, key }) => void`, once per missing key and locale. |
 | `warn` | `true` | `console.warn` on missing keys. Defaults to `false` when `onMissing` is set. |
 | `devOverlay` | `true` | The missing-key overlay in Vite dev mode. |
@@ -269,7 +294,7 @@ This needs `"resolveJsonModule": true`. Valid keys are the paths that hold a mes
 | `loadLocale(id)` | Load without switching. Resolves `true` or `false`. |
 | `resetLocale()` | Forget the stored choice and choose again. |
 | `getLocales()` | Every id that has a loader or a dictionary. |
-| `detectLocale(mapping?)` | The locale that best matches the browser's languages, or `''`. |
+| `detectLocale(aliases?)` | The locale that best matches the browser's languages, or `''`. |
 | `localeName(id, displayLocale?)` | A language's name, in its own language by default. |
 
 ### Translation and formatting
@@ -418,4 +443,4 @@ Version 2 is a rewrite on runes with a smaller API, and it does not keep compati
 
 ## License
 
-[ISC](LICENSE)
+[MIT](LICENSE)
