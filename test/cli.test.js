@@ -450,7 +450,7 @@ describe('review round 6', () => {
                 menu: { label: 'Menu', other: { one: 'One link', other: 'More links' } },
                 pending: { one: 'One item', other: null },
             },
-            'src/locales/fr.json': { settings: { other: { label: 'Autres' } }, menu: { label: 'Menu', other: { other: 'Liens' } }, pending: { one: 'Un' } },
+            'src/locales/fr.json': { settings: { other: { label: 'Autres' } }, menu: { label: 'Menu', other: { other: 'Liens' } }, pending: { one: 'Un', other: null } },
             'src/app.js': "t('settings.other.label'); t('menu.label'); t('menu.other'); t('pending.one');\nt('settings'); t('menu'); t('pending'); t('owner\\'s.title');",
         }, t);
         const report = p.json('check', '--usage', 'src');
@@ -458,6 +458,22 @@ describe('review round 6', () => {
         assert.deepEqual(report.unused, []);
         assert.deepEqual([report.locales.fr.missing, report.locales.fr.extra], [[], []]);
         assert.deepEqual([...flatten({ a: { other: { b: 'B' } } }).keys()], ['a.other.b']);
+    });
+
+    test('a plural whose other form is not translated yet is still that plural', t => {
+        const fr = { items: { one: 'Un', other: null }, title: 'Titre' };
+        const p = project({
+            'src/locales/en.json': { items: { one: 'One', other: 'Many' }, title: 'Title', list: [], box: {} },
+            'src/locales/fr.json': fr,
+            'new.json': { title: 'Le titre' },
+            'src/app.js': "t('items'); t('title'); t('list.length'); t('box.constructor'); t('items.toString');",
+        }, t);
+        assert.deepEqual([p.json('check').locales.fr.missing, p.json('check').locales.fr.extra], [['list', 'box'], []]);
+        p.run('sync');
+        assert.deepEqual(JSON.parse(p.read('src/locales/fr.json')).items, fr.items);
+        p.run('apply', 'fr', 'new.json');
+        assert.deepEqual(JSON.parse(p.read('src/locales/fr.json')), { items: fr.items, title: 'Le titre' });
+        assert.deepEqual(p.json('check', '--usage', 'src').undefined.map(entry => entry.key), ['list.length', 'box.constructor', 'items.toString']);
     });
 
     test('a placeholder written with spaces is the same placeholder', t => {

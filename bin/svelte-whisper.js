@@ -274,10 +274,10 @@ function rebuild(node, prefix, valueOf) {
     return out;
 }
 
-// `other` holds text and every member is a plural form. A group that merely has a child named
-// "other" ({ "other": { "label": … } }) is a group.
+// Has `other`, and every member is a plural form holding text or null ("not translated yet").
+// A group that merely has a child named "other" ({ "other": { "label": … } }) is a group.
 function isPlural(value) {
-    return !Array.isArray(value) && value.other != null
+    return !Array.isArray(value) && 'other' in value
         && Object.entries(value).every(([name, form]) => PLURAL.test(name) && (form === null || typeof form !== 'object'));
 }
 
@@ -322,15 +322,16 @@ function usage(project, dir, source) {
 
     // The source keys that `t(key)` returns text from, as the library resolves it. None: users see the key.
     const resolved = key => {
-        // A message or a plural. An empty list or group is a value here, but not text.
+        // A message, or a plural that has its `other` form. An empty list or group is a value here, but not text.
         const value = source.get(key);
-        if (value != null && (typeof value !== 'object' || isPlural(value))) return [key];
+        if (value != null && (typeof value !== 'object' || (isPlural(value) && value.other != null))) return [key];
         // A plural written as flat keys: "items.one", "items.other".
         const other = source.get(key + '.other');
         if (other != null && typeof other !== 'object') return sourceKeys.filter(k => k.startsWith(key + '.'));
         // One form of a plural, asked for by name: `t('items.one')`.
         const dot = key.lastIndexOf('.'), group = source.get(key.slice(0, dot));
-        if (dot > 0 && group && typeof group === 'object' && group[key.slice(dot + 1)] != null) return [key.slice(0, dot)];
+        const form = key.slice(dot + 1);
+        if (dot > 0 && group && typeof group === 'object' && isPlural(group) && Object.hasOwn(group, form) && group[form] != null) return [key.slice(0, dot)];
     };
 
     for (const file of statSync(dir).isDirectory() ? walk(dir) : [dir]) {
