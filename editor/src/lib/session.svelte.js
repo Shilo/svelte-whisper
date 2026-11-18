@@ -44,7 +44,8 @@ const session = storage('sessionStorage');
  */
 
 /** @type {Config} */
-const defaults = { repo: '', branch: 'main', dir: 'src/locales', source: 'en', mode: 'pr' };
+/** An empty branch means the repository's default branch. */
+const defaults = { repo: '', branch: '', dir: 'src/locales', source: 'en', mode: 'pr' };
 
 export const config = $state({ ...defaults, ...read(local, CONFIG_KEY) });
 

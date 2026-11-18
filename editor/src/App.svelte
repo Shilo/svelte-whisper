@@ -17,7 +17,10 @@
 	let view = $state('boot');
 	/** @type {LocaleDoc | null} */
 	let doc = $state.raw(null);
+	/** @type {false | 'demo' | 'large'} */
 	let demo = $state(false);
+	/** The branch in use: the one asked for, or the repository's default branch. */
+	let branch = $state('');
 	let canPush = $state(false);
 	let loadError = $state('');
 	/** Language requested by a shared link (?lang=fr): show it next to the source. */
@@ -52,17 +55,15 @@
 	/** @type {'pr' | 'commit'} */
 	let mode = $state(config.mode);
 
-	const draftKey = () => (demo ? 'whisper.draft:demo' : `whisper.draft:${config.repo}@${config.branch}:${config.dir}`);
+	const draftKey = () => (demo ? `whisper.draft:${demo}` : `whisper.draft:${config.repo}@${branch}:${config.dir}`);
 
 	// ── Start-up ──────────────────────────────────────────────────────
 	onMount(() => {
 		const p = new URLSearchParams(location.search);
 		if (p.get('repo')) {
-			saveConfig({
-				repo: p.get('repo') ?? config.repo,
-				branch: p.get('branch') || config.branch,
-				dir: p.get('path') || config.dir
-			});
+			// A shared link describes one repository: what it leaves out takes the defaults,
+			// not whatever this browser used last.
+			saveConfig({ repo: p.get('repo') ?? '', branch: p.get('branch') || '', dir: p.get('path') || 'src/locales' });
 		}
 		focusLang = p.get('lang') || '';
 		if (p.has('demo')) return void openDemo(p.get('demo') === 'large');
@@ -105,14 +106,18 @@
 		loadUI();
 		try {
 			const t = auth.token;
-			const [repo, list] = await Promise.all([
+			// With no branch given, the folder can only be listed once the default branch is known.
+			const [repo, listed] = await Promise.all([
 				getRepo(t, config.repo),
-				listLocaleFiles(t, config.repo, config.branch, config.dir)
+				config.branch ? listLocaleFiles(t, config.repo, config.branch, config.dir) : null
 			]);
-			if (!list.length) throw new Error(`No .json files in ${config.dir} on ${config.branch}.`);
+			const b = config.branch || repo.defaultBranch;
+			const list = listed ?? (await listLocaleFiles(t, config.repo, b, config.dir));
+			if (!list.length) throw new Error(`No locale files (such as en.json or pt-BR.json) in ${config.dir} on ${b}.`);
+			branch = b;
 			canPush = repo.canPush;
 			mode = canPush ? config.mode : 'pr';
-			const texts = await Promise.all(list.map((f) => readFile(t, config.repo, config.branch, f.path)));
+			const texts = await Promise.all(list.map((f) => readFile(t, config.repo, b, f.path)));
 			await open(list.map((f, i) => ({ ...f, text: texts[i] })));
 		} catch (e) {
 			if (e.status === 401) {
@@ -127,12 +132,14 @@
 	}
 
 	async function openDemo(large = false) {
+		// The 3000-key stress test is for development; production builds leave it out.
+		large = import.meta.env.DEV && large;
 		view = 'loading';
-		demo = true;
-		const { demoFiles, largeDemoFiles } = await import('./lib/demo.js');
+		demo = large ? 'large' : 'demo';
+		const files = import.meta.env.DEV && large ? (await import('./lib/demo-large.js')).largeDemoFiles() : (await import('./lib/demo.js')).demoFiles;
 		canPush = true;
 		mode = 'pr';
-		await open(large ? largeDemoFiles() : demoFiles);
+		await open(files);
 	}
 
 	function exitDemo() {
@@ -317,7 +324,7 @@
 			const result = await submit({
 				token: auth.token,
 				repo: config.repo,
-				branch: config.branch,
+				branch,
 				dir: config.dir,
 				mode: o.mode,
 				files: o.files.map((f) => ({ path: f.path, text: f.text, sha: f.sha })),
@@ -333,7 +340,7 @@
 			if (result.mode === 'pr') {
 				notify(`Pull request #${result.number} opened.`, 'success', { label: 'View on GitHub', href: result.url });
 			} else {
-				notify(`Committed to ${config.branch}.`, 'success');
+				notify(`Committed to ${branch}.`, 'success');
 			}
 		} catch (e) {
 			notify(e.message, 'error');
@@ -347,8 +354,8 @@
 
 <div class="app" class:fill={view === 'editor'}>
 	<AppBar
-		address={view === 'editor' && !demo ? { repo: config.repo, branch: config.branch, dir: config.dir } : null}
-		demo={demo && view === 'editor'}
+		address={view === 'editor' && !demo ? { repo: config.repo, branch, dir: config.dir } : null}
+		demo={!!demo && view === 'editor'}
 		onsettings={() => (settingsOpen = true)}
 		onsignout={handleSignOut}
 		onexitdemo={exitDemo}
@@ -408,7 +415,7 @@
 		{:else}
 			<div class="skeleton" aria-busy="true">
 				<p class="caption" aria-live="polite">
-					{#if view === 'loading'}{demo ? 'Opening sample files…' : `Reading ${config.dir} from ${config.repo}…`}{/if}
+					{#if view === 'loading'}{demo ? 'Opening sample files…' : `Reading ${config.dir} from ${config.repo}${config.branch ? ` on ${config.branch}` : ''}…`}{/if}
 				</p>
 				{#each { length: 9 } as _, i (i)}
 					<div class="sk-row"><span></span><span></span><span></span><span></span></div>
@@ -425,17 +432,17 @@
 		bind:open={reviewOpen}
 		bind:mode
 		{doc}
-		{demo}
+		demo={!!demo}
 		{canPush}
 		{sending}
 		repo={demo ? 'sample/fieldnotes' : config.repo}
-		branch={demo ? 'main' : config.branch}
+		branch={demo ? 'main' : branch}
 		onsend={send}
 	/>
 	<Dialog bind:open={discardOpen} title="Discard all edits?">
 		<p>
 			{edits}
-			{edits === 1 ? 'edit' : 'edits'} will be thrown away and the files go back to how they are on {demo ? 'the sample' : config.branch}. This
+			{edits === 1 ? 'edit' : 'edits'} will be thrown away and the files go back to how they are on {demo ? 'the sample' : branch}. This
 			cannot be undone.
 		</p>
 		{#snippet footer()}

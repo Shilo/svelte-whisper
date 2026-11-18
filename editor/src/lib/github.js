@@ -1,6 +1,8 @@
 // Minimal GitHub REST client. Every call goes straight from the browser to
 // api.github.com with the user's token; there is no server in between.
 
+import { isLocaleFile } from './lang.js';
+
 const API = 'https://api.github.com';
 
 export class GitHubError extends Error {
@@ -41,11 +43,13 @@ function explain(status, message, path) {
 	if (status === 401) return 'GitHub rejected the token. Sign in again.';
 	if (status === 403 && /rate limit/i.test(message || '')) return 'GitHub rate limit reached. Wait a few minutes and try again.';
 	if (status === 404) {
-		if (path.includes('/contents/')) return 'That folder was not found on this branch.';
-		if (path.includes('/git/ref')) return 'That branch was not found.';
-		return 'Repository not found, or your token cannot see it.';
+		if (path.includes('/contents/')) return 'That folder or branch was not found. Check both names.';
+		if (path.includes('/git/ref')) return 'That branch was not found. Check its name.';
+		return 'Repository not found. Check the owner/name and branch, and that the GitHub account you signed in with (or your token) can see this repository.';
 	}
-	if (status === 409) return 'The branch moved while saving. Reload and try again.';
+	if (status === 409 || (status === 422 && /fast.?forward/i.test(message || ''))) {
+		return 'Someone else changed the branch while you were sending. Reload to get the latest files, then send again; your edits are kept as a draft.';
+	}
 	return `GitHub returned ${status}${message ? `: ${message}` : ''}.`;
 }
 
@@ -64,11 +68,11 @@ export async function getUser(token) {
  */
 export async function getRepo(token, repo) {
 	const r = await api(token, `/repos/${repo}`);
-	return { defaultBranch: r.default_branch, canPush: !!r.permissions?.push, fullName: r.full_name };
+	return { defaultBranch: r.default_branch, canPush: !!r.permissions?.push };
 }
 
 /**
- * List the JSON files in a folder with their blob SHAs.
+ * List the locale files (named like a language tag) in a folder with their blob SHAs.
  * @param {string} token @param {string} repo @param {string} branch @param {string} dir
  * @returns {Promise<{ name: string, path: string, sha: string }[]>}
  */
@@ -76,7 +80,7 @@ export async function listLocaleFiles(token, repo, branch, dir) {
 	const items = await api(token, `/repos/${repo}/contents/${encodePath(dir)}?ref=${encodeURIComponent(branch)}`);
 	if (!Array.isArray(items)) throw new GitHubError(`${dir} is a file, not a folder.`, 400);
 	return items
-		.filter((i) => i.type === 'file' && i.name.endsWith('.json'))
+		.filter((i) => i.type === 'file' && isLocaleFile(i.name))
 		.map((i) => ({ name: i.name, path: i.path, sha: i.sha }));
 }
 

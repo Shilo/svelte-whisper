@@ -7,12 +7,11 @@
 	 *   open: boolean,
 	 *   title: string,
 	 *   wide?: boolean,
-	 *   onclose?: () => void,
 	 *   children: import('svelte').Snippet,
 	 *   footer?: import('svelte').Snippet
 	 * }}
 	 */
-	let { open = $bindable(), title, wide = false, onclose, children, footer } = $props();
+	let { open = $bindable(), title, wide = false, children, footer } = $props();
 
 	/** @type {HTMLDialogElement | undefined} */
 	let el = $state();
@@ -29,10 +28,7 @@
 	bind:this={el}
 	class:wide
 	aria-labelledby={id}
-	onclose={() => {
-		open = false;
-		onclose?.();
-	}}
+	onclose={() => (open = false)}
 	onclick={(e) => e.target === el && el.close()}
 >
 	{#if open}

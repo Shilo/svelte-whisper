@@ -12,7 +12,6 @@ export const oauthAvailable = !!(CLIENT_ID && PROXY);
 
 export const PAT_URL =
 	'https://github.com/settings/personal-access-tokens/new?name=svelte-whisper%20editor&description=Edit%20locale%20files%20with%20the%20svelte-whisper%20editor';
-export const CLASSIC_PAT_URL = 'https://github.com/settings/tokens/new?scopes=public_repo&description=svelte-whisper%20editor';
 
 /** @param {string} path @param {Record<string, string>} params */
 async function post(path, params) {
@@ -32,7 +31,9 @@ async function post(path, params) {
  */
 export async function startDeviceFlow() {
 	if (!oauthAvailable) throw new Error('GitHub sign-in is not configured for this copy of the editor. Use a token instead.');
-	const start = await post('/login/device/code', { client_id: CLIENT_ID, scope: 'public_repo' });
+	// OAuth Apps cannot be limited to one repository: `repo` is the scope that can read
+	// and write private repositories too. A fine-grained token is the narrower option.
+	const start = await post('/login/device/code', { client_id: CLIENT_ID, scope: 'repo' });
 	if (start.error) throw new Error(start.error_description || start.error);
 
 	let timer = 0;
@@ -44,24 +45,29 @@ export async function startDeviceFlow() {
 		const poll = async () => {
 			if (cancelled) return;
 			if (Date.now() > expires) return reject(new Error('The code expired. Start again.'));
+			let r;
 			try {
-				const r = await post('/login/oauth/access_token', {
+				r = await post('/login/oauth/access_token', {
 					client_id: CLIENT_ID,
 					device_code: start.device_code,
 					grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
 				});
-				if (cancelled) return;
-				if (r.access_token) {
-					await finishSignIn(r.access_token);
-					return resolve();
-				}
-				if (r.error === 'slow_down') interval += 5000;
-				else if (r.error === 'access_denied') return reject(new Error('Sign-in was declined on GitHub.'));
-				else if (r.error === 'expired_token') return reject(new Error('The code expired. Start again.'));
-				else if (r.error !== 'authorization_pending') return reject(new Error(r.error_description || r.error));
 			} catch {
 				/* transient network error: keep polling until the code expires */
 			}
+			if (cancelled) return;
+			if (r?.access_token) {
+				// The device code is spent once GitHub issues a token, so this ends the flow
+				// either way: signed in, or a visible error and a fresh start.
+				return finishSignIn(r.access_token).then(
+					() => resolve(),
+					(e) => reject(new Error(`GitHub approved the sign-in, but loading your profile failed: ${e.message} Try again.`))
+				);
+			}
+			if (r?.error === 'slow_down') interval += 5000;
+			else if (r?.error === 'access_denied') return reject(new Error('Sign-in was declined on GitHub.'));
+			else if (r?.error === 'expired_token') return reject(new Error('The code expired. Start again.'));
+			else if (r?.error && r.error !== 'authorization_pending') return reject(new Error(r.error_description || r.error));
 			timer = window.setTimeout(poll, interval);
 		};
 		timer = window.setTimeout(poll, interval);

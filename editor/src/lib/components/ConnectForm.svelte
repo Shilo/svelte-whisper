@@ -27,7 +27,7 @@
 		if (!/^[\w.-]+\/[\w.-]+$/.test(r)) return (error = 'Use the form owner/repository, for example Shilo/svelte-whisper.');
 		error = '';
 		repo = r;
-		onsubmit({ repo: r, branch: branch.trim() || 'main', dir: dir.trim().replace(/^\/+|\/+$/g, '') || 'src/locales' });
+		onsubmit({ repo: r, branch: branch.trim(), dir: dir.trim().replace(/^\/+|\/+$/g, '') || 'src/locales' });
 	}
 </script>
 
@@ -51,7 +51,7 @@
 	<div class="row">
 		<div class="field">
 			<label class="caption" for="c-branch">Branch</label>
-			<input id="c-branch" class="input mono" bind:value={branch} placeholder="main" autocapitalize="off" spellcheck="false" />
+			<input id="c-branch" class="input mono" bind:value={branch} placeholder="default branch" autocapitalize="off" spellcheck="false" />
 		</div>
 		<div class="field">
 			<label class="caption" for="c-dir">Locales folder</label>

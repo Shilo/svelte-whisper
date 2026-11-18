@@ -19,7 +19,8 @@ export default defineConfig(({ command, mode, isPreview }) => {
 		"script-src 'self'",
 		"style-src 'self'",
 		"img-src 'self' data: https://avatars.githubusercontent.com",
-		`connect-src 'self' https://api.github.com${proxy ? ' ' + proxy : ''}`,
+		// Nothing is fetched from the page's own origin: chunks load as scripts and styles.
+		`connect-src https://api.github.com${proxy ? ' ' + proxy : ''}`,
 		"font-src 'self'",
 		"object-src 'none'",
 		"base-uri 'self'",
