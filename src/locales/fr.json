@@ -10,5 +10,6 @@
     "switch_es": "Passer à l'espagnol",
     "switch_fr": "Passer au français"
   },
-  "status": "fr"
+  "status": "fr",
+  "only_en": "Cette phrase n'existe qu'en anglais."
 }
