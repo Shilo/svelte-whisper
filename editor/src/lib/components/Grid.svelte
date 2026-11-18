@@ -447,7 +447,7 @@
 			display: flex;
 			gap: 0.5rem;
 			align-items: baseline;
-			padding: 0.5rem 0.75rem 0;
+			padding: 0.4rem 0.75rem 0;
 		}
 		.edited {
 			font-size: var(--t-cap);
@@ -457,7 +457,9 @@
 			color: var(--air);
 		}
 		textarea {
-			padding-top: 0.25rem;
+			min-height: 2.25rem;
+			padding-top: 0.125rem;
+			padding-bottom: 0.5rem;
 			font-size: 1rem; /* 16px keeps iOS from zooming on focus */
 		}
 		td.missing textarea {
