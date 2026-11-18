@@ -11,9 +11,9 @@ Scope: `example/src/App.svelte` and its components; visitor mode Experience (the
 
 ## Direction contract
 
-THESIS: The page is a multilingual transit sign system: every feature is a numbered sign that changes language the instant you pick a gate. It refuses the library-landing default (gradient hero, code blocks, feature-card grid).
+THESIS: The page is a multilingual transit sign system: every feature is a sign, identified by its pictogram plate, that changes language the instant you pick a gate. (Numbering was dropped: the order carries no information, and the craft floor bans decorative section numbers.) It refuses the library-landing default (gradient hero, code blocks, feature-card grid).
 
-OWN-WORLD: Enamel sign panels on concrete ground; an ink overhead band; one signal yellow reserved for "you are here" (the active locale). Atkinson Hyperlegible Next for all signage, its Mono sibling for codes, bytes and API calls. Square pictogram plates (authored SVG, one stroke); direction arrows that mirror in RTL. Unloaded locales are dashed outlines, loaded ones solid.
+OWN-WORLD: Flat enamel plates (an ink legend strip over a plain field, no card chrome) on concrete ground; an ink overhead band; one signal yellow reserved for "you are here" (the active locale). Atkinson Hyperlegible Next for all signage, its Mono sibling for codes, bytes and API calls. Square pictogram plates (authored SVG, one stroke); direction arrows that mirror in RTL. Unloaded locales are dashed outlines, loaded ones solid.
 
 STORY: The visitor sees the page speak their language, picks another gate, watches one file arrive on the arrivals board with its real size, then tries each sign by hand and reads the one-line call under it.
 

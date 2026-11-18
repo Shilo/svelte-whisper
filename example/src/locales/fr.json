@@ -14,7 +14,7 @@
         "file": "Fichier",
         "size": "Taille",
         "when": "Quand",
-        "cached": "cache",
+        "cached": "en cache",
         "note": "Données de l’API Resource Timing du navigateur. Revenez à une langue déjà utilisée : aucune nouvelle ligne n’apparaît."
     },
     "greet": {

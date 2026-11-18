@@ -43,11 +43,9 @@
     .board {
         align-self: start;
         padding: 1.25rem 1.375rem 1.125rem;
-        border: 1px solid var(--band-rule);
-        border-radius: 6px;
+        border-radius: 4px;
         background: var(--band);
         color: var(--band-ink);
-        box-shadow: var(--mounted);
     }
     h2 {
         display: flex;
@@ -60,7 +58,7 @@
     }
     h2 :global(svg) {
         font-size: 1.25rem;
-        color: var(--signal);
+        color: var(--band-ink-2);
     }
     .count {
         margin-inline-start: auto;
@@ -97,12 +95,12 @@
     td:first-child {
         text-align: start;
     }
-    /* The arrival: a new row lights up in the signal colour and settles. */
+    /* The arrival: a new row lights up and settles. */
     tbody tr {
         animation: arrive 1.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
     @keyframes arrive {
-        from { background: color-mix(in oklch, var(--signal) 45%, transparent); }
+        from { background: color-mix(in oklch, var(--band-ink) 22%, transparent); }
     }
     .note {
         margin: 0.875rem 0 0;

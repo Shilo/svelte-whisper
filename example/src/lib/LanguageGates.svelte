@@ -51,7 +51,7 @@
     button:hover {
         background: var(--band-hover);
     }
-    /* You are here: the one place the signal colour is used. */
+    /* You are here: the only use of the signal colour on the page. */
     button[aria-pressed='true'] {
         border-color: var(--signal);
         background: var(--signal);

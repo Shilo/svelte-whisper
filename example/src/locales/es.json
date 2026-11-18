@@ -14,7 +14,7 @@
         "file": "Archivo",
         "size": "Tamaño",
         "when": "Cuándo",
-        "cached": "caché",
+        "cached": "en caché",
         "note": "Datos de la API Resource Timing del navegador. Vuelve a un idioma que ya usaste y no aparecerá ninguna fila nueva."
     },
     "greet": {

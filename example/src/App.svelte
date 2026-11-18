@@ -156,7 +156,7 @@
         border-bottom: 1px solid var(--band-rule);
         background: var(--band);
         color: var(--band-ink);
-        --focus: var(--signal);
+        --focus: var(--band-ink);
     }
     .wordmark {
         display: flex;
@@ -169,7 +169,7 @@
     }
     .wordmark :global(svg) {
         font-size: 1.5rem;
-        color: var(--signal);
+        color: var(--band-ink-2);
     }
     nav {
         margin-inline-start: auto;
@@ -268,6 +268,7 @@
     }
     .counter {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 0.75rem;
     }
@@ -286,42 +287,38 @@
         font: 1rem/1.4 var(--mono);
     }
 
+    /* One readout board: label, figure and the call that made it, on a shared baseline. */
     .readouts {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
         margin: 0;
     }
     .readouts div {
         display: grid;
-        grid-template-rows: auto 1fr auto;
-        gap: 0.375rem;
-        padding-inline: 1.25rem;
-        border-inline-start: 1px solid var(--rule);
+        grid-template-columns: minmax(6.5rem, 0.6fr) minmax(0, 1.6fr) minmax(0, 1.4fr);
+        align-items: baseline;
+        gap: 0.25rem 1.5rem;
+        padding: 0.75rem 0;
+        border-top: 1px solid var(--rule);
     }
     .readouts div:first-child {
-        padding-inline-start: 0;
-        border-inline-start: 0;
+        padding-top: 0;
+        border-top: 0;
     }
     dt {
         color: var(--ink-2);
-        font-size: 0.8125rem;
         font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
     }
     dd {
         margin: 0;
-        font-size: clamp(1.375rem, 1rem + 1vw, 1.875rem);
+        font-size: clamp(1.5rem, 1.1rem + 1vw, 2rem);
         font-weight: 700;
         line-height: 1.2;
         font-variant-numeric: tabular-nums;
-        overflow-wrap: anywhere;
     }
     .readouts code {
         color: var(--ink-2);
-        font: 0.75rem/1.4 var(--mono);
+        font: 0.8125rem/1.4 var(--mono);
         text-align: left;
-        overflow-wrap: anywhere;
     }
 
     footer {
@@ -342,17 +339,13 @@
 
     @media (max-width: 60rem) {
         .top { grid-template-columns: minmax(0, 1fr); }
-        .readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 1.5rem; }
-        .readouts div:nth-child(3) { padding-inline-start: 0; border-inline-start: 0; }
     }
     @media (max-width: 62rem) {
         nav { order: 3; width: 100%; margin-inline-start: 0; }
         .size { margin-inline-start: auto; }
     }
     @media (max-width: 40rem) {
-        .readouts { grid-template-columns: minmax(0, 1fr); }
-        .readouts div { padding-inline: 0; border-inline-start: 0; }
-        .readouts div + div { padding-top: 1rem; border-top: 1px solid var(--rule); }
+        .readouts div { grid-template-columns: minmax(0, 1fr); }
         .sample { font-size: 1.25rem; }
     }
 </style>

@@ -14,7 +14,7 @@
         "file": "File",
         "size": "Size",
         "when": "When",
-        "cached": "cache",
+        "cached": "cached",
         "note": "Read from the browser’s Resource Timing API. Return to a language you have already used and no new row appears."
     },
     "greet": {

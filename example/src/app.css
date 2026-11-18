@@ -1,18 +1,18 @@
 @import '@fontsource-variable/atkinson-hyperlegible-next';
 @import '@fontsource-variable/atkinson-hyperlegible-mono';
 
-/* Wayfinding signage: enamel panels on concrete, an ink overhead band,
-   one signal yellow that only ever means "you are here". */
+/* Wayfinding signage: flat enamel plates on concrete, an ink overhead band,
+   and one signal yellow that only ever means "you are here" (the active language). */
 :root {
     --sans: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
     --mono: 'Atkinson Hyperlegible Mono Variable', ui-monospace, monospace;
     --gutter: clamp(1rem, 4vw, 3rem);
 
-    --ground: oklch(0.952 0.005 250);
-    --panel: oklch(0.993 0.002 250);
+    --ground: oklch(0.88 0.006 85);
+    --panel: oklch(0.985 0.003 85);
     --ink: oklch(0.235 0.028 258);
-    --ink-2: oklch(0.46 0.022 258);
-    --rule: oklch(0.86 0.01 258);
+    --ink-2: oklch(0.42 0.02 258);
+    --rule: oklch(0.78 0.01 258);
     --band: oklch(0.255 0.035 258);
     --band-ink: oklch(0.97 0.005 258);
     --band-ink-2: oklch(0.79 0.018 258);
@@ -21,23 +21,21 @@
     --signal: oklch(0.86 0.165 94);
     --on-signal: oklch(0.22 0.03 258);
     --focus: oklch(0.5 0.17 258);
-    --mounted: 0 1px 1px oklch(0.25 0.03 258 / 0.06), 0 8px 20px -12px oklch(0.25 0.03 258 / 0.3);
 
     color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --ground: oklch(0.175 0.014 258);
-        --panel: oklch(0.225 0.018 258);
+        --ground: oklch(0.15 0.008 258);
+        --panel: oklch(0.235 0.016 258);
         --ink: oklch(0.95 0.006 258);
         --ink-2: oklch(0.76 0.016 258);
         --rule: oklch(0.33 0.018 258);
-        --band: oklch(0.13 0.016 258);
-        --band-rule: oklch(0.3 0.02 258);
-        --band-hover: oklch(0.24 0.022 258);
-        --focus: var(--signal);
-        --mounted: 0 1px 1px oklch(0 0 0 / 0.3), 0 10px 24px -14px oklch(0 0 0 / 0.7);
+        --band: oklch(0.32 0.03 258);
+        --band-rule: oklch(0.42 0.03 258);
+        --band-hover: oklch(0.4 0.035 258);
+        --focus: oklch(0.78 0.11 240);
         color-scheme: dark;
     }
 }
@@ -71,8 +69,8 @@ body {
 }
 
 ::selection {
-    background: var(--signal);
-    color: var(--on-signal);
+    background: var(--ink);
+    color: var(--panel);
 }
 
 :focus-visible {
@@ -93,12 +91,16 @@ button, input {
     font: inherit;
 }
 
+code {
+    font-family: var(--mono);
+}
+
 input {
     width: 100%;
     padding: 0.55rem 0.75rem;
     border: 1.5px solid var(--ink-2);
     border-radius: 4px;
-    background: var(--ground);
+    background: var(--panel);
     color: var(--ink);
     font-size: 1.0625rem;
     font-weight: 400;
@@ -141,4 +143,9 @@ input:focus-visible {
     *, *::before, *::after {
         transition-duration: 1ms !important;
     }
+}
+
+/* Japanese headings break between phrases, not inside words. */
+:root:lang(ja) :is(h1, h2) {
+    word-break: auto-phrase;
 }
