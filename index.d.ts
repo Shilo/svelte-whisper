@@ -14,13 +14,17 @@
  */
 export interface Register {}
 
-type Paths<T, P extends string = ''> = T extends readonly (infer U)[]
-    ? `${P}${number}` | Paths<U, `${P}${number}.`>
-    : T extends object
-      ? { [K in keyof T & string]: `${P}${K}` | Paths<T[K], `${P}${K}.`> }[keyof T & string]
-      : never;
+// Every path that holds a message: leaves, plural groups ({ one, other, … }), arrays and their items.
+// A plain group such as `nav` is not a message, so it is not a key.
+type Paths<T, P extends string = ''> = {
+    [K in keyof T & string]: T[K] extends readonly (infer U)[]
+        ? `${P}${K}` | (U extends object ? Paths<U, `${P}${K}.${number}.`> : `${P}${K}.${number}`)
+        : T[K] extends object
+          ? (T[K] extends { other: unknown } ? `${P}${K}` : never) | Paths<T[K], `${P}${K}.`>
+          : `${P}${K}`;
+}[keyof T & string];
 
-/** A translation key: any string, or the dotted paths of the registered dictionary. */
+/** A translation key: any string, or the message paths of the registered dictionary. */
 export type WhisperKey = Register extends { dictionary: infer D } ? Paths<D> : string;
 
 export type WhisperDictionary = Record<string, unknown>;

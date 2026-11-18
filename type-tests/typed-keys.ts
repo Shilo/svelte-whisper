@@ -19,8 +19,14 @@ tr('nav.settings.title');
 tr('items', { count: 3 });
 tr('rules.0');
 tr('greeting', ['Ada']);
+tr('rules');
+tr('items.one');
 // @ts-expect-error a mistyped key is rejected
 tr('nav.hmoe');
+// @ts-expect-error a group of messages is not itself a message
+tr('nav');
+// @ts-expect-error nor is a nested group
+tr('nav.settings');
 // @ts-expect-error a key is required
 tr();
 
