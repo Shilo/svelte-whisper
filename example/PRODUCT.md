@@ -29,7 +29,7 @@ loading, fallback, missing-key reporting and Intl formatting work.
 
 ## Positioning
 
-svelte-whisper is simplicity-first and performance-first: about 1.7 kB gzip for a typical import
+svelte-whisper is simplicity-first and performance-first: about 1.6 kB gzip for a typical import
 set, no runtime dependencies beyond Svelte, locale files lazy-loaded on demand, minimal network
 traffic. Competing i18n libraries are robust but bulky. The name, "whisper", means quiet, small,
 unobtrusive (from brief).
@@ -44,7 +44,7 @@ unobtrusive (from brief).
 
 ## Evidence on Hand
 
-- Library API: `../index.js`, `../index.d.ts`. Size figure (≈1.7 kB gzip) from `npm run size`.
+- Library API: `../index.svelte.js`, `../index.d.ts`. Size figure (≈1.6 kB gzip) from `npm run size`.
 - No testimonials, users, benchmarks or comparisons exist; none may be invented.
 
 ## Product Principles

@@ -5,7 +5,7 @@ description: Add svelte-whisper i18n to a Svelte 5 single-page app, or move hard
 
 # Set up svelte-whisper
 
-svelte-whisper is a runtime i18n library for client-side Svelte 5 apps (Vite SPA, or SvelteKit with `ssr = false`). It keeps state in the module, so do not use it for server-side rendering.
+svelte-whisper is a runtime i18n library for client-side Svelte 5 apps, built on runes. It keeps state in the module, so do not use it for server-side rendering. It has no stores: there is no `$t`, `$locale` or `tr()`.
 
 ## 1. Install
 
@@ -13,7 +13,7 @@ svelte-whisper is a runtime i18n library for client-side Svelte 5 apps (Vite SPA
 npm install svelte-whisper
 ```
 
-If the package is not on the npm registry, install a tagged release from GitHub: `npm install github:Shilo/svelte-whisper#v2.0.0`. Requires `svelte@^5.7.0`.
+If the package is not on the npm registry, install a tagged release from GitHub: `npm install github:Shilo/svelte-whisper#v2.0.0`. Requires `svelte@^5.9.0`. The package is a runes module that the app's Svelte plugin compiles; nothing needs configuring.
 
 ## 2. Create the source locale
 
@@ -68,25 +68,25 @@ registerLoader(import.meta.glob(['../locales/*.json', '!../locales/en.json']));
 
 ```svelte
 <script>
-    import { t, locale, getLocales, localeName, formatNumber, formatDate } from 'svelte-whisper';
+    import { t, getLocale, setLocale, getLocales, localeName, formatNumber, formatDate } from 'svelte-whisper';
     let { name, count, total } = $props();
 </script>
 
-<h1>{$t('greeting', { name })}</h1>
-<p>{$t('cart.items', { count })}</p>
+<h1>{t('greeting', { name })}</h1>
+<p>{t('cart.items', { count })}</p>
 <p>{formatNumber(total, { style: 'currency', currency: 'EUR' })} · {formatDate(Date.now(), { dateStyle: 'medium' })}</p>
 
-<select value={$locale} onchange={e => locale.set(e.currentTarget.value)}>
+<select bind:value={getLocale, setLocale}>
     {#each getLocales() as id}
         <option value={id}>{localeName(id)}</option>
     {/each}
 </select>
 ```
 
-- `$t('key', vars)` in markup. `tr('key', vars)` in plain `.js`/`.ts` modules, `$derived` and event handlers.
+- `t('key', vars)` everywhere: markup, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive, so whatever called it updates when the locale changes.
 - Placeholders: named `{name}` with an object, positional `{0}` or `{}` with an array.
 - Plurals: an object value keyed by plural category, selected by a numeric `count`.
-- `formatNumber`, `formatPercent`, `formatDate` and `tr` follow the active locale and update on a switch.
+- `formatNumber` and `formatDate` follow the active locale and update on a switch. A percentage is `formatNumber(value, { style: 'percent' })`.
 - `localeName(id)` gives each language its own name, so language names need no translation keys.
 - The library sets `<html lang>` and `dir` itself.
 
@@ -111,8 +111,8 @@ Keys now autocomplete, and a mistyped key is a type error. Needs `"resolveJsonMo
 For each component:
 
 1. Add a key per user-visible string to the source locale, under the component's feature group. Include text in attributes users perceive: `placeholder`, `title`, `alt`, `aria-label`.
-2. Replace the literal with `$t('group.key')`.
-3. Turn interpolated values into placeholders: `` `Hello ${name}` `` becomes `"Hello {name}"` with `$t('greeting', { name })`.
+2. Replace the literal with `t('group.key')`.
+3. Turn interpolated values into placeholders: `` `Hello ${name}` `` becomes `"Hello {name}"` with `t('greeting', { name })`.
 4. Keep each sentence in one key. Never join translated fragments: word order differs between languages.
 5. Replace `toLocaleString()`, `toFixed()` and hand-built number, currency, percent or date strings with the formatters.
 6. Use a plural object wherever the text depends on a count.

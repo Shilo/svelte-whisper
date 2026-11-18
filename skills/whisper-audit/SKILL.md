@@ -27,7 +27,7 @@ Add `--json` when you want to process the result. Pass `--dir <folder> --source 
 
 ## Before deleting an unused key
 
-The scan is static. It counts a key as used when code calls `$t`, `tr` or `t` with it, or contains it as a string literal, and it treats everything under a dynamic key such as `` $t(`skills.${id}`) `` as used. It cannot see keys built another way, for example by concatenation, read from a server, or assembled from a variable prefix. Search the code for the key's last segment before deleting it, and keep the key when in doubt.
+The scan is static. It counts a key as used when code calls `t()` with it, or contains it as a string literal, and it treats everything under a dynamic key such as `` t(`skills.${id}`) `` as used. It cannot see keys built another way, for example by concatenation, read from a server, or assembled from a variable prefix. Search the code for the key's last segment before deleting it, and keep the key when in doubt.
 
 ## Report
 

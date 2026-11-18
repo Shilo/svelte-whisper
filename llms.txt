@@ -1,8 +1,8 @@
 # svelte-whisper
 
-> Tiny runtime i18n for Svelte 5 single-page apps. Locale files load on demand. About 1.7 kB gzipped, no dependencies beyond Svelte, no build plugin. Client-side only: it keeps state in the module, so do not use it for server-side rendering.
+> Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locale files load on demand. About 1.6 kB gzipped, no dependencies beyond Svelte, no extra build plugin. Client-side only: it keeps state in the module, so do not use it for server-side rendering.
 
-Requires `svelte@^5.7.0`. Install with `npm install github:Shilo/svelte-whisper`.
+Requires `svelte@^5.9.0`. Install with `npm install github:Shilo/svelte-whisper`. The package is a runes module (`index.svelte.js`) that the app's Svelte plugin compiles.
 
 ## Recommended setup
 
@@ -19,29 +19,30 @@ mount(App, { target: document.getElementById('app') });
 
 ```svelte
 <script>
-    import { t, tr, locale, getLocales, localeName, formatNumber } from 'svelte-whisper';
+    import { t, getLocale, setLocale, getLocales, localeName, formatNumber } from 'svelte-whisper';
     let { count, total } = $props();
-    const title = $derived(tr('nav.settings'));
+    const title = $derived(t('nav.settings'));
 </script>
 
-<h1>{$t('greeting', { name: 'Ada' })}</h1>
-<p>{$t('cart.items', { count })} · {formatNumber(total, { style: 'currency', currency: 'EUR' })}</p>
-<select value={$locale} onchange={e => locale.set(e.currentTarget.value)}>
+<h1>{t('greeting', { name: 'Ada' })}</h1>
+<p>{t('cart.items', { count })} · {formatNumber(total, { style: 'currency', currency: 'EUR' })}</p>
+<select bind:value={getLocale, setLocale}>
     {#each getLocales() as id}<option value={id}>{localeName(id)}</option>{/each}
 </select>
 ```
 
 ## Rules for writing code with it
 
-- Use `$t('key', vars)` in markup and `tr('key', vars)` in `<script>`, `$derived`, event handlers and plain `.js`/`.ts` modules. Both return the key itself when it is missing everywhere.
+- There are no stores. Do not write `$t`, `$locale`, `tr()` or `locale.set()`: those were 1.x and do not exist.
+- `t('key', vars)` is the only translate function. Use it in markup, `<script>`, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive: callers inside markup, `$derived` or `$effect` re-run when the locale or a dictionary changes. It returns the key itself when the key is missing everywhere.
 - Keys are dotted paths into nested JSON: `nav.settings.title`.
 - Placeholders: `{name}` with an object, `{0}` or `{}` with an array. Unmatched placeholders stay visible.
 - Plurals: the dictionary value is an object keyed by `Intl.PluralRules` category (`one`, `few`, `many`, `other`, …) or an exact number (`"0"`); pass a numeric `count`. Always include `other`.
 - Never build a sentence by joining translated fragments. One sentence, one key.
-- Format with `formatNumber(value, intlOptions?, locale?)`, `formatPercent(value, precision?)` and `formatDate(value, intlOptions?, locale?)`; never bare `toLocaleString()` or `toFixed()`. They follow the active locale and update on a switch.
+- Format with `formatNumber(value, intlOptions?, locale?)` and `formatDate(value, intlOptions?, locale?)`; never bare `toLocaleString()` or `toFixed()`. Percentages are `formatNumber(v, { style: 'percent' })`. Both follow the active locale and are reactive.
 - `localeName(id)` returns a language's own name (`ja` → `日本語`); do not add translation keys for language names.
-- Switch with `locale.set(id)` or `setLocale(id)`: resolves `true` when active, `false` if the load failed (the locale then stays as it was). `loadLocale(id)` preloads. `resetLocale()` forgets the stored choice.
-- `init` chooses the starting locale: stored choice (`persistKey`) → browser language (`detect`, default on) → `initial` → `fallback`. Only explicit `set` calls are stored.
+- `getLocale()` reads the active locale (reactive). `setLocale(id)` switches: resolves `true` when active, `false` if the load failed (the locale then stays as it was). `loadLocale(id)` preloads. `resetLocale()` forgets the stored choice.
+- `init` chooses the starting locale: stored choice (`persistKey`) → browser language (`detect`, default on) → `initial` → `fallback`. Only explicit `setLocale` calls are stored.
 - The library sets `<html lang>` and `dir`; do not do it by hand.
 - `addDictionary(id, dict)` adds translations already in memory (bundled main language, tests).
 - With no loaders registered, a locale is fetched from `{base}locales/{id}.json`.
@@ -50,7 +51,7 @@ mount(App, { target: document.getElementById('app') });
 
 ## Exports
 
-`init`, `registerLoader`, `addDictionary`, `loadLocale`, `setLocale`, `resetLocale`, `getLocale`, `getLocales`, `getFallbackLocale`, `detectLocale`, `localeName`, `locale`, `t`, `tr`, `formatNumber`, `formatPercent`, `formatDate`. Types: `WhisperOptions`, `WhisperKey`, `WhisperVars`, `WhisperDictionary`, `WhisperLoader`, `Translate`, `MissingKeyEntry`, `Register`.
+`init`, `registerLoader`, `addDictionary`, `loadLocale`, `setLocale`, `resetLocale`, `getLocale`, `getLocales`, `detectLocale`, `localeName`, `t`, `formatNumber`, `formatDate`. Types: `WhisperOptions`, `WhisperKey`, `WhisperVars`, `WhisperDictionary`, `WhisperLoader`, `Translate`, `MissingKeyEntry`, `Register`.
 
 ## Locale tools
 
@@ -65,6 +66,6 @@ When translating or auditing locale files, follow the skills instead of editing 
 ## Docs
 
 - [README](README.md): full guide, API tables, recipes
-- [CHANGELOG](CHANGELOG.md): changes and upgrade notes from 1.x
+- [CHANGELOG](CHANGELOG.md): what 2.0 replaced from 1.x
 - [Type declarations](index.d.ts)
 - [Editor](editor/README.md): browser-based grid editor for locale files that submits pull requests

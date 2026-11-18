@@ -1,6 +1,6 @@
 ---
 name: svelte-whisper example
-description: A multilingual transit sign system demonstrating a 1.7 kB Svelte i18n library.
+description: A multilingual transit sign system demonstrating a 1.6 kB Svelte i18n library.
 colors:
   ground: "oklch(0.88 0.006 85)"
   panel: "oklch(0.985 0.003 85)"

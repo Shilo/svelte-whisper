@@ -26,7 +26,7 @@ svelte-whisper is a pure-runtime i18n library of under 2 kB for Svelte 5 client-
 
 ## Operating Context
 
-- Hosted on GitHub Pages at https://shilo.github.io/svelte-whisper/ (SvelteKit + adapter-static, base path `/svelte-whisper`), deployed by `.github/workflows/deploy-editor.yml`.
+- Hosted on GitHub Pages at https://shilo.github.io/svelte-whisper/ (a plain Vite + Svelte single-page app, base path `/svelte-whisper`), deployed by `.github/workflows/deploy-editor.yml`.
 - Talks directly to `api.github.com` from the browser. OAuth device flow needs a Cloudflare Worker (or similar) CORS proxy for GitHub's two OAuth endpoints; without it, only PAT sign-in is offered.
 - Locale files are one JSON file per language in a folder (default `src/locales`, the library's zero-config default is `/locales/<lang>.json` under `public/`). Values may be flat keys (`"app.title"`) or nested objects resolved by dotted paths; strings may contain interpolation placeholders `{name}`, `{0}` and positional `{}`.
 - Sessions are short and task-shaped: open, find the gaps, fill them, submit.
@@ -49,7 +49,7 @@ svelte-whisper is a pure-runtime i18n library of under 2 kB for Svelte 5 client-
 
 ## Evidence on Hand
 
-- The library itself (`index.js`, under 2 kB) and its README.
+- The library itself (`index.svelte.js`, under 2 kB) and its README.
 - Example locale files in `example/public/locales/{en,es,fr}.json` showing nested keys and `{user}` / `{}` placeholders.
 - No testimonials, user counts, benchmarks for the editor, or customer logos exist. Do not invent them.
 

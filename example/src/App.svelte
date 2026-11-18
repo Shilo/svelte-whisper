@@ -48,7 +48,7 @@
     <nav aria-label={t('nav.languages')}>
         <LanguageGates onchoose={choose} />
     </nav>
-    <p class="size" dir="ltr">{t('nav.size', { size: formatNumber(1.7) })}</p>
+    <p class="size" dir="ltr">{t('nav.size', { size: formatNumber(1.6) })}</p>
 </header>
 
 <main>
