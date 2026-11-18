@@ -48,14 +48,17 @@
   ],
   "scripts": {
     "test": "node --conditions=browser --test",
+    "check:types": "tsc -p type-tests/tsconfig.json && tsc -p type-tests/tsconfig.untyped.json",
+    "size": "node scripts/size.js",
     "bench": "node scripts/bench.js",
-    "size": "node scripts/size.js"
+    "check": "npm test && npm run check:types && npm run size"
   },
   "peerDependencies": {
     "svelte": "^5.7.0"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
-    "svelte": "^5.57.3"
+    "svelte": "^5.57.3",
+    "typescript": "^7.0.2"
   }
 }

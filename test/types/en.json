@@ -1,0 +1,6 @@
+{
+    "greeting": "Hello {name}!",
+    "nav": { "home": "Home", "settings": { "title": "Settings" } },
+    "items": { "one": "{count} item", "other": "{count} items" },
+    "rules": ["First", "Second"]
+}
