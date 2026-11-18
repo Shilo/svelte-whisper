@@ -49,11 +49,11 @@ jobs:
           BASE_PATH: '/${{ github.event.repository.name }}/demo/'
       - name: Add demo to the site
         working-directory: .
-        run: cp -r example/dist editor/build/demo
+        run: cp -r example/dist editor/dist/demo
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: ./editor/build
+          path: ./editor/dist
 
   deploy:
     environment:
