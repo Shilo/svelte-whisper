@@ -131,7 +131,7 @@ A PWA plugin's default precache list includes every locale chunk, so installing 
 VitePWA({
     workbox: {
         globIgnores: ['**/assets/{en,fr,ja}-*.js'],
-        runtimeCaching: [{ urlPattern: //assets/(en|fr|ja)-[w-]+.js$/, handler: 'CacheFirst' }],
+        runtimeCaching: [{ urlPattern: /\/assets\/(en|fr|ja)-[\w-]+\.js$/, handler: 'CacheFirst' }],
     },
 })
 ```
