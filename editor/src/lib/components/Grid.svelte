@@ -182,7 +182,7 @@
 									spellcheck="true"
 									aria-label="{languageName(lang)} ({lang}) for {key}{changed ? ', edited' : ''}{missing ? ', not translated' : ''}"
 									aria-invalid={!!warn}
-									placeholder={gone ? '' : lang === doc.source ? 'Missing in source' : 'Not translated'}
+									placeholder={gone ? '' : doc.isOptional(lang, key) ? 'Optional plural form' : lang === doc.source ? 'Missing in source' : 'Not translated'}
 									disabled={gone}
 									value={gone ? '' : doc.get(lang, key)}
 									oninput={(e) => doc.set(lang, key, e.currentTarget.value)}

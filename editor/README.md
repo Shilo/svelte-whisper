@@ -15,6 +15,7 @@ A small, browser-only editor for the locale files of apps that use [svelte-whisp
 - Shows one row per key and one column per language. Nested objects appear as dotted keys, the same way svelte-whisper resolves them.
 - Marks untranslated boxes, counts what is missing per language, and filters to **Missing** or **Edited** keys. **Next missing** (<kbd>Alt</kbd>+<kbd>N</kbd>) jumps to the next gap.
 - Warns when a translation drops or invents a placeholder that the source language uses (`{name}`, `{0}`, `{}`).
+- Understands plural groups (`{ "one": …, "other": … }`). Only `other` is required in each language; the other categories are marked optional, because languages use different sets.
 - Adds, renames and deletes keys, and adds languages.
 - Shows every change, file by file, before anything is sent. Each change can be undone there, and each file can be downloaded as JSON.
 - Sends a **pull request** (default) or, for people with write access, a **commit** to the branch. Contributors without write access get a fork automatically, and the pull request goes to the original repository.

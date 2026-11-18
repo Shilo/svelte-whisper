@@ -11,6 +11,9 @@ import { parseFile, flatten, serialize, comparePlaceholders } from './json.js';
 /** BCP 47-ish file names: en, pt-BR, zh_Hant, sr-Latn-RS */
 export const LANG_PATTERN = /^[A-Za-z]{2,3}([_-][A-Za-z0-9]{2,8})*$/;
 
+/** Names svelte-whisper accepts inside a plural group: CLDR categories and exact counts. */
+const PLURAL_CATEGORY = /^(zero|one|two|few|many|other|\d+)$/;
+
 export class LocaleDoc {
 	/** @type {string[]} */ langs = $state([]);
 	/** @type {string[]} */ keys = $state([]);
@@ -95,14 +98,51 @@ export class LocaleDoc {
 
 	/** @param {string} lang @param {string} key */
 	isMissing(lang, key) {
-		return !this.values[lang]?.[key] && !this.isFixed(lang, key);
+		return !this.values[lang]?.[key] && !this.isFixed(lang, key) && !this.isOptional(lang, key);
+	}
+
+	/**
+	 * Plural groups, by parent key: `{ "one": …, "other": … }`. svelte-whisper picks a
+	 * category with Intl.PluralRules, and each language uses its own set of categories.
+	 */
+	#plurals = $derived.by(() => {
+		/** @type {Map<string, { plural: boolean, other: boolean }>} */
+		const groups = new Map();
+		for (const k of this.keys) {
+			const dot = k.lastIndexOf('.');
+			if (dot < 1 || this.deleted[k]) continue;
+			const parent = k.slice(0, dot);
+			const name = k.slice(dot + 1);
+			const group = groups.get(parent) ?? { plural: true, other: false };
+			if (!PLURAL_CATEGORY.test(name)) group.plural = false;
+			if (name === 'other') group.other = true;
+			groups.set(parent, group);
+		}
+		return new Set([...groups].filter(([, g]) => g.plural && g.other).map(([parent]) => parent));
+	});
+
+	/**
+	 * A plural category other than `other` may be left out once the language has its
+	 * `other` form: Japanese needs only `other`, Russian also needs `few` and `many`.
+	 */
+	/** @param {string} lang @param {string} key */
+	isOptional(lang, key) {
+		const dot = key.lastIndexOf('.');
+		if (dot < 1 || key.endsWith('.other')) return false;
+		const parent = key.slice(0, dot);
+		return this.#plurals.has(parent) && !!this.values[lang]?.[parent + '.other'];
 	}
 
 	/** Placeholder mismatch against the source language, or null. */
 	/** @param {string} lang @param {string} key */
 	warning(lang, key) {
 		if (lang === this.source) return null;
-		return comparePlaceholders(this.values[this.source]?.[key], this.values[lang]?.[key]);
+		const source = this.values[this.source];
+		let expected = source?.[key];
+		// A plural category the source language does not use is checked against its `other` form.
+		const parent = key.slice(0, Math.max(0, key.lastIndexOf('.')));
+		if (expected === undefined && this.#plurals.has(parent)) expected = source?.[parent + '.other'];
+		return comparePlaceholders(expected, this.values[lang]?.[key]);
 	}
 
 	/** Untranslated boxes per language, computed in one pass. */
@@ -113,7 +153,9 @@ export class LocaleDoc {
 			const row = this.values[lang];
 			const fixed = this.fixed[lang];
 			let n = 0;
-			for (const k of this.keys) if (!row[k] && !this.deleted[k] && fixed?.[k] === undefined) n++;
+			for (const k of this.keys) {
+				if (!row[k] && !this.deleted[k] && fixed?.[k] === undefined && !this.isOptional(lang, k)) n++;
+			}
 			out[lang] = n;
 		}
 		return out;

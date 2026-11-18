@@ -22,7 +22,7 @@ Success means: a translator can find and fill missing strings in minutes without
 
 ## Positioning
 
-svelte-whisper is a ~1 KB, pure-runtime i18n library for Svelte 5 client-side SPAs: simplicity-first, performance-first, lazy-loaded, low network traffic. The name means quiet, small, unobtrusive. Competing i18n stacks (and their editors, such as inlang's Fink, which inspired this one) are robust but heavy. The editor carries the same promise: no backend, no database, no account beyond GitHub, a small bundle, and a single job done well.
+svelte-whisper is a pure-runtime i18n library of under 2 kB for Svelte 5 client-side SPAs: simplicity-first, performance-first, lazy-loaded, low network traffic. The name means quiet, small, unobtrusive. Competing i18n stacks (and their editors, such as inlang's Fink, which inspired this one) are robust but heavy. The editor carries the same promise: no backend, no database, no account beyond GitHub, a small bundle, and a single job done well.
 
 ## Operating Context
 
