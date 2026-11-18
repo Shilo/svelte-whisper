@@ -12,7 +12,7 @@ A rewrite on Svelte 5 runes with a smaller API. Runes code calls plain functions
 | `$t('key')` | Unchanged in components without runes (`t` is also a store). In runes components, `t('key')`. |
 | `$locale` | Unchanged in components without runes. In runes code, `getLocale()`. |
 | `locale.set('fr')` | Still there; `setLocale('fr')` is the usual call. In a runes form control, `bind:value={getLocale, setLocale}`. |
-| `formatPercent(0.2, 1)` | `formatNumber(0.2, { style: 'percent', maximumFractionDigits: 1 })` |
+| `formatPercent(0.2, 1)` | Unchanged call, now locale-aware (`20 %` in French) and with an optional third argument for the locale |
 | `getFallbackLocale()` | Removed. You passed the fallback to `init`. |
 | Automatic `{}` placeholders | `{0}`, `{1}`: indexed placeholders can be reordered by a translation |
 | `t()` returning arrays and objects | `t()` always returns a string; address list items by index (`rules.0`) |

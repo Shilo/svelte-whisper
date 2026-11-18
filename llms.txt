@@ -33,13 +33,13 @@ mount(App, { target: document.getElementById('app') });
 
 ## Rules for writing code with it
 
-- First check whether the component uses runes (`$props`, `$state`, `$derived`) or not (`export let`, `$:`). With runes, call the functions: `t('key')`, `getLocale()`. Without runes, Svelte only follows stores, so write `$t('key')` and `$locale` (both are exported as stores too) and pass the locale to formatters: `formatNumber(n, options, $locale)`. `tr()` and `formatPercent()` were 1.x and do not exist.
+- First check whether the component uses runes (`$props`, `$state`, `$derived`) or not (`export let`, `$:`). With runes, call the functions: `t('key')`, `getLocale()`. Without runes, Svelte only follows stores, so write `$t('key')` and `$locale` (both are exported as stores too) and pass the locale to formatters: `formatNumber(n, options, $locale)`. `tr()` was 1.x and does not exist.
 - `t('key', vars)` is the only translate function. Use it in markup, `<script>`, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive: callers inside markup, `$derived` or `$effect` re-run when the locale or a dictionary changes. It always returns a string: the key itself when the key is missing everywhere. List items are addressed by index (`rules.0`).
 - Keys are dotted paths into nested JSON: `nav.settings.title`.
 - Placeholders: `{name}` with an object, `{0}` with an array. Unmatched placeholders stay visible.
 - Plurals: the dictionary value is an object keyed by `Intl.PluralRules` category (`one`, `few`, `many`, `other`, …) or an exact number (`"0"`); pass a numeric `count`. Always include `other`.
 - Never build a sentence by joining translated fragments. One sentence, one key.
-- Format with `formatNumber(value, intlOptions?, locale?)` and `formatDate(value, intlOptions?, locale?)`; never bare `toLocaleString()` or `toFixed()`. Percentages are `formatNumber(v, { style: 'percent' })`. Both follow the active locale and are reactive.
+- Format with `formatNumber(value, intlOptions?, locale?)` and `formatDate(value, intlOptions?, locale?)`; never bare `toLocaleString()` or `toFixed()`. Percentages are `formatPercent(value, precision?, locale?)`. Both follow the active locale and are reactive.
 - `localeName(id)` returns a language's own name (`ja` → `日本語`); do not add translation keys for language names.
 - `getLocale()` reads the active locale (reactive). `setLocale(id)` switches: resolves `true` when active, `false` if the load failed (the locale then stays as it was). `loadLocale(id)` preloads. `resetLocale()` forgets the stored choice.
 - `init` chooses the starting locale: stored choice (`persistKey`) → browser language (`detect`, default on) → `initial` → `fallback`. Only explicit `setLocale` calls are stored.
@@ -51,7 +51,7 @@ mount(App, { target: document.getElementById('app') });
 
 ## Exports
 
-`init`, `registerLoader`, `addDictionary`, `loadLocale`, `setLocale`, `resetLocale`, `getLocale`, `getLocales`, `detectLocale`, `localeName`, `t`, `locale`, `formatNumber`, `formatDate`. Types: `WhisperOptions`, `WhisperKey`, `WhisperVars`, `WhisperDictionary`, `WhisperLoader`, `Translate`, `MissingKeyEntry`, `Register`.
+`init`, `registerLoader`, `addDictionary`, `loadLocale`, `setLocale`, `resetLocale`, `getLocale`, `getLocales`, `detectLocale`, `localeName`, `t`, `locale`, `formatNumber`, `formatPercent`, `formatDate`. Types: `WhisperOptions`, `WhisperKey`, `WhisperVars`, `WhisperDictionary`, `WhisperLoader`, `Translate`, `MissingKeyEntry`, `Register`.
 
 ## Locale tools
 

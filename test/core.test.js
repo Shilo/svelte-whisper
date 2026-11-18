@@ -985,3 +985,19 @@ describe('stores, for components without runes', () => {
         assert.equal(seen, w.t);
     });
 });
+
+describe('formatPercent', () => {
+    test('formats a fraction as a percentage in the active or a given locale', async () => {
+        const w = await english();
+        w.addDictionary('fr', {});
+        assert.equal(w.formatPercent(0), '0%');
+        assert.equal(w.formatPercent(0.2), '20%');
+        assert.equal(w.formatPercent(0.256), '26%');
+        assert.equal(w.formatPercent(0.256, 1), '25.6%');
+        assert.equal(w.formatPercent(0.5, 2), '50%');
+        assert.equal(w.formatPercent(12.345, 1), '1,234.5%');
+        assert.match(w.formatPercent(0.2, 0, 'fr'), /^20\s%$/);
+        await w.setLocale('fr');
+        assert.match(w.formatPercent(0.256, 1), /^25,6\s%$/);
+    });
+});

@@ -1,7 +1,7 @@
 // Compile-time checks for index.d.ts. Run with `npm run check:types`; nothing here executes.
 import {
     t, locale, init, registerLoader, addDictionary, setLocale, loadLocale, resetLocale,
-    getLocale, getLocales, detectLocale, localeName, formatNumber, formatDate,
+    getLocale, getLocales, detectLocale, localeName, formatNumber, formatPercent, formatDate,
     type WhisperKey, type Translate,
 } from 'svelte-whisper';
 import type en from './en.json';
@@ -90,6 +90,8 @@ localeName('ja', 'en') satisfies string;
 formatNumber(1) satisfies string;
 formatNumber(10n, { style: 'currency', currency: 'EUR' }, 'de') satisfies string;
 formatNumber(0.5, { style: 'percent', maximumFractionDigits: 1 }) satisfies string;
+formatPercent(0.5) satisfies string;
+formatPercent(0.5, 1, 'fr') satisfies string;
 formatDate(new Date(), { dateStyle: 'long' }) satisfies string;
 formatDate(0) satisfies string;
 // @ts-expect-error not a number

@@ -182,6 +182,11 @@ export function formatNumber(value, opts, loc) {
     return intl('NumberFormat', opts, loc).format(value);
 }
 
+/** 0.256 → '26%'. `precision` is the maximum number of decimals. */
+export function formatPercent(value, precision = 0, loc) {
+    return formatNumber(value, { style: 'percent', maximumFractionDigits: precision }, loc);
+}
+
 export function formatDate(value, opts, loc) {
     return intl('DateTimeFormat', opts, loc).format(value);
 }

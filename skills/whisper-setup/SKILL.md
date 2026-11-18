@@ -91,7 +91,7 @@ export function setupI18n() {
 - `t('key', vars)` everywhere: markup, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive, so whatever called it updates when the locale changes.
 - Placeholders: named `{name}` with an object, indexed `{0}` with an array.
 - Plurals: an object value keyed by plural category, selected by a numeric `count`.
-- `formatNumber` and `formatDate` follow the active locale and update on a switch. A percentage is `formatNumber(value, { style: 'percent' })`.
+- `formatNumber` and `formatDate` follow the active locale and update on a switch. A percentage is `formatPercent(value, precision?)`.
 - `localeName(id)` gives each language its own name, so language names need no translation keys.
 - The library sets `<html lang>` and `dir` itself.
 

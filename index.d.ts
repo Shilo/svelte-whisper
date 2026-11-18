@@ -126,6 +126,12 @@ export function formatNumber(
     locale?: string,
 ): string;
 
+/**
+ * A fraction as a percentage: `formatPercent(0.256)` → `26%`, `formatPercent(0.256, 1)` → `25.6%`.
+ * `precision` is the maximum number of decimals. Reactive unless `locale` is given.
+ */
+export function formatPercent(value: number, precision?: number, locale?: string): string;
+
 /** `Intl.DateTimeFormat` for the active locale (or `locale`). Reactive. */
 export function formatDate(
     value: Date | number,

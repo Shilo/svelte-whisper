@@ -305,7 +305,7 @@ An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules`
 | Translate | `t('key')` | `$t('key')` |
 | Read the locale | `getLocale()` | `$locale` |
 | Switch | `setLocale(id)` | `setLocale(id)`, `$locale = id` or `bind:value={$locale}` |
-| Format | `formatNumber(n)` | `formatNumber(n, options, $locale)` |
+| Format | `formatNumber(n)`, `formatPercent(x)` | `formatNumber(n, options, $locale)`, `formatPercent(x, 0, $locale)` |
 
 The `# Svelte Whisper 🤫
 
@@ -458,13 +458,14 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
 
 ```svelte
 <script>
-    import { formatNumber, formatDate } from 'svelte-whisper';
+    import { formatNumber, formatPercent, formatDate } from 'svelte-whisper';
 </script>
 
 {formatNumber(1234567.5)}                                        <!-- 1,234,567.5 · 1.234.567,5 -->
 {formatNumber(42, { style: 'currency', currency: 'EUR' })}       <!-- €42.00 · 42,00 € -->
 {formatNumber(1500000, { notation: 'compact' })}                 <!-- 1.5M · 150万 -->
-{formatNumber(0.256, { style: 'percent' })}                      <!-- 26% · 26 % -->
+{formatPercent(0.256)}                                           <!-- 26% · 26 % -->
+{formatPercent(0.256, 1)}                                        <!-- 25.6% · 25,6 % -->
 {formatDate(Date.now(), { dateStyle: 'long' })}                  <!-- March 5, 2026 · 5 mars 2026 -->
 ```
 
@@ -550,7 +551,7 @@ This needs `"resolveJsonModule": true`. Valid keys are the paths that hold a mes
 
 ## API
 
-Thirteen functions and one store, all named exports of `svelte-whisper`:
+Fourteen functions and one store, all named exports of `svelte-whisper`:
 
 ```js
 // Setup, once, before mounting
@@ -563,7 +564,7 @@ await init({ fallback: 'en', persistKey: 'locale' });
 t('greeting', { name: 'Ada' });                         // 'Hello Ada!'
 t('cart.items', { count: 3 });                          // '3 items'
 formatNumber(1234.5);                                   // '1,234.5'
-formatNumber(0.256, { style: 'percent' });              // '26%'
+formatPercent(0.256);                                   // '26%'
 formatDate(Date.now(), { dateStyle: 'long' });          // 'March 5, 2026'
 
 // Locale
@@ -620,6 +621,7 @@ $locale;                                                // 'en'
 |---|---|
 | `t(key, vars?)` | Translate. Reactive. Also a store of itself: `$t(key, vars?)` in components without runes. |
 | `formatNumber(value, options?, locale?)` | `Intl.NumberFormat`. Reactive unless `locale` is given. |
+| `formatPercent(value, precision?, locale?)` | `0.256` → `26%`. `precision` is the maximum number of decimals. Reactive unless `locale` is given. |
 | `formatDate(value, options?, locale?)` | `Intl.DateTimeFormat`. Takes a `Date` or a timestamp. Reactive unless `locale` is given. |
 
 "Reactive" means that markup, `$derived` and `$effect` calling the function run again after a locale or dictionary change. That is how runes work, so it applies to components in runes mode; elsewhere use the two stores.
