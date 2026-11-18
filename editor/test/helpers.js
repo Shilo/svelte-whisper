@@ -22,12 +22,13 @@ export const { LocaleDoc } = await import(pathToFileURL(built).href);
 /**
  * A document from plain objects or raw text, one entry per language.
  * @param {Record<string, object | string>} files
+ * @param {string} [version]  added to every file's SHA, to stand for a later version of the files
  */
-export function makeDoc(files, source = 'en') {
+export function makeDoc(files, source = 'en', version = '') {
 	const list = Object.entries(files).map(([lang, data]) => ({
 		name: `${lang}.json`,
 		path: `src/locales/${lang}.json`,
-		sha: `sha-${lang}`,
+		sha: `sha-${lang}${version}`,
 		text: typeof data === 'string' ? data : JSON.stringify(data, null, '\t') + '\n'
 	}));
 	return new LocaleDoc(list, 'src/locales', source);

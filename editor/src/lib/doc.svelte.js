@@ -185,10 +185,16 @@ export class LocaleDoc {
 		return this.#missing[lang] ?? 0;
 	}
 
-	/** True when the key is new in this session. */
-	/** @param {string} key */
+	/** Names in the files that a rename in this session moved away from. */
+	#renamedFrom = $derived(new Set(Object.values(this.renamed)));
+
+	/**
+	 * True when the key is new in this session: no file has it, or the files' row of that
+	 * name was renamed away and this is a new row that took the free name.
+	 * @param {string} key
+	 */
 	isNewKey(key) {
-		return !this.renamed[key] && !this.known.has(key);
+		return !this.renamed[key] && (!this.known.has(key) || this.#renamedFrom.has(key));
 	}
 
 	/**
@@ -344,56 +350,179 @@ export class LocaleDoc {
 		});
 	}
 
-	/** A compact, JSON-safe record of the edits, for the local draft. */
+
+	/** The text the files have for a row: under the name it had there before any rename. */
+	/** @param {string} lang @param {string} key */
+	#fileText(lang, key) {
+		return this.base[lang]?.[this.renamed[key] ?? key];
+	}
+
+	/**
+	 * The working state for the local draft, compact and JSON-safe, with the version of
+	 * every file it was made against. `cells` holds only the boxes whose text differs from
+	 * what the file has for that row, deleted rows included, so a restore after a reload
+	 * gives the same text as before it.
+	 * @returns {Draft}
+	 */
 	toDraft() {
-		const live = new Set(this.keys);
+		/** @type {Draft['shas']} */
+		const shas = {};
+		/** @type {Draft['cells']} */
+		const cells = {};
+		for (const lang of this.langs) {
+			shas[lang] = this.files[lang].parsed ? this.files[lang].sha : null;
+			const row = this.values[lang];
+			/** @type {Record<string, string | null>} */
+			const c = {};
+			for (const k of this.keys) {
+				const text = row[k] ?? null;
+				if (text !== (this.#fileText(lang, k) ?? null)) c[k] = text;
+			}
+			if (Object.keys(c).length) cells[lang] = c;
+		}
 		return {
-			edits: this.edits(),
+			shas,
+			langs: [...this.langs],
+			keys: [...this.keys],
+			renamed: { ...this.renamed },
 			deleted: Object.keys(this.deleted),
-			removed: [...this.known].filter((k) => !live.has(k)),
 			added: this.keys.filter((k) => this.isNewKey(k)),
-			renamed: $state.snapshot(this.renamed),
-			langs: this.langs.filter((l) => !this.files[l].parsed)
+			cells
 		};
 	}
 
-	/** @param {ReturnType<LocaleDoc['toDraft']>} d */
+	/**
+	 * Restore a draft on a freshly loaded document. When the files are the ones the draft
+	 * was made against, the state is rebuilt exactly. When they changed on GitHub since,
+	 * as much as possible is placed and the rest is returned, so it can be reported.
+	 * A draft in an older format is ignored.
+	 * @param {Draft} d
+	 * @returns {Lost[]} what could not be restored
+	 */
 	applyDraft(d) {
-		for (const lang of d.langs || []) if (LANG_PATTERN.test(lang)) this.addLanguage(lang);
-		// Renames first: they move rows. They are applied all at once, so a chain (x to y,
-		// then a to x) and a swap work. A rename needs its source, and a target that is free
-		// or itself moving away; dropping one rename can block another, so filter until stable.
-		const all = Object.entries(d.renamed || {}).filter(([to, from]) => to !== from && this.keys.includes(from) && !this.isFixedKey(from));
-		let renames = all;
+		if (!d || !Array.isArray(d.keys) || !Array.isArray(d.langs) || !d.shas) return [];
+		const loaded = Object.keys(this.files);
+		const same =
+			d.langs.length === Object.keys(d.shas).length &&
+			d.langs.every((l) => (d.shas[l] === null ? !this.files[l] && LANG_PATTERN.test(l) : this.files[l]?.sha === d.shas[l])) &&
+			loaded.every((l) => d.shas[l] !== undefined) &&
+			Object.values(d.renamed).every((from) => !this.isFixedKey(from)) &&
+			d.deleted.every((k) => !this.isFixedKey(k));
+		return same ? this.#restore(d) : this.#merge(d);
+	}
+
+	/** @param {Draft} d */
+	#restore(d) {
+		for (const lang of d.langs) if (d.shas[lang] === null) this.addLanguage(lang);
+		this.langs = [...d.langs];
+		this.source = d.langs[0] ?? '';
+		this.keys = [...d.keys];
+		this.renamed = { ...d.renamed };
+		this.deleted = Object.fromEntries(d.deleted.map((k) => [k, true]));
+		for (const lang of this.langs) {
+			const cells = d.cells[lang] ?? {};
+			/** @type {Record<string, string>} */
+			const row = {};
+			for (const k of this.keys) {
+				const text = Object.hasOwn(cells, k) ? cells[k] : this.#fileText(lang, k);
+				if (typeof text === 'string' && !this.isFixed(lang, k)) row[k] = text;
+			}
+			this.values[lang] = row;
+		}
+		return [];
+	}
+
+	/**
+	 * Best effort for files that changed since the draft was saved: languages, renames,
+	 * added keys, text, then deletions. Nothing of someone else's is overwritten.
+	 * @param {Draft} d
+	 */
+	#merge(d) {
+		/** @type {Lost[]} */
+		const lost = [];
+		for (const lang of d.langs) if (d.shas[lang] === null && LANG_PATTERN.test(lang)) this.addLanguage(lang);
+		if (d.langs[0] && d.langs[0] !== this.source) this.setSource(d.langs[0]);
+
+		// Renames are applied all at once, so a chain (x to y, then a to x) and a swap work. A
+		// rename needs its source and a target that is free or itself moving away; dropping
+		// one can block another, so filter until nothing changes.
+		const all = Object.entries(d.renamed).filter(([to, from]) => to !== from);
+		let renames = all.filter(([, from]) => this.keys.includes(from) && !this.isFixedKey(from));
 		for (let n = -1; n !== renames.length; ) {
 			n = renames.length;
 			const moving = new Set(renames.map(([, from]) => from));
-			renames = renames.filter(([to]) => !this.keys.includes(to) || moving.has(to));
+			const after = [...this.keys.filter((k) => !moving.has(k)), ...renames.map(([to]) => to)];
+			renames = renames.filter(
+				([to]) => (!this.keys.includes(to) || moving.has(to)) && !after.some((k) => k.startsWith(to + '.') || to.startsWith(k + '.'))
+			);
 		}
 		const target = new Map(renames.map(([to, from]) => [from, to]));
 		this.keys = this.keys.map((k) => target.get(k) ?? k);
-		for (const [to, from] of renames) this.renamed[to] = from;
 		for (const lang of this.langs) {
-			// Each new name starts from what the file has under that name; the edits below
-			// then put back the text that was typed or moved there.
 			const row = this.values[lang];
+			const moved = renames.map(([to, from]) => [to, row[from]]);
 			for (const [, from] of renames) delete row[from];
-			for (const [to] of renames) if (this.base[lang][to] !== undefined) row[to] = this.base[lang][to];
+			for (const [to, text] of moved) if (text !== undefined) row[to] = text;
 		}
-		// A rename that could not be applied keeps its source row instead of losing it.
-		const kept = new Set(all.filter(([, from]) => !target.has(from)).map(([, from]) => from));
-		const removed = new Set((d.removed || []).filter((k) => !kept.has(k)));
-		const deleted = new Set(d.deleted || []);
-		if (removed.size) this.keys = this.keys.filter((k) => !removed.has(k));
-		for (const k of d.added || []) if (!this.keys.includes(k)) this.addKey(k);
-		for (const [lang, e] of Object.entries(d.edits || {})) {
-			if (!this.values[lang]) continue;
-			for (const [k, v] of Object.entries(e)) {
-				if (!this.keys.includes(k) || deleted.has(k)) continue;
-				if (v === null) delete this.values[lang][k];
-				else if (typeof v === 'string') this.values[lang][k] = v;
+		for (const [to, from] of renames) this.renamed[to] = from;
+
+		// Where each key of the draft lives now. A row takes the text of one key only.
+		/** @type {Map<string, string>} */
+		const rows = new Map();
+		const taken = new Set();
+		const claim = (/** @type {string} */ key, /** @type {string} */ row) => {
+			if (taken.has(row)) return false;
+			taken.add(row);
+			rows.set(key, row);
+			return true;
+		};
+		for (const [to, from] of all) {
+			if (target.get(from) === to) claim(to, to);
+			else {
+				lost.push({ key: from, to });
+				// The row stays under its name in the files, and keeps the text typed into it.
+				if (this.keys.includes(from)) claim(to, from);
 			}
 		}
-		for (const k of deleted) if (this.keys.includes(k)) this.deleted[k] = true;
+		const added = new Set(d.added);
+		for (const k of d.keys) {
+			if (rows.has(k) || d.renamed[k] !== undefined) continue;
+			const exists = this.keys.includes(k);
+			if (!added.has(k)) {
+				if (exists) claim(k, k);
+				continue;
+			}
+			// A new key that now exists upstream takes the user's text: it shows in the review.
+			if (!exists && !this.validateKey(k)) this.addKey(k);
+			if (!this.keys.includes(k) || !claim(k, k)) lost.push({ key: k });
+		}
+
+		for (const [lang, cells] of Object.entries(d.cells)) {
+			for (const [k, text] of Object.entries(cells)) {
+				const row = rows.get(k);
+				if (row === undefined || !this.values[lang] || this.isFixed(lang, row)) lost.push({ key: k, lang });
+				else if (text === null) delete this.values[lang][row];
+				else this.values[lang][row] = text;
+			}
+		}
+		for (const k of d.deleted) {
+			const row = rows.get(k);
+			if (row !== undefined && !this.isFixedKey(row) && !this.isNewKey(row)) this.deleted[row] = true;
+		}
+		return lost;
 	}
 }
+
+/**
+ * @typedef {{
+ *   shas: Record<string, string | null>, langs: string[], keys: string[], renamed: Record<string, string>,
+ *   deleted: string[], added: string[], cells: Record<string, Record<string, string | null>>
+ * }} Draft
+ * `shas`: each language's file as loaded, null for a language added in the editor.
+ * `langs`: every column in order, the source language first.
+ */
+/**
+ * @typedef {{ key: string, lang?: string, to?: string }} Lost
+ * A draft box that has no row any more (`lang` set), a rename that could not be applied
+ * (`to` set), or a new key whose name is taken (neither).
+ */

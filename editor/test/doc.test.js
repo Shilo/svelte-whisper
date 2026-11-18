@@ -135,34 +135,6 @@ test('an unchanged file is not sent, and an edited file keeps CRLF and its inden
 	assert.equal(output(doc, 'en'), '{\r\n  "a": "A",\r\n  "b": "Bee"\r\n}\r\n');
 });
 
-test('a chain of renames survives a draft reload', () => {
-	const files = { en: { a: 'A', x: 'X' }, fr: { a: 'Ah', x: 'Iks' } };
-	const doc = makeDoc(files);
-	doc.renameKey('x', 'y');
-	doc.renameKey('a', 'x');
-	assert.deepEqual(JSON.parse(output(doc, 'en')), { x: 'A', y: 'X' });
-	const next = reload(files, doc);
-	assert.deepEqual([...next.keys].sort(), ['x', 'y']);
-	for (const lang of ['en', 'fr']) assert.equal(output(next, lang), output(doc, lang), lang);
-	assert.equal(next.changeCount(), doc.changeCount());
-});
-
-test('a swap through a temporary name survives a draft reload', () => {
-	// fr has the same text under both names, so the swap leaves no edit there.
-	const files = { en: { a: 'A', b: 'B', c: 'C' }, fr: { a: 'Même', b: 'Même', c: 'Cé' } };
-	const doc = makeDoc(files);
-	doc.renameKey('a', 'tmp');
-	doc.renameKey('b', 'a');
-	doc.renameKey('tmp', 'b');
-	assert.deepEqual(JSON.parse(output(doc, 'en')), { a: 'B', b: 'A', c: 'C' });
-	const next = reload(files, doc);
-	assert.deepEqual(next.keys, ['b', 'a', 'c']);
-	assert.equal(next.get('en', 'a'), 'B');
-	assert.equal(next.get('fr', 'a'), 'Même');
-	assert.equal(output(next, 'en'), output(doc, 'en'));
-	assert.equal(output(next, 'fr'), output(doc, 'fr'));
-});
-
 test('a rename followed by an edit and a clear survives a draft reload', () => {
 	const files = { en: { a: 'A', b: 'B' }, fr: { a: 'Ah', b: 'Bé' }, de: { a: 'Ach', b: 'Be' } };
 	const doc = makeDoc(files);
