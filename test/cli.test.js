@@ -366,3 +366,12 @@ describe('review round 2', () => {
         assert.deepEqual(p.json('diff', '--since', 'HEAD'), { since: 'HEAD', added: [], changed: [], removed: [] });
     });
 });
+
+describe('review round 3', () => {
+    test('the source locale cannot be overwritten through a differently cased id', t => {
+        const p = project({ 'src/locales/en.json': { a: 'A' }, 'src/locales/fr.json': { a: 'A fr' }, 'x.json': { a: 'HACKED' } }, t);
+        assert.throws(() => p.run('apply', 'EN', 'x.json'), /is the source locale/);
+        assert.deepEqual(JSON.parse(p.read('src/locales/en.json')), { a: 'A' });
+        assert.deepEqual(Object.keys(p.json('check', '--source', 'EN').locales), ['fr']);
+    });
+});

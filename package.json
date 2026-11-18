@@ -48,7 +48,7 @@
     "llms.txt"
   ],
   "scripts": {
-    "test": "node --conditions=browser --test",
+    "test": "node --conditions=browser --test \"test/*.test.js\"",
     "check:types": "tsc -p type-tests/tsconfig.json && tsc -p type-tests/tsconfig.untyped.json",
     "size": "node scripts/size.js",
     "bench": "node scripts/bench.js",

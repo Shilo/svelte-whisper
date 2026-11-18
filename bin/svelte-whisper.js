@@ -165,7 +165,8 @@ function diff(project, flags) {
 function apply(project, flags, [id, file]) {
     if (!id) throw new UsageError('apply needs a locale: svelte-whisper apply fr translations.json');
     if (!LOCALE_ID.test(id)) throw new UsageError(`"${id}" is not a locale id. Use a language tag such as fr, pt-BR or zh-Hant.`);
-    if (id === project.source) throw new UsageError(`"${id}" is the source locale; edit ${basename(project.sourceFile)} directly.`);
+    // Compared without case: on Windows and macOS, EN.json is en.json.
+    if (id.toLowerCase() === project.source.toLowerCase()) throw new UsageError(`"${id}" is the source locale; edit ${basename(project.sourceFile)} directly.`);
     let incoming;
     try {
         const input = file ? readFileSync(join(project.cwd, file), 'utf8') : readFileSync(0, 'utf8');
@@ -351,9 +352,9 @@ function* walk(dir) {
 
 function targets({ dir, source }) {
     return readdirSync(dir)
-        .filter(name => name.endsWith('.json') && name !== source + '.json')
+        .filter(name => name.endsWith('.json'))
         .map(name => name.slice(0, -5))
-        .filter(id => LOCALE_ID.test(id))
+        .filter(id => LOCALE_ID.test(id) && id.toLowerCase() !== source.toLowerCase())
         .sort();
 }
 
