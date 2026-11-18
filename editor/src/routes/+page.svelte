@@ -1,1254 +1,591 @@
 <script>
-	import { get } from 'svelte/store';
-	import { untrack } from 'svelte';
-	import { githubConfig, translationsConfig, authStore } from '#lib/store.js';
-	import { fetchTree, fetchFileContent, submitTranslations } from '#lib/github.js';
-	import { startDeviceFlow, cancelDeviceFlow, signInWithPat, signOut, openPatCreationPage, isOAuthConfigured } from '#lib/auth.js';
-	import Snackbar from '#lib/components/Snackbar.svelte';
+	import { onMount, untrack, tick } from 'svelte';
+	import { auth, config, saveConfig } from '#lib/session.svelte.js';
+	import { signOut } from '#lib/auth.js';
+	import { getRepo, listLocaleFiles, readFile, submit } from '#lib/github.js';
+	import { LocaleDoc } from '#lib/doc.svelte.js';
+	import { notify } from '#lib/toast.svelte.js';
+	import { languageName } from '#lib/lang.js';
+	import AppBar from '#lib/components/AppBar.svelte';
+	import SignIn from '#lib/components/SignIn.svelte';
+	import ConnectForm from '#lib/components/ConnectForm.svelte';
+	import Toolbar from '#lib/components/Toolbar.svelte';
+	import Grid from '#lib/components/Grid.svelte';
+	import StatusBar from '#lib/components/StatusBar.svelte';
+	import Dialog from '#lib/components/Dialog.svelte';
+	import KeyDialog from '#lib/components/KeyDialog.svelte';
+	import LangDialog from '#lib/components/LangDialog.svelte';
+	import ReviewDialog from '#lib/components/ReviewDialog.svelte';
+	import Toast from '#lib/components/Toast.svelte';
+	import Icon from '#lib/components/Icon.svelte';
 
-	// ── Reactive store mirrors ──────────────────────────────────────
-	let auth = $derived($authStore);
-	let cfg = $derived($githubConfig);
-	let localesCfg = $derived($translationsConfig);
+	/** @type {'boot' | 'start' | 'connect' | 'loading' | 'editor'} */
+	let view = $state('boot');
+	/** @type {LocaleDoc | null} */
+	let doc = $state.raw(null);
+	let demo = $state(false);
+	let canPush = $state(false);
+	let loadError = $state('');
+	/** Language requested by a shared link (?lang=fr): show it next to the source. */
+	let focusLang = '';
 
-	// ── UI state ────────────────────────────────────────────────────
-	let showPatForm   = $state(false);
-	let patInput      = $state('');
-	let isSettingsOpen = $state(false);
-	let editorLoaded  = $state(false);
-	let editorLoading = $state(false);
+	// Grid view state
+	let query = $state('');
+	/** @type {'all' | 'missing' | 'edited'} */
+	let filter = $state('all');
+	/** @type {string[]} */
+	let hidden = $state([]);
+	let refresh = $state(0);
+	/** @type {ReturnType<typeof Grid> | undefined} */
+	let grid = $state();
+	/** @type {HTMLInputElement | undefined} */
+	let searchEl = $state();
 
-	// Editor data
-	let locales       = $state({});
-	let languages     = $state([]);
-	let keys          = $state([]);
-	let pendingChanges = $state(false);
-	let selectedLangs = $state([]);
+	// Dialogs
+	let settingsOpen = $state(false);
+	let keyOpen = $state(false);
+	/** @type {string | null} */
+	let renaming = $state(null);
+	let langOpen = $state(false);
+	let reviewOpen = $state(false);
+	let discardOpen = $state(false);
+	let sending = $state(false);
+	/** @type {'pr' | 'commit'} */
+	let mode = $state(config.mode);
 
-	// Snackbar
-	let snackVisible  = $state(false);
-	let snackMessage  = $state('');
-	let snackVariant  = $state('default');
-	let snackAction   = $state(null);
-	let snackActionLabel = $state('');
+	const draftKey = () => (demo ? 'whisper.draft:demo' : `whisper.draft:${config.repo}@${config.branch}:${config.dir}`);
 
-	// Settings form values (mirrors cfg so changes can be saved/cancelled)
-	let settingsRepo        = $state('');
-	let settingsBranch      = $state('');
-	let settingsLocalesPath = $state('');
-	let settingsSubmitMode  = $state('pr');
-
-	// ── Derived view ────────────────────────────────────────────────
-	let view = $derived.by(() => {
-		if (!auth.token) {
-			if (auth.flowState === 'device-pending' || auth.flowState === 'polling') return 'device-pending';
-			if (auth.flowState === 'error') return showPatForm ? 'pat' : 'auth';
-			if (showPatForm) return 'pat';
-			return 'auth';
-		}
-		if (editorLoading) return 'loading';
-		if (editorLoaded)  return 'editor';
-		return 'setup';
-	});
-
-	// Auto-load if token + repo already known
-	$effect(() => {
-		if (auth.token && cfg.repo) {
-			untrack(() => {
-				if (!editorLoaded && !editorLoading) {
-					loadLocales();
-				}
+	// ── Start-up ──────────────────────────────────────────────────────
+	onMount(() => {
+		const p = new URLSearchParams(location.search);
+		if (p.get('repo')) {
+			saveConfig({
+				repo: p.get('repo') ?? config.repo,
+				branch: p.get('branch') || config.branch,
+				dir: p.get('path') || p.get('dir') || config.dir
 			});
 		}
+		focusLang = p.get('lang') || '';
+		if (p.has('demo')) return void openDemo();
+		if (auth.token) {
+			if (config.repo) load();
+			else view = 'connect';
+		} else {
+			view = 'start';
+		}
 	});
 
-	// ── Helpers ─────────────────────────────────────────────────────
-	function showSnack(message, variant = 'default', actionLabel = '', actionFn = null) {
-		snackMessage     = message;
-		snackVariant     = variant;
-		snackActionLabel = actionLabel;
-		snackAction      = actionFn;
-		snackVisible     = true;
+	// Signing in moves the start screen forward.
+	$effect(() => {
+		if (auth.token && view === 'start') untrack(() => (config.repo ? load() : (view = 'connect')));
+	});
+
+	// ── Loading ───────────────────────────────────────────────────────
+	/** @param {import('#lib/doc.svelte.js').SourceFile[]} files */
+	function open(files) {
+		const d = new LocaleDoc(files, config.dir, config.source);
+		const raw = readDraft();
+		if (raw) {
+			d.applyDraft(raw);
+			const n = d.changeCount();
+			if (n) notify(`Restored ${n} unsent ${n === 1 ? 'edit' : 'edits'} from your last visit.`, 'info', { label: 'Discard', run: () => (discardOpen = true) });
+		}
+		const langs = d.langs;
+		hidden = focusLang && langs.includes(focusLang) ? langs.filter((l) => l !== d.source && l !== focusLang) : [];
+		query = '';
+		filter = 'all';
+		doc = d;
+		view = 'editor';
 	}
 
-	// ── Auth handlers ────────────────────────────────────────────────
-	async function handleGitHubSignIn() {
+	async function load() {
+		demo = false;
+		view = 'loading';
+		loadError = '';
 		try {
-			await startDeviceFlow();
+			const t = auth.token;
+			const [repo, list] = await Promise.all([
+				getRepo(t, config.repo),
+				listLocaleFiles(t, config.repo, config.branch, config.dir)
+			]);
+			if (!list.length) throw new Error(`No .json files in ${config.dir} on ${config.branch}.`);
+			canPush = repo.canPush;
+			mode = canPush ? config.mode : 'pr';
+			const texts = await Promise.all(list.map((f) => readFile(t, config.repo, config.branch, f.path)));
+			open(list.map((f, i) => ({ ...f, text: texts[i] })));
 		} catch (e) {
-			showSnack(e.message, 'error');
+			if (e.status === 401) {
+				signOut();
+				view = 'start';
+				notify('Your GitHub session expired. Sign in again.', 'error');
+				return;
+			}
+			loadError = e.message;
+			view = 'connect';
 		}
 	}
 
-	function handlePatSignIn() {
-		if (!patInput.trim()) {
-			showSnack('Please enter a token.', 'error');
-			return;
-		}
-		signInWithPat(patInput);
-		patInput = '';
-		showPatForm = false;
+	async function openDemo() {
+		view = 'loading';
+		demo = true;
+		const { demoFiles } = await import('#lib/demo.js');
+		canPush = true;
+		mode = 'pr';
+		open(demoFiles);
+	}
+
+	function exitDemo() {
+		demo = false;
+		doc = null;
+		history.replaceState(null, '', location.pathname);
+		if (!auth.token) view = 'start';
+		else if (config.repo) load();
+		else view = 'connect';
+	}
+
+	/** @param {{ repo: string, branch: string, dir: string }} v */
+	function connect(v) {
+		saveConfig(v);
+		settingsOpen = false;
+		load();
 	}
 
 	function handleSignOut() {
 		signOut();
-		editorLoaded  = false;
-		locales       = {};
-		languages     = [];
-		keys          = [];
-		pendingChanges = false;
+		doc = null;
+		view = 'start';
 	}
 
-	function copyUserCode() {
-		navigator.clipboard?.writeText(auth.userCode || '');
-		showSnack('Code copied!');
-	}
-
-	// ── Editor handlers ──────────────────────────────────────────────
-	async function loadLocales() {
-		editorLoading = true;
+	// ── Drafts and leaving the page ───────────────────────────────────
+	function readDraft() {
 		try {
-			const tree       = await fetchTree(cfg.branch);
-			const locPath    = localesCfg.localesPath;
-			const files      = tree.filter(t => t.path.startsWith(locPath + '/') && t.path.endsWith('.json'));
+			return JSON.parse(localStorage.getItem(draftKey()) || 'null');
+		} catch {
+			return null;
+		}
+	}
 
-			if (files.length === 0) throw new Error(`No JSON files found in ${locPath}`);
+	let edits = $derived(doc ? doc.changeCount() : 0);
+	let fileCount = $derived(doc && edits ? Object.keys(doc.edits()).length : 0);
+	let draftSaved = $state(false);
 
-			const newLocales  = {};
-			const newLangs    = [];
-			const allKeys     = new Set();
-
-			for (const file of files) {
-				const lang = file.path.replace(locPath + '/', '').replace('.json', '');
-				newLangs.push(lang);
-				const content = await fetchFileContent(file.sha);
-				newLocales[lang] = { path: file.path, content };
-				Object.keys(content).forEach(k => allKeys.add(k));
+	// Unsent edits are kept per repository, branch and folder, so a closed tab
+	// or a dead phone battery does not lose a translator's work.
+	$effect(() => {
+		if (!doc || view !== 'editor') return;
+		const d = doc.toDraft();
+		const key = draftKey();
+		const n = edits;
+		const id = setTimeout(() => {
+			try {
+				if (n) localStorage.setItem(key, JSON.stringify({ ...d, savedAt: Date.now() }));
+				else localStorage.removeItem(key);
+				draftSaved = !!n;
+			} catch {
+				draftSaved = false;
 			}
+		}, 400);
+		return () => clearTimeout(id);
+	});
 
-			locales       = newLocales;
-			languages     = newLangs.sort();
-			keys          = Array.from(allKeys).sort();
-			selectedLangs = [...languages];
-			editorLoaded  = true;
-			pendingChanges = false;
-		} catch (e) {
-			showSnack(e.message, 'error');
-		} finally {
-			editorLoading = false;
-		}
-	}
+	$effect(() => {
+		if (!edits) return;
+		/** @param {BeforeUnloadEvent} e */
+		const guard = (e) => e.preventDefault();
+		addEventListener('beforeunload', guard);
+		return () => removeEventListener('beforeunload', guard);
+	});
 
-	function handleSetup() {
-		let repo = cfg.repo.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\/$/, '');
-		githubConfig.update(v => ({ ...v, repo, branch: cfg.branch.trim() }));
-		translationsConfig.update(v => ({ ...v, localesPath: localesCfg.localesPath.trim() }));
-		loadLocales();
-	}
-
-	function updateTranslation(lang, key, value) {
-		if (locales[lang]) {
-			locales[lang].content[key] = value;
-			pendingChanges = true;
-		}
-	}
-
-	async function handleSubmit() {
-		if (!pendingChanges) return;
-		editorLoading = true;
+	function discard() {
+		if (!doc) return;
 		try {
-			const filesData = languages.map(lang => ({
-				path:    locales[lang].path,
-				content: locales[lang].content
-			}));
-			const mode   = cfg.submitMode;
-			const branch = cfg.branch;
-			const msg    = mode === 'pr'
-				? 'chore(i18n): update translations'
-				: 'chore(i18n): update translations via editor';
+			localStorage.removeItem(draftKey());
+		} catch {}
+		const files = Object.entries(doc.files)
+			.filter(([, f]) => f.parsed)
+			.map(([lang, f]) => ({ name: `${lang}.json`, path: f.path, sha: f.sha, text: f.parsed?.text ?? '' }));
+		const d = new LocaleDoc(files, doc.dir, doc.source);
+		doc = d;
+		hidden = hidden.filter((l) => d.langs.includes(l));
+		discardOpen = false;
+		notify('Edits discarded.');
+	}
 
-			const result = await submitTranslations(filesData, msg, mode, branch);
-			pendingChanges = false;
+	// ── Filtering ─────────────────────────────────────────────────────
+	let visibleLangs = $derived(doc ? doc.langs.filter((l) => !hidden.includes(l)) : []);
 
+	// Re-filter when the filter, search or key list changes, but not on every
+	// keystroke in a box: a row you are typing into should not vanish.
+	let visibleKeys = $derived.by(() => {
+		if (!doc) return [];
+		const d = doc;
+		const keys = d.keys.slice();
+		const langs = visibleLangs;
+		const q = query.trim().toLowerCase();
+		const f = filter;
+		refresh;
+		return untrack(() =>
+			keys.filter((k) => {
+				if (f === 'missing' && (d.deleted[k] || !langs.some((l) => d.isMissing(l, k)))) return false;
+				if (f === 'edited' && !d.isNewKey(k) && !d.deleted[k] && !langs.some((l) => d.isChanged(l, k))) return false;
+				if (!q) return true;
+				if (k.toLowerCase().includes(q)) return true;
+				return langs.some((l) => d.get(l, k).toLowerCase().includes(q));
+			})
+		);
+	});
+
+	async function nextMissing() {
+		if (!doc || !grid) return;
+		const d = doc;
+		const keys = visibleKeys;
+		const targets = visibleLangs.filter((l) => l !== d.source);
+		const langs = targets.length ? targets : visibleLangs;
+		const active = /** @type {HTMLElement | null} */ (document.activeElement);
+		const r0 = active?.dataset?.r ? +active.dataset.r : -1;
+		const c0 = active?.dataset?.c ? visibleLangs[+active.dataset.c] : null;
+		const order = c0 && langs.includes(c0) ? [c0, ...langs.filter((l) => l !== c0)] : langs;
+		for (let i = 1; i <= keys.length; i++) {
+			const key = keys[(r0 + i + keys.length) % keys.length];
+			if (d.deleted[key]) continue;
+			const lang = order.find((l) => d.isMissing(l, key));
+			if (lang) return void grid.focusCell(key, lang);
+		}
+		notify(`Nothing missing in ${langs.map(languageName).join(', ')}.`, 'success');
+	}
+
+	/** @param {KeyboardEvent} e */
+	function onkeydown(e) {
+		if (view !== 'editor' || e.defaultPrevented) return;
+		const t = /** @type {HTMLElement} */ (e.target);
+		const typing = t.matches('input, textarea, select, [contenteditable]');
+		if (e.key === '/' && !typing) {
+			e.preventDefault();
+			searchEl?.focus();
+		} else if (e.altKey && e.code === 'KeyN') {
+			e.preventDefault();
+			nextMissing();
+		}
+	}
+
+	/** @param {string} key */
+	async function afterKey(key) {
+		query = '';
+		filter = 'all';
+		refresh++;
+		await tick();
+		const d = doc;
+		if (!d) return;
+		const lang = d.isMissing(d.source, key) ? d.source : visibleLangs.find((l) => l !== d.source) || d.source;
+		grid?.focusCell(key, lang);
+	}
+
+	/** @param {string} lang */
+	async function afterLang(lang) {
+		hidden = hidden.filter((l) => l !== lang);
+		notify(`${languageName(lang)} added. Its file is created when you send.`, 'success');
+		await tick();
+		nextMissing();
+	}
+
+	// ── Sending ───────────────────────────────────────────────────────
+	/** @param {{ mode: 'pr' | 'commit', title: string, body: string, files: import('#lib/doc.svelte.js').OutFile[] }} o */
+	async function send(o) {
+		if (!doc) return;
+		sending = true;
+		const n = o.files.reduce((s, f) => s + f.changes.length, 0);
+		try {
+			if (demo) {
+				await new Promise((r) => setTimeout(r, 700));
+				reviewOpen = false;
+				notify(
+					`Demo: this would ${o.mode === 'pr' ? 'open a pull request' : 'commit'} with ${n} ${n === 1 ? 'change' : 'changes'}. Nothing was sent.`,
+					'success'
+				);
+				return;
+			}
+			saveConfig({ mode: o.mode });
+			const body = [
+				o.body,
+				`${n} ${n === 1 ? 'change' : 'changes'} in ${o.files.map((f) => '`' + f.path + '`').join(', ')}.`,
+				'Sent from the [svelte-whisper editor](https://shilo.github.io/svelte-whisper/).'
+			]
+				.filter(Boolean)
+				.join('\n\n');
+			const result = await submit({
+				token: auth.token,
+				repo: config.repo,
+				branch: config.branch,
+				dir: config.dir,
+				mode: o.mode,
+				files: o.files.map((f) => ({ path: f.path, text: f.text, sha: f.sha })),
+				title: o.title,
+				body,
+				canPush
+			});
+			try {
+				localStorage.removeItem(draftKey());
+			} catch {}
+			reviewOpen = false;
+			await load();
 			if (result.mode === 'pr') {
-				showSnack(`PR #${result.prNumber} created!`, 'success', 'Open PR', () => window.open(result.prUrl, '_blank'));
+				notify(`Pull request #${result.number} opened.`, 'success', { label: 'View on GitHub', href: result.url });
 			} else {
-				showSnack('Changes committed directly to branch.', 'success');
+				notify(`Committed to ${config.branch}.`, 'success');
 			}
 		} catch (e) {
-			showSnack(e.message, 'error');
+			notify(e.message, 'error');
 		} finally {
-			editorLoading = false;
+			sending = false;
 		}
 	}
-
-	function openSettings() {
-		settingsRepo        = cfg.repo;
-		settingsBranch      = cfg.branch;
-		settingsLocalesPath = localesCfg.localesPath;
-		settingsSubmitMode  = cfg.submitMode;
-		isSettingsOpen      = true;
-	}
-
-	function saveSettings() {
-		const repo = settingsRepo.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\/$/, '');
-		githubConfig.update(v => ({ ...v, repo, branch: settingsBranch.trim(), submitMode: settingsSubmitMode }));
-		translationsConfig.update(v => ({ ...v, localesPath: settingsLocalesPath.trim() }));
-		isSettingsOpen = false;
-		// Reload if repo/branch changed
-		editorLoaded = false;
-		loadLocales();
-	}
-
-	function toggleLang(lang) {
-		if (selectedLangs.includes(lang)) {
-			if (selectedLangs.length > 1) selectedLangs = selectedLangs.filter(l => l !== lang);
-		} else {
-			selectedLangs = [...selectedLangs, lang];
-		}
-	}
-
-	const visibleLangs = $derived(languages.filter(l => selectedLangs.includes(l)));
-
-	// Avatar fallback: first letter of login
-	const avatarLetter = $derived(auth.userLogin ? auth.userLogin[0].toUpperCase() : '?');
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- TOP APP BAR                                                     -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<header class="top-bar">
-	<div class="top-bar__leading">
-		{#if view === 'editor'}
-			<button class="icon-btn" aria-label="Settings" onclick={openSettings}>
-				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-			</button>
-		{/if}
-	</div>
+<svelte:window {onkeydown} />
 
-	<span class="top-bar__title">Localization Editor</span>
+<div class="app" class:fill={view === 'editor'}>
+	<AppBar
+		address={view === 'editor' && !demo ? { repo: config.repo, branch: config.branch, dir: config.dir } : null}
+		demo={demo && view === 'editor'}
+		onsettings={() => (settingsOpen = true)}
+		onsignout={handleSignOut}
+		onexitdemo={exitDemo}
+	/>
 
-	<div class="top-bar__trailing">
-		{#if auth.token}
-			{#if auth.userAvatar}
-				<img src={auth.userAvatar} alt={auth.userLogin || 'User'} class="avatar-img" />
-			{:else}
-				<div class="avatar-letter">{avatarLetter}</div>
-			{/if}
-			<button class="icon-btn" aria-label="Sign out" onclick={handleSignOut} title="Sign out">
-				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-			</button>
-		{/if}
-	</div>
-</header>
-
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- MAIN CONTENT                                                    -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<main class="main">
-
-	<!-- ── AUTH VIEW ──────────────────────────────────────────────── -->
-	{#if view === 'auth'}
-	<div class="center-page">
-		<div class="auth-card">
-			<!-- App icon -->
-			<div class="auth-card__icon">
-				<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="12" y1="7" x2="12" y2="13"/></svg>
-			</div>
-
-			<h1 class="auth-card__title">Sign in to contribute</h1>
-			<p class="auth-card__subtitle">Edit translation files and submit a pull request for review — no coding required.</p>
-
-			{#if isOAuthConfigured()}
-				<button class="btn-filled btn--full" onclick={handleGitHubSignIn}>
-					<!-- GitHub icon -->
-					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-					Sign in with GitHub
-				</button>
-
-				<div class="auth-divider">
-					<span>or</span>
-				</div>
-			{/if}
-
-			<button class="btn-text" onclick={() => showPatForm = true}>
-				Use a Personal Access Token
-			</button>
-		</div>
-	</div>
-
-	<!-- ── DEVICE FLOW VIEW ───────────────────────────────────────── -->
-	{:else if view === 'device-pending'}
-	<div class="center-page">
-		<div class="auth-card">
-			<div class="auth-card__icon auth-card__icon--tertiary">
-				<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-			</div>
-
-			<h2 class="auth-card__title">Approve on GitHub</h2>
-			<p class="auth-card__subtitle">Enter the code below at the GitHub approval page.</p>
-
-			<!-- User code display -->
-			<div class="device-code-wrap">
-				<span class="device-code">{auth.userCode || '——————'}</span>
-				<button class="icon-btn device-code__copy" aria-label="Copy code" onclick={copyUserCode}>
-					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-				</button>
-			</div>
-
-			<!-- Polling indicator -->
-			{#if auth.flowState === 'polling'}
-			<div class="device-polling">
-				<div class="spinner"></div>
-				<span>Waiting for approval…</span>
-			</div>
-			{/if}
-
-			{#if auth.errorMessage}
-			<p class="auth-error">{auth.errorMessage}</p>
-			{/if}
-
-			<div class="auth-card__actions">
-				<button class="btn-outlined btn--full" onclick={() => window.open(auth.verificationUri || 'https://github.com/login/device', '_blank')}>
-					Open GitHub
-				</button>
-				<button class="btn-text" onclick={cancelDeviceFlow}>
-					Cancel
-				</button>
-			</div>
-		</div>
-	</div>
-
-	<!-- ── PAT VIEW ───────────────────────────────────────────────── -->
-	{:else if view === 'pat'}
-	<div class="center-page">
-		<div class="auth-card">
-			<div class="auth-card__icon">
-				<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-			</div>
-
-			<h2 class="auth-card__title">Personal Access Token</h2>
-			<p class="auth-card__subtitle">
-				Generate a token with <code>repo</code> scope on GitHub, then paste it below.
-			</p>
-
-			<div class="field">
-				<label class="field__label" for="pat-input">GitHub Token</label>
-				<input
-					id="pat-input"
-					class="field__input"
-					type="password"
-					bind:value={patInput}
-					placeholder="ghp_…"
-					onkeydown={(e) => e.key === 'Enter' && handlePatSignIn()}
-				/>
-				<span class="field__helper">Stored in your browser's session only.</span>
-			</div>
-
-			<div class="auth-card__actions">
-				<button class="btn-filled btn--full" onclick={handlePatSignIn}>Connect</button>
-				<button class="btn-text" onclick={openPatCreationPage}>
-					Create a token on GitHub ↗
-				</button>
-				<button class="btn-text" onclick={() => { showPatForm = false; authStore.update(s => ({ ...s, flowState: 'idle', errorMessage: null })); }}>
-					← Back
-				</button>
-			</div>
-		</div>
-	</div>
-
-	<!-- ── SETUP VIEW ─────────────────────────────────────────────── -->
-	{:else if view === 'setup'}
-	<div class="center-page">
-		<div class="auth-card">
-			{#if auth.userLogin}
-			<div class="setup-user">
-				{#if auth.userAvatar}
-					<img src={auth.userAvatar} alt={auth.userLogin} class="setup-avatar" />
-				{/if}
-				<span class="setup-username">Signed in as <strong>{auth.userLogin}</strong></span>
-			</div>
-			{/if}
-
-			<h2 class="auth-card__title">Connect a Repository</h2>
-			<p class="auth-card__subtitle">Enter the details of the repo you want to translate.</p>
-
-			<div class="field">
-				<label class="field__label" for="setup-repo">Repository</label>
-				<input id="setup-repo" class="field__input" type="text" bind:value={cfg.repo} placeholder="owner/repo" />
-				<span class="field__helper">e.g. Shilocity/svelte-whisper</span>
-			</div>
-
-			<div class="field">
-				<label class="field__label" for="setup-branch">Branch</label>
-				<input id="setup-branch" class="field__input" type="text" bind:value={cfg.branch} placeholder="main" />
-			</div>
-
-			<div class="field">
-				<label class="field__label" for="setup-locales">Locales path</label>
-				<input id="setup-locales" class="field__input" type="text" bind:value={localesCfg.localesPath} placeholder="src/locales" />
-				<span class="field__helper">Folder containing your .json locale files</span>
-			</div>
-
-			<button class="btn-filled btn--full" onclick={handleSetup}>
-				Load Translations
-			</button>
-		</div>
-	</div>
-
-	<!-- ── LOADING VIEW ───────────────────────────────────────────── -->
-	{:else if view === 'loading'}
-	<div class="center-page">
-		<div class="loading-wrap">
-			<div class="spinner spinner--large"></div>
-			<p class="loading-text">Loading translations…</p>
-		</div>
-	</div>
-
-	<!-- ── EDITOR VIEW ────────────────────────────────────────────── -->
-	{:else if view === 'editor'}
-
-	<!-- Language filter chips -->
-	<div class="chip-bar">
-		{#each languages as lang}
-			<button
-				class="chip"
-				class:chip--selected={selectedLangs.includes(lang)}
-				onclick={() => toggleLang(lang)}
-			>
-				{lang}
-			</button>
-		{/each}
-	</div>
-
-	<!-- Desktop table (md+) -->
-	<div class="table-wrap hidden md:block">
-		<div class="overflow-x-auto custom-scrollbar">
-			<table class="trans-table">
-				<thead>
-					<tr>
-						<th class="trans-table__key-header">Key</th>
-						{#each visibleLangs as lang}
-							<th class="trans-table__lang-header">{lang}</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody>
-					{#each keys as key}
-						<tr class="trans-table__row">
-							<td class="trans-table__key">{key}</td>
-							{#each visibleLangs as lang}
-								<td class="trans-table__cell">
-									<textarea
-										class="trans-table__textarea"
-										value={locales[lang]?.content[key] ?? ''}
-										oninput={(e) => updateTranslation(lang, key, e.currentTarget.value)}
-										placeholder="Missing…"
-									></textarea>
-								</td>
-							{/each}
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-		{#if keys.length === 0}
-			<div class="empty-state">
-				<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="opacity-40"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-				<p>No translation keys found in <code>{localesCfg.localesPath}</code></p>
-			</div>
-		{/if}
-	</div>
-
-	<!-- Mobile card list (< md) -->
-	<div class="card-list md:hidden">
-		{#each keys as key}
-			<div class="key-card">
-				<div class="key-card__key">{key}</div>
-				{#each visibleLangs as lang}
-					<div class="key-card__field">
-						<span class="key-card__lang">{lang}</span>
-						<textarea
-							class="key-card__textarea"
-							value={locales[lang]?.content[key] ?? ''}
-							oninput={(e) => updateTranslation(lang, key, e.currentTarget.value)}
-							placeholder="Missing…"
-						></textarea>
+	<main id="main">
+		{#if view === 'start'}
+			<SignIn ondemo={openDemo} />
+		{:else if view === 'connect'}
+			<div class="narrow">
+				<section class="panel" aria-labelledby="connect-title">
+					<header>
+						<h1 id="connect-title">Open locale files</h1>
+						<p class="hint">Point the editor at the folder that holds one <code>.json</code> file per language.</p>
+					</header>
+					{#if loadError}
+						<p class="load-error" role="alert">{loadError}</p>
+					{/if}
+					<div class="panel-body">
+						<ConnectForm initial={config} onsubmit={connect} />
 					</div>
+				</section>
+				<p class="hint aside">
+					Want a quick tour first? <button class="link" onclick={openDemo}>Open the demo</button>.
+				</p>
+			</div>
+		{:else if view === 'editor' && doc}
+			<Toolbar
+				{doc}
+				bind:query
+				bind:filter
+				bind:hidden
+				bind:searchEl
+				onnext={nextMissing}
+				onaddkey={() => ((renaming = null), (keyOpen = true))}
+				onaddlang={() => (langOpen = true)}
+			/>
+			{#if doc.keys.length === 0}
+				<div class="empty">
+					<h2>These files have no strings yet.</h2>
+					<p class="hint">Add the first key and its {languageName(doc.source)} text.</p>
+					<button class="btn solid" onclick={() => ((renaming = null), (keyOpen = true))}><Icon name="plus" size={16} /> Add a key</button>
+				</div>
+			{:else if visibleKeys.length === 0}
+				<div class="empty">
+					<h2>
+						{#if query}Nothing matches “{query}”.
+						{:else if filter === 'missing'}Nothing is missing in the languages shown.
+						{:else}No edits yet.{/if}
+					</h2>
+					<button class="btn" onclick={() => ((query = ''), (filter = 'all'))}>Show all keys</button>
+				</div>
+			{:else}
+				<Grid bind:this={grid} {doc} langs={visibleLangs} keys={visibleKeys} onrename={(k) => ((renaming = k), (keyOpen = true))} />
+			{/if}
+			<StatusBar {edits} files={fileCount} {draftSaved} ondiscard={() => (discardOpen = true)} onreview={() => (reviewOpen = true)} />
+		{:else}
+			<div class="skeleton" aria-busy="true">
+				<p class="caption" aria-live="polite">
+					{#if view === 'loading'}{demo ? 'Opening sample files…' : `Reading ${config.dir} from ${config.repo}…`}{/if}
+				</p>
+				{#each { length: 9 } as _, i (i)}
+					<div class="sk-row"><span></span><span></span><span></span><span></span></div>
 				{/each}
 			</div>
-		{/each}
-		{#if keys.length === 0}
-			<div class="empty-state">
-				<p>No translation keys found.</p>
-			</div>
 		{/if}
-	</div>
-
-	{/if}
-</main>
-
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- EXTENDED FAB                                                    -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
-{#if view === 'editor'}
-<button
-	class="fab"
-	class:fab--disabled={!pendingChanges || editorLoading}
-	disabled={!pendingChanges || editorLoading}
-	onclick={handleSubmit}
-	aria-label={cfg.submitMode === 'pr' ? 'Create Pull Request' : 'Commit Changes'}
->
-	{#if editorLoading}
-		<div class="spinner spinner--sm spinner--on-primary"></div>
-		<span>Working…</span>
-	{:else if cfg.submitMode === 'pr'}
-		<!-- Merge / PR icon -->
-		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
-		<span>Create PR</span>
-	{:else}
-		<!-- Commit icon -->
-		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
-		<span>Commit</span>
-	{/if}
-</button>
-{/if}
-
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SETTINGS PANEL                                                  -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
-{#if isSettingsOpen}
-<!-- Backdrop -->
-<div class="settings-backdrop" onclick={() => isSettingsOpen = false} aria-hidden="true"></div>
-
-<!-- Panel -->
-<div class="settings-panel" role="dialog" aria-modal="true" aria-label="Settings">
-	<div class="settings-panel__handle" aria-hidden="true"></div>
-
-	<h2 class="settings-panel__title">Settings</h2>
-
-	<div class="field">
-		<label class="field__label" for="s-repo">Repository</label>
-		<input id="s-repo" class="field__input" type="text" bind:value={settingsRepo} placeholder="owner/repo" />
-	</div>
-
-	<div class="field">
-		<label class="field__label" for="s-branch">Branch</label>
-		<input id="s-branch" class="field__input" type="text" bind:value={settingsBranch} placeholder="main" />
-	</div>
-
-	<div class="field">
-		<label class="field__label" for="s-locales">Locales path</label>
-		<input id="s-locales" class="field__input" type="text" bind:value={settingsLocalesPath} placeholder="src/locales" />
-	</div>
-
-	<fieldset class="settings-panel__fieldset">
-		<legend class="field__label">Submit mode</legend>
-		<label class="radio-label">
-			<input type="radio" bind:group={settingsSubmitMode} value="pr" />
-			<span>
-				<strong>Create Pull Request</strong>
-				<span class="radio-desc">Recommended — submits for review before merging</span>
-			</span>
-		</label>
-		<label class="radio-label">
-			<input type="radio" bind:group={settingsSubmitMode} value="direct" />
-			<span>
-				<strong>Push directly</strong>
-				<span class="radio-desc">For repo owners — commits straight to branch</span>
-			</span>
-		</label>
-	</fieldset>
-
-	<div class="settings-panel__actions">
-		<button class="btn-filled" onclick={saveSettings}>Save &amp; Reload</button>
-		<button class="btn-text" onclick={() => isSettingsOpen = false}>Cancel</button>
-	</div>
-
-	<div class="settings-panel__footer">
-		<button class="btn-text btn--danger" onclick={handleSignOut}>
-			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-			Sign out
-		</button>
-	</div>
+	</main>
 </div>
+
+{#if doc}
+	<KeyDialog bind:open={keyOpen} {doc} {renaming} ondone={afterKey} />
+	<LangDialog bind:open={langOpen} {doc} ondone={afterLang} />
+	<ReviewDialog
+		bind:open={reviewOpen}
+		bind:mode
+		{doc}
+		{demo}
+		{canPush}
+		{sending}
+		repo={demo ? 'sample/fieldnotes' : config.repo}
+		branch={demo ? 'main' : config.branch}
+		onsend={send}
+	/>
+	<Dialog bind:open={discardOpen} title="Discard all edits?">
+		<p>
+			{edits}
+			{edits === 1 ? 'edit' : 'edits'} will be thrown away and the files go back to how they are on {demo ? 'the sample' : config.branch}. This
+			cannot be undone.
+		</p>
+		{#snippet footer()}
+			<button class="btn" onclick={() => (discardOpen = false)}>Keep editing</button>
+			<button class="btn danger" onclick={discard}><Icon name="trash" size={16} /> Discard edits</button>
+		{/snippet}
+	</Dialog>
 {/if}
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- SNACKBAR                                                        -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<Snackbar
-	bind:visible={snackVisible}
-	message={snackMessage}
-	variant={snackVariant}
-	actionLabel={snackActionLabel}
-	onaction={snackAction}
-/>
+<Dialog bind:open={settingsOpen} title={demo ? 'Demo settings' : 'Repository'}>
+	{#if doc}
+		<div class="field">
+			<label class="caption" for="s-source">Source language</label>
+			<select
+				id="s-source"
+				class="input"
+				value={doc.source}
+				onchange={(e) => {
+					doc?.setSource(e.currentTarget.value);
+					saveConfig({ source: e.currentTarget.value });
+				}}
+			>
+				{#each doc.langs as l (l)}<option value={l}>{languageName(l)} ({l})</option>{/each}
+			</select>
+			<p class="hint">Other languages are checked against its placeholders.</p>
+		</div>
+	{/if}
+	{#if demo}
+		<p class="hint">The demo uses built-in sample files. Sign in to open your own repository.</p>
+		<button class="btn" onclick={() => ((settingsOpen = false), exitDemo())}>Exit demo</button>
+	{:else}
+		{#if doc}<hr />{/if}
+		{#if doc && edits}
+			<p class="hint">Your {edits} unsent {edits === 1 ? 'edit stays' : 'edits stay'} saved as a draft for {config.repo} if you switch.</p>
+		{/if}
+		<ConnectForm initial={config} submitLabel="Open these files" onsubmit={connect} />
+		<hr />
+		<button class="btn quiet danger" onclick={() => ((settingsOpen = false), handleSignOut())}><Icon name="out" size={16} /> Sign out</button>
+	{/if}
+</Dialog>
+
+<Toast />
 
 <style>
-/* ── Layout ────────────────────────────────────────────────────── */
-.top-bar {
-	position: sticky;
-	top: 0;
-	z-index: 10;
-	display: flex;
-	align-items: center;
-	height: 64px;
-	padding: 0 4px 0 4px;
-	background-color: var(--md-sys-color-surface-container);
-	border-bottom: 1px solid var(--md-sys-color-outline-variant);
-}
-.top-bar__leading  { display: flex; align-items: center; width: 56px; }
-.top-bar__trailing { display: flex; align-items: center; gap: 4px; margin-left: auto; }
-.top-bar__title {
-	flex: 1;
-	text-align: center;
-	font-size: 22px;
-	font-weight: 400;
-	letter-spacing: 0;
-	color: var(--md-sys-color-on-surface);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.main {
-	min-height: calc(100vh - 64px);
-	padding-bottom: 96px;
-}
-
-/* ── Center page layout (auth/setup/loading) ────────────────────── */
-.center-page {
-	display: flex;
-	align-items: flex-start;
-	justify-content: center;
-	padding: 32px 16px;
-	min-height: calc(100vh - 64px);
-}
-
-/* ── Auth card ──────────────────────────────────────────────────── */
-.auth-card {
-	width: 100%;
-	max-width: 400px;
-	background: var(--md-sys-color-surface-container-low);
-	border-radius: 28px;
-	padding: 32px 24px;
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
-}
-.auth-card__icon {
-	width: 64px;
-	height: 64px;
-	border-radius: 50%;
-	background: var(--md-sys-color-primary-container);
-	color: var(--md-sys-color-on-primary-container);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	margin: 0 auto 8px;
-}
-.auth-card__icon--tertiary {
-	background: var(--md-sys-color-tertiary-container);
-	color: var(--md-sys-color-on-tertiary-container);
-}
-.auth-card__title {
-	font-size: 24px;
-	font-weight: 400;
-	color: var(--md-sys-color-on-surface);
-	text-align: center;
-	margin: 0;
-}
-.auth-card__subtitle {
-	font-size: 14px;
-	color: var(--md-sys-color-on-surface-variant);
-	text-align: center;
-	margin: 0;
-	line-height: 1.5;
-}
-.auth-card__actions {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	margin-top: 8px;
-}
-
-/* ── Buttons (MD3) ──────────────────────────────────────────────── */
-.btn-filled {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	background: var(--md-sys-color-primary);
-	color: var(--md-sys-color-on-primary);
-	border: none;
-	border-radius: 20px;
-	padding: 10px 24px;
-	font-size: 14px;
-	font-weight: 500;
-	letter-spacing: 0.1px;
-	cursor: pointer;
-	min-height: 40px;
-	transition: box-shadow 0.2s, filter 0.15s;
-}
-.btn-filled:hover  { filter: brightness(1.08); box-shadow: 0 1px 3px rgba(0,0,0,.3); }
-.btn-filled:active { filter: brightness(0.95); }
-.btn-filled:disabled { opacity: 0.38; cursor: not-allowed; }
-
-.btn-outlined {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	background: transparent;
-	color: var(--md-sys-color-primary);
-	border: 1px solid var(--md-sys-color-outline);
-	border-radius: 20px;
-	padding: 10px 24px;
-	font-size: 14px;
-	font-weight: 500;
-	letter-spacing: 0.1px;
-	cursor: pointer;
-	min-height: 40px;
-	transition: background 0.15s;
-}
-.btn-outlined:hover { background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent); }
-
-.btn-text {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 6px;
-	background: transparent;
-	color: var(--md-sys-color-primary);
-	border: none;
-	border-radius: 20px;
-	padding: 10px 12px;
-	font-size: 14px;
-	font-weight: 500;
-	letter-spacing: 0.1px;
-	cursor: pointer;
-	min-height: 40px;
-	transition: background 0.15s;
-}
-.btn-text:hover { background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent); }
-.btn--full  { width: 100%; }
-.btn--danger { color: var(--md-sys-color-error); }
-.btn--danger:hover { background: color-mix(in srgb, var(--md-sys-color-error) 8%, transparent); }
-
-/* ── Icon button ────────────────────────────────────────────────── */
-.icon-btn {
-	width: 48px;
-	height: 48px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: transparent;
-	border: none;
-	border-radius: 50%;
-	color: var(--md-sys-color-on-surface-variant);
-	cursor: pointer;
-	transition: background 0.15s;
-}
-.icon-btn:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); }
-
-/* ── Avatar ─────────────────────────────────────────────────────── */
-.avatar-img {
-	width: 32px;
-	height: 32px;
-	border-radius: 50%;
-	object-fit: cover;
-}
-.avatar-letter {
-	width: 32px;
-	height: 32px;
-	border-radius: 50%;
-	background: var(--md-sys-color-primary-container);
-	color: var(--md-sys-color-on-primary-container);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 14px;
-	font-weight: 500;
-}
-
-/* ── Auth divider ───────────────────────────────────────────────── */
-.auth-divider {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	color: var(--md-sys-color-outline);
-	font-size: 12px;
-}
-.auth-divider::before,
-.auth-divider::after {
-	content: '';
-	flex: 1;
-	height: 1px;
-	background: var(--md-sys-color-outline-variant);
-}
-
-/* ── Device code ────────────────────────────────────────────────── */
-.device-code-wrap {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	background: var(--md-sys-color-surface-container-highest);
-	border-radius: 12px;
-	padding: 16px;
-	margin: 4px 0;
-}
-.device-code {
-	font-family: 'Roboto Mono', ui-monospace, monospace;
-	font-size: 28px;
-	font-weight: 500;
-	letter-spacing: 0.25em;
-	color: var(--md-sys-color-on-surface);
-}
-.device-code__copy {
-	color: var(--md-sys-color-on-surface-variant);
-	width: 36px;
-	height: 36px;
-}
-
-/* Polling indicator */
-.device-polling {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 10px;
-	color: var(--md-sys-color-on-surface-variant);
-	font-size: 13px;
-}
-
-.auth-error {
-	color: var(--md-sys-color-error);
-	font-size: 13px;
-	text-align: center;
-	margin: 0;
-}
-
-/* ── Setup user display ─────────────────────────────────────────── */
-.setup-user {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	justify-content: center;
-	padding-bottom: 4px;
-}
-.setup-avatar {
-	width: 36px;
-	height: 36px;
-	border-radius: 50%;
-}
-.setup-username {
-	font-size: 14px;
-	color: var(--md-sys-color-on-surface-variant);
-}
-
-/* ── Loading ────────────────────────────────────────────────────── */
-.loading-wrap {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 20px;
-	padding-top: 80px;
-}
-.loading-text {
-	color: var(--md-sys-color-on-surface-variant);
-	font-size: 16px;
-}
-
-/* ── Spinner ────────────────────────────────────────────────────── */
-.spinner {
-	width: 24px;
-	height: 24px;
-	border: 2.5px solid var(--md-sys-color-primary-container);
-	border-top-color: var(--md-sys-color-primary);
-	border-radius: 50%;
-	animation: spin 0.8s linear infinite;
-}
-.spinner--large { width: 48px; height: 48px; border-width: 4px; }
-.spinner--sm    { width: 18px; height: 18px; border-width: 2px; }
-.spinner--on-primary {
-	border-color: color-mix(in srgb, var(--md-sys-color-on-primary) 30%, transparent);
-	border-top-color: var(--md-sys-color-on-primary);
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── Field (MD3 filled) ─────────────────────────────────────────── */
-.field {
-	display: flex;
-	flex-direction: column;
-	gap: 0;
-}
-.field__label {
-	font-size: 12px;
-	font-weight: 500;
-	color: var(--md-sys-color-primary);
-	padding: 8px 16px 0;
-	letter-spacing: 0.4px;
-}
-.field__input {
-	background: var(--md-sys-color-surface-container-highest);
-	border: none;
-	border-bottom: 1px solid var(--md-sys-color-on-surface-variant);
-	border-radius: 4px 4px 0 0;
-	padding: 8px 16px 12px;
-	font-family: inherit;
-	font-size: 16px;
-	color: var(--md-sys-color-on-surface);
-	outline: none;
-	transition: border-bottom-width 0.1s;
-	width: 100%;
-	box-sizing: border-box;
-}
-.field__input:focus {
-	border-bottom: 2px solid var(--md-sys-color-primary);
-}
-.field__input::placeholder {
-	color: var(--md-sys-color-on-surface-variant);
-}
-.field__helper {
-	font-size: 12px;
-	color: var(--md-sys-color-on-surface-variant);
-	padding: 4px 16px 0;
-	letter-spacing: 0.4px;
-}
-code {
-	font-family: 'Roboto Mono', ui-monospace, monospace;
-	font-size: 0.9em;
-	background: var(--md-sys-color-surface-container-highest);
-	padding: 1px 5px;
-	border-radius: 4px;
-}
-
-/* ── Chip bar ───────────────────────────────────────────────────── */
-.chip-bar {
-	display: flex;
-	gap: 8px;
-	padding: 12px 16px;
-	overflow-x: auto;
-	scrollbar-width: none;
-}
-.chip-bar::-webkit-scrollbar { display: none; }
-
-.chip {
-	display: inline-flex;
-	align-items: center;
-	height: 32px;
-	padding: 0 16px;
-	border-radius: 8px;
-	font-size: 14px;
-	font-weight: 500;
-	border: 1px solid var(--md-sys-color-outline);
-	background: transparent;
-	color: var(--md-sys-color-on-surface-variant);
-	cursor: pointer;
-	white-space: nowrap;
-	transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.chip--selected {
-	background: var(--md-sys-color-secondary-container);
-	color: var(--md-sys-color-on-secondary-container);
-	border-color: transparent;
-}
-
-/* ── Desktop table ──────────────────────────────────────────────── */
-.table-wrap {
-	margin: 0 16px;
-	border-radius: 16px;
-	overflow: hidden;
-	border: 1px solid var(--md-sys-color-outline-variant);
-	background: var(--md-sys-color-surface-container);
-}
-.trans-table {
-	width: 100%;
-	border-collapse: collapse;
-}
-.trans-table__key-header {
-	padding: 14px 20px;
-	text-align: left;
-	font-size: 11px;
-	font-weight: 500;
-	text-transform: uppercase;
-	letter-spacing: 0.8px;
-	color: var(--md-sys-color-outline);
-	border-right: 1px solid var(--md-sys-color-outline-variant);
-	position: sticky;
-	left: 0;
-	background: var(--md-sys-color-surface-container-high);
-	z-index: 2;
-	min-width: 200px;
-	width: 22%;
-}
-.trans-table__lang-header {
-	padding: 14px 20px;
-	text-align: center;
-	font-size: 12px;
-	font-weight: 500;
-	text-transform: uppercase;
-	letter-spacing: 1px;
-	color: var(--md-sys-color-primary);
-	border-right: 1px solid var(--md-sys-color-outline-variant);
-	min-width: 280px;
-	background: var(--md-sys-color-surface-container-high);
-}
-.trans-table__lang-header:last-child { border-right: none; }
-.trans-table thead { border-bottom: 1px solid var(--md-sys-color-outline-variant); }
-
-.trans-table__row { border-bottom: 1px solid var(--md-sys-color-outline-variant); }
-.trans-table__row:last-child { border-bottom: none; }
-.trans-table__row:hover .trans-table__key {
-	color: var(--md-sys-color-primary);
-	background: color-mix(in srgb, var(--md-sys-color-surface-container-high) 90%, var(--md-sys-color-primary) 10%);
-}
-
-.trans-table__key {
-	padding: 12px 20px;
-	font-family: 'Roboto Mono', ui-monospace, monospace;
-	font-size: 12px;
-	color: var(--md-sys-color-on-surface-variant);
-	border-right: 1px solid var(--md-sys-color-outline-variant);
-	position: sticky;
-	left: 0;
-	background: var(--md-sys-color-surface-container);
-	z-index: 1;
-	vertical-align: top;
-	word-break: break-all;
-	transition: color 0.15s, background 0.15s;
-}
-.trans-table__cell {
-	padding: 0;
-	border-right: 1px solid var(--md-sys-color-outline-variant);
-	vertical-align: top;
-}
-.trans-table__cell:last-child { border-right: none; }
-.trans-table__textarea {
-	width: 100%;
-	min-height: 72px;
-	padding: 12px 20px;
-	background: transparent;
-	border: none;
-	resize: vertical;
-	font-family: inherit;
-	font-size: 14px;
-	line-height: 1.6;
-	color: var(--md-sys-color-on-surface);
-	outline: none;
-	box-sizing: border-box;
-	transition: background 0.15s;
-}
-.trans-table__textarea::placeholder { color: var(--md-sys-color-outline); }
-.trans-table__textarea:focus {
-	background: color-mix(in srgb, var(--md-sys-color-primary) 6%, var(--md-sys-color-surface-container));
-}
-
-/* Custom scrollbar */
-.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: var(--md-sys-color-surface-container); }
-.custom-scrollbar::-webkit-scrollbar-thumb {
-	background: var(--md-sys-color-surface-container-highest);
-	border-radius: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--md-sys-color-outline); }
-
-/* Empty state */
-.empty-state {
-	padding: 64px 24px;
-	text-align: center;
-	color: var(--md-sys-color-outline);
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 16px;
-	font-size: 15px;
-}
-
-/* ── Mobile card list ───────────────────────────────────────────── */
-.card-list {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	padding: 0 16px 16px;
-}
-.key-card {
-	background: var(--md-sys-color-surface-container-low);
-	border-radius: 16px;
-	padding: 16px;
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-.key-card__key {
-	font-family: 'Roboto Mono', ui-monospace, monospace;
-	font-size: 12px;
-	font-weight: 500;
-	color: var(--md-sys-color-primary);
-	word-break: break-all;
-	padding-bottom: 4px;
-	border-bottom: 1px solid var(--md-sys-color-outline-variant);
-}
-.key-card__field {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-.key-card__lang {
-	font-size: 11px;
-	font-weight: 500;
-	text-transform: uppercase;
-	letter-spacing: 0.8px;
-	color: var(--md-sys-color-on-surface-variant);
-}
-.key-card__textarea {
-	background: var(--md-sys-color-surface-container-highest);
-	border: none;
-	border-bottom: 1px solid var(--md-sys-color-on-surface-variant);
-	border-radius: 4px 4px 0 0;
-	padding: 10px 12px;
-	font-family: inherit;
-	font-size: 14px;
-	line-height: 1.5;
-	color: var(--md-sys-color-on-surface);
-	resize: vertical;
-	outline: none;
-	min-height: 60px;
-	width: 100%;
-	box-sizing: border-box;
-	transition: border-bottom-width 0.1s;
-}
-.key-card__textarea::placeholder { color: var(--md-sys-color-outline); }
-.key-card__textarea:focus { border-bottom: 2px solid var(--md-sys-color-primary); }
-
-/* ── Extended FAB ───────────────────────────────────────────────── */
-.fab {
-	position: fixed;
-	bottom: 16px;
-	right: 16px;
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	background: var(--md-sys-color-primary-container);
-	color: var(--md-sys-color-on-primary-container);
-	border: none;
-	border-radius: 16px;
-	padding: 16px 20px;
-	font-size: 14px;
-	font-weight: 500;
-	letter-spacing: 0.1px;
-	cursor: pointer;
-	box-shadow: 0 3px 5px -1px rgba(0,0,0,.3), 0 6px 10px rgba(0,0,0,.2), 0 1px 18px rgba(0,0,0,.15);
-	z-index: 10;
-	transition: box-shadow 0.2s, filter 0.15s;
-}
-.fab:hover:not(:disabled) {
-	box-shadow: 0 5px 5px -3px rgba(0,0,0,.3), 0 8px 10px 1px rgba(0,0,0,.2), 0 3px 14px 2px rgba(0,0,0,.15);
-	filter: brightness(1.05);
-}
-.fab:active:not(:disabled) { filter: brightness(0.95); }
-.fab--disabled { opacity: 0.38; cursor: not-allowed; box-shadow: none; }
-
-@media (min-width: 600px) {
-	.fab { bottom: 24px; right: 24px; }
-}
-
-/* ── Settings panel ─────────────────────────────────────────────── */
-.settings-backdrop {
-	position: fixed;
-	inset: 0;
-	background: rgba(0,0,0,.5);
-	z-index: 50;
-}
-.settings-panel {
-	position: fixed;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	max-height: 90dvh;
-	overflow-y: auto;
-	background: var(--md-sys-color-surface-container-low);
-	border-radius: 28px 28px 0 0;
-	padding: 12px 24px 32px;
-	z-index: 51;
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
-	animation: slide-up-panel 250ms cubic-bezier(0.2, 0, 0, 1);
-}
-@keyframes slide-up-panel {
-	from { transform: translateY(100%); }
-	to   { transform: translateY(0); }
-}
-.settings-panel__handle {
-	width: 32px;
-	height: 4px;
-	border-radius: 2px;
-	background: var(--md-sys-color-on-surface-variant);
-	opacity: 0.4;
-	margin: 0 auto 8px;
-}
-.settings-panel__title {
-	font-size: 22px;
-	font-weight: 400;
-	color: var(--md-sys-color-on-surface);
-	margin: 0;
-}
-.settings-panel__actions {
-	display: flex;
-	gap: 8px;
-	flex-wrap: wrap;
-	margin-top: 4px;
-}
-.settings-panel__footer {
-	padding-top: 8px;
-	border-top: 1px solid var(--md-sys-color-outline-variant);
-}
-.settings-panel__fieldset {
-	border: none;
-	padding: 0;
-	margin: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-.settings-panel__fieldset legend { margin-bottom: 8px; }
-
-.radio-label {
-	display: flex;
-	align-items: flex-start;
-	gap: 12px;
-	cursor: pointer;
-	font-size: 14px;
-	color: var(--md-sys-color-on-surface);
-}
-.radio-label input[type="radio"] { margin-top: 2px; accent-color: var(--md-sys-color-primary); }
-.radio-desc {
-	display: block;
-	font-size: 12px;
-	color: var(--md-sys-color-on-surface-variant);
-	margin-top: 2px;
-}
-
-/* Desktop: convert panel to centered dialog */
-@media (min-width: 600px) {
-	.settings-backdrop { background: rgba(0,0,0,.4); backdrop-filter: blur(2px); }
-	.settings-panel {
-		top: 50%;
-		left: 50%;
-		right: auto;
-		bottom: auto;
-		transform: translate(-50%, -50%);
-		width: min(480px, calc(100vw - 48px));
-		max-height: 85dvh;
-		border-radius: 28px;
-		animation: dialog-pop 200ms cubic-bezier(0.2, 0, 0, 1);
+	.app {
+		display: flex;
+		flex-direction: column;
+		min-height: 100dvh;
 	}
-	.settings-panel__handle { display: none; }
-	@keyframes dialog-pop {
-		from { opacity: 0; transform: translate(-50%, calc(-50% + 16px)); }
-		to   { opacity: 1; transform: translate(-50%, -50%); }
+	.app.fill {
+		height: 100dvh;
 	}
-}
+	main {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+	.narrow {
+		width: min(34rem, 100%);
+		margin: 0 auto;
+		padding: clamp(1.5rem, 6vw, 4rem) 1rem 3rem;
+		display: grid;
+		gap: 1rem;
+	}
+	.panel {
+		border: 1px solid var(--rule-strong);
+		border-radius: var(--radius);
+		background: var(--field);
+	}
+	.panel > header {
+		display: grid;
+		gap: 0.25rem;
+		padding: 1rem 1.25rem;
+		background: var(--paper-2);
+		border-bottom: 1px solid var(--rule-strong);
+	}
+	.panel h1 {
+		font-size: var(--t-lg);
+	}
+	.panel-body {
+		padding: 1.25rem;
+	}
+	.load-error {
+		padding: 0.75rem 1.25rem;
+		background: var(--alert-wash);
+		border-bottom: 1px solid var(--alert);
+		color: var(--alert);
+	}
+	.aside {
+		text-align: center;
+	}
+	.link {
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--air);
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
+		cursor: pointer;
+	}
+	.empty {
+		flex: 1;
+		display: grid;
+		gap: 0.75rem;
+		align-content: center;
+		justify-items: center;
+		padding: 3rem 1rem;
+		text-align: center;
+	}
+	.empty h2 {
+		font-size: var(--t-lg);
+	}
+	hr {
+		width: 100%;
+		border: 0;
+		border-top: 1px dashed var(--rule-strong);
+		margin: 0;
+	}
+	.skeleton {
+		padding: 0.75rem;
+	}
+	.skeleton .caption {
+		min-height: 1.75rem;
+	}
+	.sk-row {
+		display: grid;
+		grid-template-columns: 14rem repeat(3, 1fr);
+		border-bottom: 1px solid var(--rule);
+	}
+	.sk-row span {
+		height: 2.75rem;
+		border-right: 1px solid var(--rule);
+		background: var(--field);
+		animation: breathe 1.4s ease-in-out infinite alternate;
+	}
+	.sk-row span:first-child {
+		background: var(--paper-2);
+	}
+	@keyframes breathe {
+		to {
+			opacity: 0.55;
+		}
+	}
+	@media (max-width: 47.99rem) {
+		.sk-row {
+			grid-template-columns: 1fr;
+			margin-bottom: 0.75rem;
+			border: 1px solid var(--rule);
+		}
+		.sk-row span + span {
+			display: none;
+		}
+	}
 </style>
