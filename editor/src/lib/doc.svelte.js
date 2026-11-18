@@ -105,11 +105,23 @@ export class LocaleDoc {
 		return comparePlaceholders(this.values[this.source]?.[key], this.values[lang]?.[key]);
 	}
 
+	/** Untranslated boxes per language, computed in one pass. */
+	#missing = $derived.by(() => {
+		/** @type {Record<string, number>} */
+		const out = {};
+		for (const lang of this.langs) {
+			const row = this.values[lang];
+			const fixed = this.fixed[lang];
+			let n = 0;
+			for (const k of this.keys) if (!row[k] && !this.deleted[k] && fixed?.[k] === undefined) n++;
+			out[lang] = n;
+		}
+		return out;
+	});
+
 	/** @param {string} lang */
 	missingCount(lang) {
-		let n = 0;
-		for (const k of this.keys) if (!this.deleted[k] && this.isMissing(lang, k)) n++;
-		return n;
+		return this.#missing[lang] ?? 0;
 	}
 
 	get liveKeyCount() {
@@ -203,8 +215,15 @@ export class LocaleDoc {
 		this.langs = [lang, ...this.langs.filter((l) => l !== lang)];
 	}
 
+	#edits = $derived.by(() => this.#computeEdits());
+	#changeCount = $derived(Object.values(this.#edits).reduce((n, e) => n + Object.keys(e).length, 0));
+
 	/** Per-language edits: key -> new string, or null for removal. */
 	edits() {
+		return this.#edits;
+	}
+
+	#computeEdits() {
 		/** @type {Record<string, Record<string, string | null>>} */
 		const out = {};
 		const live = new Set(this.keys);
@@ -229,9 +248,7 @@ export class LocaleDoc {
 
 	/** Count of changed cells, for the status bar. */
 	changeCount() {
-		let n = 0;
-		for (const e of Object.values(this.edits())) n += Object.keys(e).length;
-		return n;
+		return this.#changeCount;
 	}
 
 	/** @returns {OutFile[]} */

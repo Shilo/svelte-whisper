@@ -9,13 +9,7 @@
 	import AppBar from '#lib/components/AppBar.svelte';
 	import SignIn from '#lib/components/SignIn.svelte';
 	import ConnectForm from '#lib/components/ConnectForm.svelte';
-	import Toolbar from '#lib/components/Toolbar.svelte';
-	import Grid from '#lib/components/Grid.svelte';
-	import StatusBar from '#lib/components/StatusBar.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
-	import KeyDialog from '#lib/components/KeyDialog.svelte';
-	import LangDialog from '#lib/components/LangDialog.svelte';
-	import ReviewDialog from '#lib/components/ReviewDialog.svelte';
 	import Toast from '#lib/components/Toast.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 
@@ -36,7 +30,12 @@
 	/** @type {string[]} */
 	let hidden = $state([]);
 	let refresh = $state(0);
-	/** @type {ReturnType<typeof Grid> | undefined} */
+	/** @type {typeof import('#lib/components/editor.js') | null} */
+	let ui = $state.raw(null);
+	/** @type {Promise<unknown> | null} */
+	let uiLoading = null;
+	const loadUI = () => (uiLoading ??= import('#lib/components/editor.js').then((m) => (ui = m)));
+	/** @type {{ focusCell: (key: string, lang: string) => Promise<boolean> } | undefined} */
 	let grid = $state();
 	/** @type {HTMLInputElement | undefined} */
 	let searchEl = $state();
@@ -66,7 +65,7 @@
 			});
 		}
 		focusLang = p.get('lang') || '';
-		if (p.has('demo')) return void openDemo();
+		if (p.has('demo')) return void openDemo(p.get('demo') === 'large');
 		if (auth.token) {
 			if (config.repo) load();
 			else view = 'connect';
@@ -82,7 +81,8 @@
 
 	// ── Loading ───────────────────────────────────────────────────────
 	/** @param {import('#lib/doc.svelte.js').SourceFile[]} files */
-	function open(files) {
+	async function open(files) {
+		await loadUI();
 		const d = new LocaleDoc(files, config.dir, config.source);
 		const raw = readDraft();
 		if (raw) {
@@ -102,6 +102,7 @@
 		demo = false;
 		view = 'loading';
 		loadError = '';
+		loadUI();
 		try {
 			const t = auth.token;
 			const [repo, list] = await Promise.all([
@@ -112,7 +113,7 @@
 			canPush = repo.canPush;
 			mode = canPush ? config.mode : 'pr';
 			const texts = await Promise.all(list.map((f) => readFile(t, config.repo, config.branch, f.path)));
-			open(list.map((f, i) => ({ ...f, text: texts[i] })));
+			await open(list.map((f, i) => ({ ...f, text: texts[i] })));
 		} catch (e) {
 			if (e.status === 401) {
 				signOut();
@@ -125,13 +126,13 @@
 		}
 	}
 
-	async function openDemo() {
+	async function openDemo(large = false) {
 		view = 'loading';
 		demo = true;
-		const { demoFiles } = await import('#lib/demo.js');
+		const { demoFiles, largeDemoFiles } = await import('#lib/demo.js');
 		canPush = true;
 		mode = 'pr';
-		open(demoFiles);
+		await open(large ? largeDemoFiles() : demoFiles);
 	}
 
 	function exitDemo() {
@@ -173,12 +174,13 @@
 	// or a dead phone battery does not lose a translator's work.
 	$effect(() => {
 		if (!doc || view !== 'editor') return;
-		const d = doc.toDraft();
+		const d = doc;
+		d.edits();
 		const key = draftKey();
 		const n = edits;
 		const id = setTimeout(() => {
 			try {
-				if (n) localStorage.setItem(key, JSON.stringify({ ...d, savedAt: Date.now() }));
+				if (n) localStorage.setItem(key, JSON.stringify({ ...d.toDraft(), savedAt: Date.now() }));
 				else localStorage.removeItem(key);
 				draftSaved = !!n;
 			} catch {
@@ -354,7 +356,7 @@
 
 	<main id="main">
 		{#if view === 'start'}
-			<SignIn ondemo={openDemo} />
+			<SignIn ondemo={() => openDemo()} />
 		{:else if view === 'connect'}
 			<div class="narrow">
 				<section class="panel" aria-labelledby="connect-title">
@@ -370,11 +372,11 @@
 					</div>
 				</section>
 				<p class="hint aside">
-					Want a quick tour first? <button class="link" onclick={openDemo}>Open the demo</button>.
+					Want a quick tour first? <button class="link" onclick={() => openDemo()}>Open the demo</button>.
 				</p>
 			</div>
-		{:else if view === 'editor' && doc}
-			<Toolbar
+		{:else if view === 'editor' && doc && ui}
+			<ui.Toolbar
 				{doc}
 				bind:query
 				bind:filter
@@ -400,9 +402,9 @@
 					<button class="btn" onclick={() => ((query = ''), (filter = 'all'))}>Show all keys</button>
 				</div>
 			{:else}
-				<Grid bind:this={grid} {doc} langs={visibleLangs} keys={visibleKeys} onrename={(k) => ((renaming = k), (keyOpen = true))} />
+				<ui.Grid bind:this={grid} {doc} langs={visibleLangs} keys={visibleKeys} onrename={(k) => ((renaming = k), (keyOpen = true))} />
 			{/if}
-			<StatusBar {edits} files={fileCount} {draftSaved} ondiscard={() => (discardOpen = true)} onreview={() => (reviewOpen = true)} />
+			<ui.StatusBar {edits} files={fileCount} {draftSaved} ondiscard={() => (discardOpen = true)} onreview={() => (reviewOpen = true)} />
 		{:else}
 			<div class="skeleton" aria-busy="true">
 				<p class="caption" aria-live="polite">
@@ -416,10 +418,10 @@
 	</main>
 </div>
 
-{#if doc}
-	<KeyDialog bind:open={keyOpen} {doc} {renaming} ondone={afterKey} />
-	<LangDialog bind:open={langOpen} {doc} ondone={afterLang} />
-	<ReviewDialog
+{#if doc && ui}
+	<ui.KeyDialog bind:open={keyOpen} {doc} {renaming} ondone={afterKey} />
+	<ui.LangDialog bind:open={langOpen} {doc} ondone={afterLang} />
+	<ui.ReviewDialog
 		bind:open={reviewOpen}
 		bind:mode
 		{doc}
