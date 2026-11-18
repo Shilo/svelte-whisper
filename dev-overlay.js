@@ -171,14 +171,23 @@ export function mount({ keys, listen, clear }) {
         place();
         panel.focus();
         document.addEventListener('pointerdown', outside, true);
+        document.addEventListener('keydown', escape);
     }
 
     function close(returnFocus) {
         panel.hidden = true;
         badge.setAttribute('aria-expanded', 'false');
         document.removeEventListener('pointerdown', outside, true);
+        document.removeEventListener('keydown', escape);
         update();
         if (returnFocus && !badge.hidden) badge.focus();
+    }
+
+    // On the document while the panel is open, so Escape works after focus has left it.
+    function escape(event) {
+        if (event.key !== 'Escape') return;
+        if (event.composedPath().includes(host)) event.stopPropagation();
+        close(true);
     }
 
     function outside(event) {
@@ -276,10 +285,7 @@ export function mount({ keys, listen, clear }) {
     });
 
     root.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && !panel.hidden) {
-            event.stopPropagation();
-            close(true);
-        } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && event.target.classList?.contains('key')) {
+        if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && event.target.classList?.contains('key')) {
             event.preventDefault();
             const visible = [...list.querySelectorAll('section:not([hidden]) .key')];
             visible[visible.indexOf(event.target) + (event.key === 'ArrowDown' ? 1 : -1)]?.focus();
