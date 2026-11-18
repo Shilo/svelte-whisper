@@ -111,7 +111,9 @@
 		if (skipped.length) {
 			notes.push(`Skipped ${skipped.join(', ')}: a locale file is named like a language, such as fr.json or pt-BR.json.`);
 		}
+		// Messages about the previous document, and their buttons, do not carry over.
 		dismiss('pinned');
+		dismiss();
 		// A message that names files or lost edits stays until it is closed.
 		if (notes.length) notify(notes.join(' '), 'info', n ? { label: 'Discard', run: () => (discardOpen = true) } : undefined, !!(lost.length || skipped.length));
 		const langs = d.langs;
