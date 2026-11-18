@@ -53,12 +53,15 @@ export function flatten(data) {
 	const empty = [];
 	/** @type {string[]} every leaf, in file order */
 	const keys = [];
+	/** @type {string[]} every object that holds other keys */
+	const groups = [];
 	const seen = new Set();
 	/** @param {Record<string, any>} obj @param {string} prefix */
 	const walk = (obj, prefix) => {
 		for (const [k, v] of Object.entries(obj)) {
 			const key = prefix ? `${prefix}.${k}` : k;
 			if (isObject(v)) {
+				groups.push(key);
 				walk(v, key);
 				continue;
 			}
@@ -71,7 +74,7 @@ export function flatten(data) {
 		}
 	};
 	walk(data, '');
-	return { strings, other, empty, keys };
+	return { strings, other, empty, keys, groups };
 }
 
 /**

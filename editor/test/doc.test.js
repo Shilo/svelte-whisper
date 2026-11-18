@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { flushSync } from 'svelte';
-import { makeDoc, output } from './helpers.js';
+import { LocaleDoc, makeDoc, output } from './helpers.js';
 
 /** Save a draft the way the app does (through JSON) and restore it on a freshly loaded copy. */
 function reload(files, doc) {
@@ -204,4 +204,22 @@ test('a file that defines a key both nested and dotted is refused', () => {
 	assert.throws(() => makeDoc({ en: { a: { b: 'x' } }, fr: '{"a.b":"literal","a":{"b":"nested"}}' }), {
 		message: 'fr.json defines a.b twice, once nested and once as a dotted key. Fix it in the repository first.'
 	});
+});
+
+test('a name that is a group in one file is read-only there, so typing cannot replace the group', () => {
+	const doc = new LocaleDoc(
+		[
+			{ name: 'en.json', path: 'l/en.json', sha: '1', text: '{"x":{"y":"XY"}}' },
+			{ name: 'es.json', path: 'l/es.json', sha: '2', text: '{"x":{"y":{"sub":"Otro"}}}' }
+		],
+		'l',
+		'en'
+	);
+	assert.equal(doc.isFixed('es', 'x.y'), true);
+	assert.equal(doc.isFixed('en', 'x.y'), false);
+	doc.set('es', 'x.y', 'Hola');
+	doc.set('en', 'x.y', 'New');
+	const out = doc.outputFiles();
+	assert.deepEqual(out.map((f) => f.lang), ['en']);
+	assert.deepEqual(JSON.parse(out[0].text), { x: { y: 'New' } });
 });

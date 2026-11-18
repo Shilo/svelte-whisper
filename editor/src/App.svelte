@@ -142,6 +142,7 @@
 	}
 
 	async function load() {
+		dismiss('pinned'); // it is about the document being left, also when this load fails
 		demo = false;
 		view = 'loading';
 		loadError = '';
@@ -179,6 +180,7 @@
 	async function openDemo(large = false) {
 		// The 3000-key stress test is for development; production builds leave it out.
 		large = import.meta.env.DEV && large;
+		dismiss('pinned');
 		view = 'loading';
 		demo = large ? 'large' : 'demo';
 		const files = import.meta.env.DEV && large ? (await import('./lib/demo-large.js')).largeDemoFiles() : (await import('./lib/demo.js')).demoFiles;

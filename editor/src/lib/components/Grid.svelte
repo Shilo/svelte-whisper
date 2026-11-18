@@ -186,7 +186,7 @@
 						<td class:src={lang === doc.source} class:changed class:missing class:warn={!!warn}>
 							<span class="cell-lang" aria-hidden="true"><span class="code">{lang}</span>{#if changed}<span class="edited">edited</span>{/if}</span>
 							{#if fixed}
-								<code class="fixed" title="Not a string; edit it in the file">{doc.fixed[lang][key]}</code>
+								<code class="fixed" title="Not text here; edit it in the file">{doc.fixed[lang][key]}</code>
 							{:else}
 								<textarea
 									{@attach autosize}

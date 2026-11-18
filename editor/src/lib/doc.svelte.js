@@ -46,6 +46,8 @@ export class LocaleDoc {
 		const values = {};
 		/** @type {Record<string, string[]>} */
 		const fileKeys = {};
+		/** @type {Record<string, string[]>} */
+		const fileGroups = {};
 		for (const f of list) {
 			const lang = f.name.replace(/\.json$/i, '');
 			let parsed;
@@ -60,13 +62,14 @@ export class LocaleDoc {
 			} catch (e) {
 				throw new Error(`${f.name} ${e.message}. Fix it in the repository first.`);
 			}
-			const { strings, other, empty, keys } = flat;
+			const { strings, other, empty, keys, groups } = flat;
 			this.files[lang] = { path: f.path, sha: f.sha, parsed };
 			this.base[lang] = strings;
 			this.fixed[lang] = other;
 			this.empty[lang] = new Set(empty);
 			values[lang] = { ...strings };
 			fileKeys[lang] = keys;
+			fileGroups[lang] = groups;
 		}
 		const langs = Object.keys(values).sort();
 		const source = langs.includes(preferredSource) ? preferredSource : langs.includes('en') ? 'en' : langs[0] || '';
@@ -75,6 +78,11 @@ export class LocaleDoc {
 			for (const k of fileKeys[lang] ?? []) {
 				if (!seen.has(k)) seen.add(k), order.push(k);
 			}
+		}
+		// A name that is a message in one file and a group in another is read-only where it
+		// is a group: text written there would replace the group and every message in it.
+		for (const lang of langs) {
+			for (const g of fileGroups[lang]) if (seen.has(g) && !fileKeys[lang].includes(g)) this.fixed[lang][g] = '{…}';
 		}
 		this.known = seen;
 		this.source = source;
@@ -405,9 +413,7 @@ export class LocaleDoc {
 		const same =
 			d.langs.length === Object.keys(d.shas).length &&
 			d.langs.every((l) => (d.shas[l] === null ? !this.files[l] && LANG_PATTERN.test(l) : this.files[l]?.sha === d.shas[l])) &&
-			loaded.every((l) => d.shas[l] !== undefined) &&
-			Object.values(d.renamed).every((from) => !this.isFixedKey(from)) &&
-			d.deleted.every((k) => !this.isFixedKey(k));
+			loaded.every((l) => d.shas[l] !== undefined);
 		return same ? this.#restore(d) : this.#merge(d);
 	}
 
@@ -425,7 +431,7 @@ export class LocaleDoc {
 			const row = {};
 			for (const k of this.keys) {
 				const text = Object.hasOwn(cells, k) ? cells[k] : this.#fileText(lang, k);
-				if (typeof text === 'string' && !this.isFixed(lang, k)) row[k] = text;
+				if (typeof text === 'string') row[k] = text;
 			}
 			this.values[lang] = row;
 		}

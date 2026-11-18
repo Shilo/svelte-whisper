@@ -31,7 +31,7 @@ The draft is saved in `localStorage` a moment after each edit. It records the wo
 
 When you come back:
 
-- **The files are unchanged** (every file has the version the draft was made against): the editor is put back exactly as you left it. What the review shows and what would be sent are the same as before the reload.
+- **The files are unchanged** (every file has the version the draft was made against): the editor is put back exactly as you left it. What the review shows and what would be sent are the same as before the reload. (A draft is kept while there is something to send: a language or key you added but gave no text yet is not kept.)
 - **The files changed on GitHub** in the meantime, for example after a send was refused because someone else changed a file: the draft is applied to the new files as far as it goes. Added languages first; then renames, where the old key still exists and the new name is free (a key someone else added under that name is never overwritten: your row stays under its old name and keeps the text you typed); then new keys (if someone added the same key, your text goes onto it and shows as a change in the review); then your text, on the rows that still exist; then deletions. A box you did not edit shows the text that is on GitHub now. What could not be placed (text on a key that was deleted or renamed upstream, a rename that could not be applied, a new key whose name is taken, text in a language file that was deleted) is listed in a message that stays until you close it.
 
 The count of restored edits counts what is in the editor after this, not what the draft held. A draft saved by an older version of the editor is ignored.
