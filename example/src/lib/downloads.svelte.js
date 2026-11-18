@@ -14,7 +14,8 @@ if (typeof PerformanceObserver !== 'undefined') {
                 locale: match[1],
                 file: entry.name.split('/').pop().split('?')[0],
                 bytes: entry.encodedBodySize,
-                cached: entry.transferSize === 0,
+                // 0 bytes over the wire, or a 304 revalidation: the body came from the HTTP cache.
+                cached: entry.transferSize === 0 || entry.encodedBodySize === 0,
                 at: entry.startTime,
             });
         }
