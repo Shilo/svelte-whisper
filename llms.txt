@@ -34,9 +34,9 @@ mount(App, { target: document.getElementById('app') });
 ## Rules for writing code with it
 
 - There are no stores. Do not write `$t`, `$locale`, `tr()` or `locale.set()`: those were 1.x and do not exist.
-- `t('key', vars)` is the only translate function. Use it in markup, `<script>`, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive: callers inside markup, `$derived` or `$effect` re-run when the locale or a dictionary changes. It returns the key itself when the key is missing everywhere.
+- `t('key', vars)` is the only translate function. Use it in markup, `<script>`, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive: callers inside markup, `$derived` or `$effect` re-run when the locale or a dictionary changes. It always returns a string: the key itself when the key is missing everywhere. List items are addressed by index (`rules.0`).
 - Keys are dotted paths into nested JSON: `nav.settings.title`.
-- Placeholders: `{name}` with an object, `{0}` or `{}` with an array. Unmatched placeholders stay visible.
+- Placeholders: `{name}` with an object, `{0}` with an array. Unmatched placeholders stay visible.
 - Plurals: the dictionary value is an object keyed by `Intl.PluralRules` category (`one`, `few`, `many`, `other`, …) or an exact number (`"0"`); pass a numeric `count`. Always include `other`.
 - Never build a sentence by joining translated fragments. One sentence, one key.
 - Format with `formatNumber(value, intlOptions?, locale?)` and `formatDate(value, intlOptions?, locale?)`; never bare `toLocaleString()` or `toFixed()`. Percentages are `formatNumber(v, { style: 'percent' })`. Both follow the active locale and are reactive.

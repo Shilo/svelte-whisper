@@ -270,13 +270,12 @@ describe('damage limits', () => {
         assert.equal(p.read('src/locales/fr.json'), JSON.stringify({ 'errors.network': 'Hors ligne', items: [], nav: { home: 'Accueil' } }, null, 4) + '\n');
     });
 
-    test('each automatic {} placeholder counts', t => {
+    test('repeated placeholders count once and empty braces are plain text', t => {
         const p = project({
-            'src/locales/en.json': { pair: '{} and {}', twice: '{name} is {name}' },
-            'src/locales/fr.json': { pair: '{} seulement', twice: '{name}' },
+            'src/locales/en.json': { twice: '{name} is {name}', braces: 'An empty object is {}', pair: '{0} and {1}' },
+            'src/locales/fr.json': { twice: '{name}', braces: 'Un objet vide', pair: '{1} et {0}' },
         }, t);
-        const { fr } = p.json('check').locales;
-        assert.deepEqual(fr.placeholders.map(entry => entry.key), ['pair']);
+        assert.equal(p.run('check').code, 0);
     });
 });
 

@@ -48,7 +48,7 @@ translate('nav.home');
 
 init() satisfies Promise<void>;
 init({
-    fallback: 'en', initial: 'en', persistKey: 'key', detect: { 'zh-TW': 'zh-Hant' }, warn: false, devOverlay: false,
+    fallback: 'en', initial: 'en', persistKey: 'key', detect: false, warn: false, devOverlay: false,
     onMissing: ({ locale, key }) => { locale satisfies string; key satisfies string; },
 });
 // @ts-expect-error unknown option
@@ -67,7 +67,6 @@ resetLocale() satisfies Promise<void>;
 getLocale() satisfies string;
 getLocales() satisfies string[];
 detectLocale() satisfies string;
-detectLocale({ ja: 'jp' }) satisfies string;
 localeName('ja') satisfies string;
 localeName('ja', 'en') satisfies string;
 

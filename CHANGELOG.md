@@ -13,6 +13,9 @@ A rewrite on Svelte 5 runes. The API is smaller and is not compatible with 1.x: 
 | `locale.set('fr')`, `$locale = 'fr'` | `setLocale('fr')`; in a form control, `bind:value={getLocale, setLocale}` |
 | `formatPercent(0.2, 1)` | `formatNumber(0.2, { style: 'percent', maximumFractionDigits: 1 })` |
 | `getFallbackLocale()` | Removed. You passed the fallback to `init`. |
+| Automatic `{}` placeholders | `{0}`, `{1}`: indexed placeholders can be reordered by a translation |
+| `t()` returning arrays and objects | `t()` always returns a string; address list items by index (`rules.0`) |
+| `init({ detect: { ja: 'jp' } })` mapping | Removed. Detection needs no configuration; name locale files with real language tags. |
 | `index.js` importing `svelte/store` | `index.svelte.js`, a runes module with no dependencies, compiled by your app's Svelte plugin |
 | `svelte-whisper/dev-overlay` export | Removed. The overlay is internal. |
 
@@ -37,10 +40,10 @@ Requires `svelte@^5.9.0`.
 - **`setLocale()` resolves a boolean**, and when several calls overlap the last one wins, whichever download finishes first.
 - **Number and percent output is locale-aware throughout**, including spacing and separators (`20 %` in French).
 - **Unknown locales are not fetched once loaders exist.** The zero-config request for `{base}locales/{locale}.json` applies only while no loader is registered, and it honours Vite's `base`.
-- **Detection** matches the most specific tag first (`zh-Hant-TW` → `zh-Hant` → `zh`), then across regions (`pt` → `pt-BR`), and no longer matches a different language that shares a prefix (`fil` no longer selects `fi`).
+- **Detection** matches by language and script as the browser understands them: `zh-TW` selects `zh-Hant` and never `zh-Hans`, `pt` selects `pt-BR`, `en-GB` falls back to `en-US`, and a different language that shares a prefix no longer matches (`fil` no longer selects `fi`).
 - **`null` interpolation values** leave the placeholder in place, as `undefined` does.
 - **Loader results** are unwrapped only when they are an ES module or an object whose single key is `default`.
-- **`addDictionary`** merges nested groups deeply. `null` values read as "not translated".
+- **`addDictionary`** merges nested groups deeply. `null` values read as "not translated". Translations added while the same locale is loading stay on top of the loaded file.
 - Keys and locale ids named like `Object.prototype` members (`constructor`, `toString`) are ordinary strings.
 - Missing keys are not reported before a locale is active, and the dev overlay is not mounted under browser automation.
 

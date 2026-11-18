@@ -31,7 +31,7 @@ export type WhisperKey = Register extends { dictionary: infer D } ? Paths<D> : s
 
 export type WhisperDictionary = Record<string, unknown>;
 
-/** Named (`{ user: 'Ada' }`) or positional (`['Ada']`) interpolation values. */
+/** Values for named placeholders (`{ user: 'Ada' }` for `{user}`) or indexed ones (`['Ada']` for `{0}`). */
 export type WhisperVars = Record<string, unknown> | readonly unknown[];
 
 export type WhisperLoader = () => Promise<unknown>;
@@ -50,12 +50,8 @@ export interface WhisperOptions {
     initial?: string;
     /** localStorage key that remembers the user's explicit choice. */
     persistKey?: string;
-    /**
-     * Match the browser's languages against known locales. Default `true`.
-     * An object adds aliases on top: `{ 'zh-TW': 'zh-Hant' }` sends Taiwanese browsers to your
-     * `zh-Hant` locale. Everything else is still matched automatically.
-     */
-    detect?: boolean | Record<string, string>;
+    /** Start in the browser's language when one of your locales matches it. Default `true`. */
+    detect?: boolean;
     /** Called once per locale + key that is missing from the active locale. */
     onMissing?: (entry: MissingKeyEntry) => void;
     /** `console.warn` on missing keys. Default `true` unless `onMissing` is set. */
@@ -100,11 +96,12 @@ export function getLocale(): string;
 export function getLocales(): string[];
 
 /** The known locale that best matches the browser's languages, or `''`. */
-export function detectLocale(aliases?: Record<string, string>): string;
+export function detectLocale(): string;
 
 /**
- * Translate. Reactive: `{t('key', vars)}` in markup, or inside `$derived` and `$effect`,
- * updates when the locale or a dictionary changes.
+ * Translate. Always returns a string: the message, or the key itself when there is none.
+ * Reactive: `{t('key', vars)}` in markup, or inside `$derived` and `$effect`, updates when the
+ * locale or a dictionary changes.
  */
 export const t: Translate;
 

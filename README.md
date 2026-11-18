@@ -50,7 +50,7 @@ npm install github:Shilo/svelte-whisper
 
 Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.0.0`. Requires `svelte@^5.9.0`.
 
-The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other. There is nothing else to configure.
+The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other. There is nothing else to configure. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
 
 ## Quick start
 
@@ -123,9 +123,8 @@ It is reactive in the Svelte sense: markup, `$derived` and `$effect` that call i
 |---|---|---|
 | `"Hello {name}!"` | `t('greeting', { name: 'Ada' })` | Hello Ada! |
 | `"{0} of {1}"` | `t('progress', [3, 10])` | 3 of 10 |
-| `"{} and {}"` | `t('pair', ['salt', 'pepper'])` | salt and pepper |
 
-A placeholder with no matching value is left as written, so mistakes are visible.
+A placeholder with no matching value is left as written, so mistakes are visible. Indexed placeholders can appear in any order, which lets a translation reorder them.
 
 **Plurals** are objects keyed by plural category, chosen by a numeric `count`:
 
@@ -137,9 +136,9 @@ A placeholder with no matching value is left as written, so mistakes are visible
 {t('items', { count })}
 ```
 
-An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the active locale, then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form.
+An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the active locale, then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given.
 
-**Other values.** A key that points at an array returns the array, so `t('rules')` can drive an `{#each}` block.
+**Always a string.** `t()` returns text and nothing else. A number or boolean in the JSON comes back as text, and items of a list are addressed by index: `t('rules.0')`. A key that points at a group or a list is not a message, so it comes back as the key, like any other missing key.
 
 ## Formatting
 
@@ -176,17 +175,17 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
 ```
 
 - `getLocale()` is the active locale, and is reactive. `setLocale(id)` switches.
-- Switching downloads the dictionary if needed and only then changes the text, so users never see a flash of raw keys. The promise resolves `true` once active, or `false` if the download failed, in which case the locale stays as it was.
+- Switching downloads the dictionary if needed and only then changes the text, so users never see a flash of raw keys. The promise resolves `true` once active, or `false` if the download failed, in which case the locale stays as it was and a bound `<select>` returns to it.
 - `localeName('ja')` returns `日本語`: every language is listed under its own name, with no translation keys to maintain. `localeName('ja', 'en')` returns `Japanese`.
 - `loadLocale(id)` downloads a locale without switching, for example on hover.
-- `<html lang>` and `dir` are kept in step, with `rtl` for Arabic, Hebrew, Persian, Urdu and other right-to-left languages.
+- `<html lang>` and `dir` are kept in step. Direction comes from the script the browser associates with the locale, so Arabic, Hebrew, Persian, Urdu and the rest are `rtl` with no list to maintain.
 
 ### How the starting locale is chosen
 
 `init()` tries these in order and uses the first that loads:
 
 1. The choice stored under `persistKey`.
-2. The browser's languages (`navigator.languages`), matched against your locales: exact (`pt-BR`), then by language (`ja-JP` → `ja`), then across regions (`en-GB` → `en-US`).
+2. The browser's languages (`navigator.languages`), matched against your locales by language and script: an exact id first (`pt-BR`), then the same region, then any region (`en-GB` → `en-US`). The browser fills in what a tag implies, so `zh-TW` finds `zh-Hant` and never `zh-Hans`, with nothing to configure.
 3. `initial`.
 4. `fallback`.
 
@@ -243,8 +242,9 @@ Thirteen functions, all named exports of `svelte-whisper`:
 
 ```js
 // Setup, once, before mounting
-registerLoader(import.meta.glob('./locales/*.json'));   // or registerLoader('fr', () => import('./fr.json'))
-addDictionary('en', { hello: 'Hello' });                // translations already in memory
+registerLoader(import.meta.glob('./locales/*.json'));   // lazy: one chunk per file
+registerLoader('fr', () => import('./fr.json'));        // or one locale at a time
+addDictionary('en', en);                                // or already in memory (then 'en' needs no loader)
 await init({ fallback: 'en', persistKey: 'locale' });
 
 // Translate and format: reactive wherever they are called
@@ -271,7 +271,7 @@ localeName('ja');                                       // '日本語'
 | `init(options?)` | Choose the starting locale and load it. Returns a promise. |
 | `registerLoader(id, loader)` | Register a function that returns a dictionary, or a module whose default export is one. It runs once, on first use. |
 | `registerLoader(globRecord)` | Register every entry of an `import.meta.glob` result. The file name is the locale id. |
-| `addDictionary(id, dict)` | Add translations that are already in memory. Merges deeply with what is there. |
+| `addDictionary(id, dict)` | Add translations that are already in memory. Merges with what is there. A locale that has a dictionary counts as loaded, so its loader is not called. |
 
 `init` options:
 
@@ -280,7 +280,7 @@ localeName('ja');                                       // '日本語'
 | `fallback` | `'en'` | Locale used for keys missing from the active one. |
 | `initial` | | Starting locale when nothing is stored or detected. |
 | `persistKey` | | `localStorage` key for the user's explicit choice. |
-| `detect` | `true` | Match browser languages to your locales. `false` turns it off. An object adds aliases on top of the automatic matching: `{ 'zh-TW': 'zh-Hant' }`. |
+| `detect` | `true` | Start in the browser's language when you have it. `false` turns it off. |
 | `onMissing` | | `({ locale, key }) => void`, once per missing key and locale. |
 | `warn` | `true` | `console.warn` on missing keys. Defaults to `false` when `onMissing` is set. |
 | `devOverlay` | `true` | The missing-key overlay in Vite dev mode. |
@@ -294,7 +294,7 @@ localeName('ja');                                       // '日本語'
 | `loadLocale(id)` | Load without switching. Resolves `true` or `false`. |
 | `resetLocale()` | Forget the stored choice and choose again. |
 | `getLocales()` | Every id that has a loader or a dictionary. |
-| `detectLocale(aliases?)` | The locale that best matches the browser's languages, or `''`. |
+| `detectLocale()` | The locale that best matches the browser's languages, or `''`. |
 | `localeName(id, displayLocale?)` | A language's name, in its own language by default. |
 
 ### Translation and formatting
@@ -398,8 +398,8 @@ Measured with `npm run size` (compiled as an app's Svelte plugin would, minified
 
 | Imports | Minified | Gzip | Brotli |
 |---|---|---|---|
-| Typical app: `init`, `t`, `getLocale`, `setLocale`, `registerLoader` | 3.1 kB | 1.6 kB | 1.5 kB |
-| Every export | 3.5 kB | 1.8 kB | 1.6 kB |
+| Typical app: `init`, `t`, `getLocale`, `setLocale`, `registerLoader` | 3.2 kB | 1.6 kB | 1.5 kB |
+| Every export | 3.6 kB | 1.8 kB | 1.6 kB |
 
 The module has no dependencies: its only import is its own dev overlay, in dev mode. A size budget is enforced in CI.
 
@@ -407,10 +407,10 @@ Measured with `npm run bench` (Node 25, one core of a desktop CPU, a 600-message
 
 | Operation | Time |
 |---|---|
-| Key lookup | 10–14 ns |
-| Missing key | 16 ns |
+| Key lookup | 10–16 ns |
+| Missing key | 27 ns |
 | Interpolation, two placeholders | 150 ns |
-| Plural | 320 ns |
+| Plural | 390 ns |
 | `formatNumber` | 370 ns |
 
 Dictionaries are flattened once when they are added, which is why nesting depth does not matter.

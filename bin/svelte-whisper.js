@@ -261,12 +261,8 @@ function isPlural(value) {
 const text = value => typeof value === 'string' ? value : JSON.stringify(value);
 const same = (a, b) => text(a) === text(b);
 const hasWords = value => /\p{L}{2}/u.test(text(value).replace(/\{[^{}]*\}/g, ''));
-// Named placeholders may repeat; each automatic `{}` is a separate argument, so they are numbered.
-function placeholders(value) {
-    let auto = 0;
-    const found = (text(value).match(/\{[^{}"]*\}/g) || []).map(p => p.slice(1, -1).trim() ? p : `{#${++auto}}`);
-    return [...new Set(found)].sort();
-}
+// The distinct {placeholders} of a message. Empty braces are plain text, not a placeholder.
+const placeholders = value => [...new Set(text(value).match(/\{[^{}"]*[^{}"\s][^{}"]*\}/g) || [])].sort();
 
 function localeEntries(project, id) {
     const file = join(project.dir, id + '.json');

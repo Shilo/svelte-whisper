@@ -14,7 +14,7 @@ Read `src/` as documentation: it is the recommended setup, kept small on purpose
 - **Instant switching.** A language switcher built from `getLocales()` and `localeName()`.
   Text, numbers, dates, `<html lang>` and `dir` all change together. Arabic mirrors the layout.
 - **Persistence.** The choice is saved under `persistKey`; *Forget my choice* calls `resetLocale()`.
-- **Interpolation.** Named (`{user}`) and positional (`{}`) placeholders, driven by a live input.
+- **Interpolation.** Named (`{user}`) and indexed (`{0}`) placeholders, driven by a live input.
 - **Plurals.** A counter that walks through each language's plural categories (Arabic has six).
 - **Formatting.** `formatNumber` for numbers, currency and percentages, and `formatDate`, bound to the active locale.
 - **Fallback and missing keys.** One sentence exists only in English and falls back everywhere

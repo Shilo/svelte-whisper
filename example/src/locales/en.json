@@ -21,7 +21,7 @@
         "title": "Interpolation",
         "label": "Your name",
         "named": "Good to see you, {user}.",
-        "positional": "{} is reading this page in {}."
+        "positional": "{0} is reading this page in {1}."
     },
     "plural": {
         "title": "Plurals",

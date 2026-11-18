@@ -58,7 +58,7 @@ Run step 5 with the new locale id and a file containing every source key; `apply
 
 - Translate values, never keys.
 - Write what a native speaker would write in this product, not a literal rendering. Keep the register consistent with the locale's existing strings.
-- Keep every `{placeholder}` exactly as written, including `{}` and `{0}`. Move it wherever the target grammar needs it.
+- Keep every `{placeholder}` exactly as written, including indexed ones such as `{0}`. Move it wherever the target grammar needs it.
 - Keep markup inside strings (`<br>`, `**bold**`, links) intact.
 - Leave these identical to the source: values made only of placeholders, numbers or symbols; URLs; brand and product names, unless the project's rules say otherwise.
 - **Plurals.** A value such as `{ "one": "{count} item", "other": "{count} items" }` is selected by `Intl.PluralRules`. Give the target language the categories it actually uses: Japanese and Chinese need only `other`; French uses `one`, `many`, `other`; Russian and Polish use `one`, `few`, `many`, `other`; Arabic uses all six. Always include `other`. Exact-number keys such as `"0"` may be kept.

@@ -21,7 +21,7 @@
         "title": "Interpolation",
         "label": "Votre nom",
         "named": "Ravi de vous voir, {user}.",
-        "positional": "{} lit cette page en {}."
+        "positional": "{0} lit cette page en {1}."
     },
     "plural": {
         "title": "Pluriels",

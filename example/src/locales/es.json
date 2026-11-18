@@ -21,7 +21,7 @@
         "title": "Interpolación",
         "label": "Tu nombre",
         "named": "Qué bueno verte, {user}.",
-        "positional": "{} está leyendo esta página en {}."
+        "positional": "{0} está leyendo esta página en {1}."
     },
     "plural": {
         "title": "Plurales",

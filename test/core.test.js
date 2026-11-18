@@ -36,10 +36,15 @@ describe('translation', () => {
         }
     });
 
-    test('returns arrays and objects as they are, and indexes into arrays', async () => {
-        const w = await english({ rules: ['One', 'Two'] });
-        assert.deepEqual(w.t('rules'), ['One', 'Two']);
+    test('always returns a string', async () => {
+        const w = await english({ rules: ['One', 'Two'], nav: { home: 'Home' }, max: 5, on: true });
         assert.equal(w.t('rules.1'), 'Two');
+        assert.equal(w.t('max'), '5');
+        assert.equal(w.t('on'), 'true');
+        assert.equal(w.t('max', { unused: 1 }), '5');
+        // A list or a group is not a message: like any other missing key, it comes back as the key.
+        assert.equal(w.t('rules'), 'rules');
+        assert.equal(w.t('nav'), 'nav');
     });
 
     test('falls back to the fallback locale for missing keys', async () => {
@@ -74,17 +79,17 @@ describe('translation', () => {
 });
 
 describe('interpolation', () => {
-    test('named, indexed and auto-positional placeholders', async () => {
+    test('named and indexed placeholders', async () => {
         const w = await english({
             named: 'Hello {user}!',
             indexed: '{1} before {0}',
-            auto: 'Supports {}, {} and {}',
+            empty: 'Left {} alone',
             spaced: 'Hello { user }!',
             repeat: '{x}-{x}',
         });
         assert.equal(w.t('named', { user: 'Ada' }), 'Hello Ada!');
         assert.equal(w.t('indexed', ['a', 'b']), 'b before a');
-        assert.equal(w.t('auto', ['a', 'b', 'c']), 'Supports a, b and c');
+        assert.equal(w.t('empty', ['a']), 'Left {} alone');
         assert.equal(w.t('spaced', { user: 'Ada' }), 'Hello Ada!');
         assert.equal(w.t('repeat', { x: 1 }), '1-1');
     });
@@ -128,9 +133,17 @@ describe('plurals', () => {
         assert.equal(w.t('files', { count: 21 }), '21 файл');
     });
 
-    test('uses other when the category has no entry', async () => {
-        const w = await english({ items: { other: '{count} items' } });
-        assert.equal(w.t('items', { count: 1 }), '1 items');
+    test('uses other when the category has no entry, and when no count is given', async () => {
+        const w = await english({ items: { one: 'one item', other: '{count} items' }, files: { other: '{count} files' } });
+        assert.equal(w.t('files', { count: 1 }), '1 files');
+        assert.equal(w.t('items'), '{count} items');
+        assert.equal(w.t('items', { count: '1' }), '1 items', 'only a number selects a form');
+        assert.equal(w.t('items.one'), 'one item');
+    });
+
+    test('a message wins over a plural group of the same name', async () => {
+        const w = await english({ 'items': 'Items', 'items.other': 'ignored' });
+        assert.equal(w.t('items', { count: 2 }), 'Items');
     });
 
     test('text taken from the fallback uses the plural rules of the fallback language', async () => {
@@ -523,10 +536,10 @@ describe('persistence', () => {
 });
 
 describe('detectLocale', () => {
-    async function detect(known, languages, mapping) {
+    async function detect(known, languages) {
         const w = await load();
         for (const id of known) w.addDictionary(id, {});
-        return withGlobals({ navigator: browser(...languages) }, () => w.detectLocale(mapping));
+        return withGlobals({ navigator: browser(...languages) }, () => w.detectLocale());
     }
 
     test('exact match, ignoring case', async () => {
@@ -559,18 +572,23 @@ describe('detectLocale', () => {
         assert.equal(await detect(['zh-Hant', 'zh'], ['zh-Hans-CN']), 'zh');
     });
 
-    test('aliases send extra language tags to one of your locales', async () => {
-        const chinese = { 'zh-TW': 'zh-Hant', 'zh-HK': 'zh-Hant' };
-        assert.equal(await detect(['zh-Hans', 'zh-Hant', 'en'], ['zh-TW'], chinese), 'zh-Hant');
-        assert.equal(await detect(['zh-Hans', 'zh-Hant', 'en'], ['zh-HK', 'en'], chinese), 'zh-Hant');
-        assert.equal(await detect([], ['ja-JP'], { ja: 'jp' }), 'jp');
-        assert.equal(await detect([], ['ko-KR'], { ja: 'jp' }), '');
+    test('matches the script a region implies, without configuration', async () => {
+        const chinese = ['zh-Hans', 'zh-Hant', 'en'];
+        assert.equal(await detect(chinese, ['zh-TW']), 'zh-Hant');
+        assert.equal(await detect(chinese, ['zh-HK', 'en']), 'zh-Hant');
+        assert.equal(await detect(chinese, ['zh-CN']), 'zh-Hans');
+        assert.equal(await detect(chinese, ['zh']), 'zh-Hans');
+        assert.equal(await detect(['sr-Latn', 'sr-Cyrl'], ['sr-ME']), 'sr-Latn');
     });
 
-    test('everything without an alias is still matched automatically', async () => {
-        const chinese = { 'zh-TW': 'zh-Hant' };
-        assert.equal(await detect(['zh-Hant', 'fr', 'en'], ['fr-CA'], chinese), 'fr');
-        assert.equal(await detect(['zh-Hant', 'fr', 'en'], ['de', 'en-GB'], chinese), 'en');
+    test('a bare language picks its usual region', async () => {
+        assert.equal(await detect(['pt-PT', 'pt-BR'], ['pt']), 'pt-BR');
+        assert.equal(await detect(['en-GB', 'en-US'], ['en']), 'en-US');
+        assert.equal(await detect(['en-US', 'en'], ['en']), 'en', 'an exact id still wins');
+    });
+
+    test('ignores locale ids that are not language tags', async () => {
+        assert.equal(await detect(['not_a_tag', 'en'], ['en-US']), 'en');
     });
 
     test('returns an empty string without a navigator or without a match', async () => {
@@ -774,11 +792,81 @@ describe('regressions', () => {
         assert.equal(w.t('items', { count: 2 }), 'Many');
     });
 
-    test('an array stays an array when vars carry a count', async () => {
+    test('a list is never indexed by a count', async () => {
         const w = await load();
         w.addDictionary('en', { rules: ['A', 'B'], group: { a: 'A' } });
         await w.init({ detect: false, warn: false });
-        assert.deepEqual(w.t('rules', { count: 1 }), ['A', 'B']);
-        assert.deepEqual(w.t('group', { count: 1 }), { a: 'A' });
+        assert.equal(w.t('rules', { count: 1 }), 'rules');
+        assert.equal(w.t('group', { count: 1 }), 'group');
+    });
+});
+
+describe('review round 2', () => {
+    test('a newer choice survives a startup whose own load fails afterwards', async () => {
+        const w = await load();
+        let finish;
+        w.registerLoader('en', () => new Promise(resolve => { finish = resolve; }));
+        w.addDictionary('fr', {});
+        const store = storage();
+        await withGlobals({ localStorage: store }, async () => {
+            const boot = w.init({ detect: false, persistKey: 'locale', warn: false });
+            const newer = w.loadLocale('en').then(() => w.setLocale('fr'));
+            finish(null);
+            assert.equal(await newer, true);
+            await boot;
+            assert.equal(w.getLocale(), 'fr');
+            assert.equal(store.data.locale, 'fr');
+        });
+    });
+
+    test('translations added while a locale loads stay on top of the loaded file', async () => {
+        const w = await load();
+        const slow = deferred();
+        w.registerLoader('en', () => slow.promise);
+        const switching = w.setLocale('en');
+        w.addDictionary('en', { key: 'added', extra: 'Extra' });
+        slow.resolve({ key: 'loaded', other: 'Other' });
+        await switching;
+        assert.equal(w.t('key'), 'added');
+        assert.equal(w.t('other'), 'Other');
+        assert.equal(w.t('extra'), 'Extra');
+    });
+
+    test('a single-key dictionary named "default" is not mistaken for a wrapper', async () => {
+        const w = await english();
+        w.registerLoader('fr', async () => ({ default: 'Défaut' }));
+        await w.setLocale('fr');
+        assert.equal(w.t('default'), 'Défaut');
+    });
+
+    test('a failed switch re-runs readers, so a bound control snaps back', async () => {
+        const w = await english({ hello: 'Hello' });
+        w.registerLoader('it', async () => null);
+        const page = observe(() => w.getLocale());
+        assert.equal(await w.setLocale('it'), false);
+        page.flush();
+        page.stop();
+        assert.deepEqual(page.seen, ['en', 'en']);
+    });
+
+    test('the formatter cache is bounded', async () => {
+        const w = await english();
+        for (let i = 0; i < 2000; i++) w.formatNumber(1, { minimumIntegerDigits: (i % 20) + 1, maximumFractionDigits: i % 100 });
+        assert.equal(w.formatNumber(1234.5), '1,234.5');
+    });
+
+    test('text direction follows the script, not a list of languages', async () => {
+        const w = await load();
+        for (const id of ['en', 'ar', 'he', 'fa', 'ur', 'az-Arab', 'ar-Latn', 'not_a_tag']) w.addDictionary(id, {});
+        const documentElement = {};
+        await withGlobals({ document: { documentElement } }, async () => {
+            await w.init({ detect: false });
+            const seen = {};
+            for (const id of ['ar', 'he', 'fa', 'ur', 'az-Arab', 'ar-Latn', 'not_a_tag', 'en']) {
+                await w.setLocale(id);
+                seen[id] = documentElement.dir;
+            }
+            assert.deepEqual(seen, { ar: 'rtl', he: 'rtl', fa: 'rtl', ur: 'rtl', 'az-Arab': 'rtl', 'ar-Latn': 'ltr', not_a_tag: 'ltr', en: 'ltr' });
+        });
     });
 });

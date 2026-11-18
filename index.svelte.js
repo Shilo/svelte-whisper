@@ -1,11 +1,9 @@
 // svelte-whisper — tiny runtime i18n for Svelte 5 single-page apps.
 
-const RTL = /^(ar|ckb|dv|fa|he|ps|sd|ug|ur|yi)\b/i;
-
 // Registries have no prototype, so ids and keys such as "constructor" are just strings.
 const blank = () => Object.create(null);
 
-// Dictionaries are stored flattened, so `a.b.c` is a single property lookup.
+// Dictionaries are stored flattened to their messages, so `a.b.c` is a single property lookup.
 const dictionaries = blank();
 const loaders = blank();
 const pending = blank();
@@ -70,6 +68,7 @@ export function registerLoader(locale, loader) {
     }
 }
 
+/** A locale that already has a dictionary counts as loaded; its loader is not called. */
 export function loadLocale(locale) {
     if (dictionaries[locale]) return Promise.resolve(true);
     return pending[locale] ??= (async () => {
@@ -79,8 +78,9 @@ export function loadLocale(locale) {
                 dict = await loaders[locale]();
                 // Unwrap `import('./fr.json')` and `{ default: dict }`, but not a dictionary
                 // that merely has a "default" key among others.
-                if (dict?.default && (dict[Symbol.toStringTag] === 'Module' || Object.keys(dict).length === 1)) {
-                    dict = dict.default;
+                const inner = dict?.default;
+                if (inner && typeof inner === 'object' && (dict[Symbol.toStringTag] === 'Module' || Object.keys(dict).length === 1)) {
+                    dict = inner;
                 }
             } else if (!Object.keys(loaders).length) {
                 // Zero-config: with no loaders registered, locales are fetched by convention.
@@ -88,7 +88,9 @@ export function loadLocale(locale) {
                 if (response.ok) dict = await response.json();
             }
             if (dict && typeof dict === 'object') {
-                addDictionary(locale, dict);
+                // Anything added with addDictionary() while this was loading stays on top.
+                dictionaries[locale] = Object.assign(flatten(dict, '', blank()), dictionaries[locale]);
+                if (locale === current || locale === fallback) refresh();
                 return true;
             }
         } catch (error) {
@@ -121,35 +123,34 @@ export function getLocales() {
     return Object.keys({ ...loaders, ...dictionaries });
 }
 
-/**
- * Best match for the browser's preferred languages among known locales, or ''.
- * `aliases` adds language tags that should select one of your locales: { 'zh-TW': 'zh-Hant' }.
- */
-export function detectLocale(aliases = {}) {
+/** Best match for the browser's preferred languages among known locales, or ''. */
+export function detectLocale() {
     if (typeof navigator === 'undefined') return '';
-    const known = [...Object.keys(aliases), ...getLocales()];
-    const tags = known.map(id => id.toLowerCase());
-    for (const language of [...navigator.languages || [], navigator.language || '']) {
-        const parts = language.toLowerCase().split('-');
-        let i = -1;
-        // Most specific first: zh-Hant-TW → zh-Hant → zh. Then any region: pt → pt-BR, en-GB → en-US.
-        for (let n = parts.length; n && i < 0; n--) i = tags.indexOf(parts.slice(0, n).join('-'));
-        if (i < 0) i = tags.findIndex(tag => tag.startsWith(parts[0] + '-'));
-        if (i >= 0) return aliases[known[i]] ?? known[i];
+    for (const tag of [...navigator.languages || [], navigator.language || '']) {
+        const want = expand(tag);
+        let best, rank = 0;
+        for (const id of getLocales()) {
+            const have = expand(id);
+            // Same language in the same script: zh-TW is Hant, so it matches zh-Hant and never zh-Hans.
+            if (want && have?.language === want.language && have.script === want.script) {
+                const score = id.toLowerCase() === tag.toLowerCase() ? 3 : have.region === want.region ? 2 : 1;
+                if (score > rank) rank = score, best = id;
+            }
+        }
+        if (best) return best;
     }
     return '';
 }
 
 // --- Translation ---
 
-/** Translate. Reactive: `{t('key', vars)}` in markup, or inside $derived and $effect. */
+/** Translate. Always returns a string. Reactive: `{t('key', vars)}` in markup, or inside $derived and $effect. */
 export function t(key, vars) {
     void version;
-    let value = active?.[key], source = current;
+    let value = find(active, key, vars, current);
     if (value === undefined) {
         if (current) reportMissing(key);
-        value = backup?.[key];
-        source = fallback;
+        value = find(backup, key, vars, fallback);
         if (value === undefined) {
             // A lazily registered fallback is fetched on the first miss, then the text heals itself.
             if (current && !fallbackTried && !dictionaries[fallback]) {
@@ -159,13 +160,8 @@ export function t(key, vars) {
             return key;
         }
     }
-    if (vars == null) return value;
-    // A plural group is an object with an `other` form; arrays and strings have none.
-    if (typeof vars.count === 'number' && value.other !== undefined) {
-        // Plural categories belong to the language the text is written in, which may be the fallback.
-        value = value[vars.count] ?? value[intl('PluralRules', undefined, source).select(vars.count)] ?? value.other;
-    }
-    return typeof value === 'string' ? interpolate(value, vars) : value;
+    if (typeof value !== 'string') value = '' + value; // a number or boolean in the JSON
+    return vars == null ? value : interpolate(value, vars);
 }
 
 // --- Formatting (Intl, bound to the active locale) ---
@@ -189,12 +185,26 @@ export function localeName(id, displayLocale = id) {
 
 // --- Internals ---
 
+// The message at `key`. For a plural group (`key.one`, `key.other`, …) the form that fits
+// vars.count: an exact number first, then the language's plural category, then `other`.
+function find(dict, key, vars, locale) {
+    let value = dict?.[key];
+    if (value === undefined && dict?.[key + '.other'] !== undefined) {
+        const count = vars?.count;
+        if (typeof count === 'number') {
+            value = dict[key + '.' + count] ?? dict[key + '.' + intl('PluralRules', undefined, locale).select(count)];
+        }
+        value ??= dict[key + '.other'];
+    }
+    return value;
+}
+
 function interpolate(text, vars) {
     let open = text.indexOf('{');
     if (open < 0) return text;
-    let out = '', last = 0, auto = 0, close;
+    let out = '', last = 0, close;
     while (open >= 0 && (close = text.indexOf('}', open)) >= 0) {
-        const value = vars[text.slice(open + 1, close).trim() || auto++];
+        const value = vars[text.slice(open + 1, close).trim()];
         if (value != null) {
             out += text.slice(last, open) + value;
             last = close + 1;
@@ -208,12 +218,10 @@ function flatten(node, prefix, out) {
     for (const key in node) {
         const value = node[key];
         if (value == null) continue; // a null in JSON reads as "not translated yet"
-        const path = prefix + key;
-        const group = typeof value === 'object';
-        // Groups are merged, so adding one plural form keeps the others.
-        out[path] = group && !Array.isArray(value) ? { ...out[path], ...value } : value;
-        if (group) flatten(value, path + '.', out);
+        if (typeof value === 'object') flatten(value, prefix + key + '.', out);
+        else out[prefix + key] = value;
     }
+    return out;
 }
 
 // Intl objects are slow to construct and fast to reuse, so each one is built once.
@@ -227,6 +235,7 @@ function intl(type, opts, loc = getLocale()) {
         } catch {
             formatter = new Intl[type](undefined, opts); // the locale id is not a valid language tag
         }
+        if (cache.size > 200) cache.clear(); // options built at runtime must not grow it without limit
         cache.set(id, formatter);
     }
     return formatter;
@@ -244,7 +253,8 @@ function refresh() {
 function change(next, persist) {
     const id = ++request;
     if (dictionaries[next]) return Promise.resolve(apply(next, persist));
-    return loadLocale(next).then(ok => id === request ? ok && apply(next, persist) : undefined);
+    // On failure readers still re-run, so a <select> bound to the locale snaps back to it.
+    return loadLocale(next).then(ok => id !== request ? undefined : ok ? apply(next, persist) : (refresh(), false));
 }
 
 function apply(next, persist) {
@@ -254,24 +264,29 @@ function apply(next, persist) {
         if (typeof document !== 'undefined') {
             const root = document.documentElement;
             root.lang = next;
-            root.dir = RTL.test(next) ? 'rtl' : 'ltr';
+            root.dir = /^(Arab|Hebr|Thaa|Syrc|Nkoo|Adlm)$/.test(expand(next)?.script) ? 'rtl' : 'ltr';
         }
         refresh();
     }
     return true;
 }
 
+// What a language tag implies, from the platform: `pt` is pt-Latn-BR, `fa` is fa-Arab-IR.
+// Undefined for an id that is not a language tag.
+function expand(tag) {
+    try {
+        return new Intl.Locale(tag).maximize();
+    } catch { }
+}
+
 // First candidate that loads wins: stored choice → browser language → initial → fallback.
 // Nothing chosen here is persisted; only explicit setLocale() calls are.
 async function pick(stored) {
-    const detect = options.detect;
-    for (const candidate of [
-        stored,
-        detect !== false && detectLocale(typeof detect === 'object' ? detect : undefined),
-        options.initial,
-        fallback,
-    ]) {
-        if (candidate && await change(candidate) !== false) return;
+    for (const candidate of [stored, options.detect !== false && detectLocale(), options.initial, fallback]) {
+        if (!candidate) continue;
+        const mine = request + 1;
+        // Stop on success, and also when a newer setLocale() took over while this one was loading.
+        if (await change(candidate) !== false || request !== mine) return;
     }
     apply(fallback); // nothing could be loaded: keep a defined locale, keys render as-is
 }
@@ -290,7 +305,7 @@ function reportMissing(key) {
     if (seen.has(key)) return;
     seen.add(key);
     const entry = { locale: current, key };
-    if (onMissing) onMissing(entry);
     if (warn) console.warn(`svelte-whisper: Missing "${key}" for locale "${current}"`);
+    if (onMissing) onMissing(entry);
     for (const fn of missingListeners) fn(entry);
 }
