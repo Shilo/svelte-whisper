@@ -1,10 +1,10 @@
 <script>
 	import { get } from 'svelte/store';
 	import { untrack } from 'svelte';
-	import { githubConfig, translationsConfig, authStore } from '$lib/store.js';
-	import { fetchTree, fetchFileContent, submitTranslations } from '$lib/github.js';
-	import { startDeviceFlow, cancelDeviceFlow, signInWithPat, signOut, openPatCreationPage, isOAuthConfigured } from '$lib/auth.js';
-	import Snackbar from '$lib/components/Snackbar.svelte';
+	import { githubConfig, translationsConfig, authStore } from '#lib/store.js';
+	import { fetchTree, fetchFileContent, submitTranslations } from '#lib/github.js';
+	import { startDeviceFlow, cancelDeviceFlow, signInWithPat, signOut, openPatCreationPage, isOAuthConfigured } from '#lib/auth.js';
+	import Snackbar from '#lib/components/Snackbar.svelte';
 
 	// ── Reactive store mirrors ──────────────────────────────────────
 	let auth = $derived($authStore);

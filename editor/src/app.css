@@ -1,61 +1,3 @@
-@import "tailwindcss";
-
-@theme inline {
-  /* Fonts */
-  --font-sans: 'Roboto', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Roboto Mono', ui-monospace, monospace;
-
-  /* Primary */
-  --color-primary: var(--md-sys-color-primary);
-  --color-on-primary: var(--md-sys-color-on-primary);
-  --color-primary-container: var(--md-sys-color-primary-container);
-  --color-on-primary-container: var(--md-sys-color-on-primary-container);
-
-  /* Secondary */
-  --color-secondary: var(--md-sys-color-secondary);
-  --color-on-secondary: var(--md-sys-color-on-secondary);
-  --color-secondary-container: var(--md-sys-color-secondary-container);
-  --color-on-secondary-container: var(--md-sys-color-on-secondary-container);
-
-  /* Tertiary */
-  --color-tertiary: var(--md-sys-color-tertiary);
-  --color-on-tertiary: var(--md-sys-color-on-tertiary);
-  --color-tertiary-container: var(--md-sys-color-tertiary-container);
-  --color-on-tertiary-container: var(--md-sys-color-on-tertiary-container);
-
-  /* Error */
-  --color-error: var(--md-sys-color-error);
-  --color-on-error: var(--md-sys-color-on-error);
-  --color-error-container: var(--md-sys-color-error-container);
-  --color-on-error-container: var(--md-sys-color-on-error-container);
-
-  /* Surface */
-  --color-surface: var(--md-sys-color-surface);
-  --color-on-surface: var(--md-sys-color-on-surface);
-  --color-surface-variant: var(--md-sys-color-surface-variant);
-  --color-on-surface-variant: var(--md-sys-color-on-surface-variant);
-
-  /* Surface containers */
-  --color-surface-container-lowest: var(--md-sys-color-surface-container-lowest);
-  --color-surface-container-low: var(--md-sys-color-surface-container-low);
-  --color-surface-container: var(--md-sys-color-surface-container);
-  --color-surface-container-high: var(--md-sys-color-surface-container-high);
-  --color-surface-container-highest: var(--md-sys-color-surface-container-highest);
-
-  /* Outline */
-  --color-outline: var(--md-sys-color-outline);
-  --color-outline-variant: var(--md-sys-color-outline-variant);
-
-  /* Background */
-  --color-background: var(--md-sys-color-background);
-  --color-on-background: var(--md-sys-color-on-background);
-
-  /* Inverse */
-  --color-inverse-surface: var(--md-sys-color-inverse-surface);
-  --color-inverse-on-surface: var(--md-sys-color-inverse-on-surface);
-  --color-inverse-primary: var(--md-sys-color-inverse-primary);
-}
-
 :root {
   /* === Material Design 3 — Dark Scheme (default) === */
   --md-sys-color-primary: #a8c7fa;
@@ -157,3 +99,5 @@ body {
   background-color: var(--md-sys-color-background);
   color: var(--md-sys-color-on-background);
 }
+
+.hidden{display:none}@media (min-width:768px){.md:block{display:block}.md:hidden{display:none}}
