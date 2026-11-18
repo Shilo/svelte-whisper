@@ -72,8 +72,9 @@ Create a Worker (dashboard: **Workers & Pages → Create → Hello World**, then
 // Forwards the two OAuth device-flow endpoints to github.com and adds CORS headers.
 // It stores nothing and handles no secrets; requests carry only the public client ID.
 const ALLOWED_PATHS = new Set(['/login/device/code', '/login/oauth/access_token']);
-// The origins that host the editor: the deployed site, plus local dev servers if you use them.
-const ALLOWED_ORIGINS = new Set(['https://your-name.github.io', 'http://localhost:5173']);
+// The origins that host the editor: the deployed site, plus the local dev server (npm run dev)
+// and the local preview of a build (npm run preview) if you use them.
+const ALLOWED_ORIGINS = new Set(['https://your-name.github.io', 'http://localhost:5173', 'http://localhost:4173']);
 
 export default {
   async fetch(req) {
@@ -130,7 +131,7 @@ npm test         # data-layer tests: file round trips, drafts, placeholders, plu
 npm run build    # static site in editor/dist
 ```
 
-The editor is a plain Vite single-page app: `index.html` loads `src/main.js`, which mounts `src/App.svelte`. There is no router; the screens are driven by state and query parameters (`?demo`, `?repo=…`), so the build is one `index.html` plus hashed assets, with no fallback page. The Content-Security-Policy is added to the built `index.html` as a `<meta>` tag by a small plugin in `vite.config.js`; the dev server runs without it, because hot reload needs inline styles and a websocket. The Pages workflow builds with `BASE_PATH=/<repository name>`; to preview that locally, run `BASE_PATH=/svelte-whisper npm run build && BASE_PATH=/svelte-whisper npm run preview` and open `/svelte-whisper/`.
+The editor is a plain Vite single-page app: `index.html` loads `src/main.js`, which mounts `src/App.svelte`. There is no router; the screens are driven by state and query parameters (`?demo`, `?repo=…`), so the build is one `index.html` plus hashed assets, with no fallback page. The Content-Security-Policy is added to the built `index.html` as a `<meta>` tag by a small plugin in `vite.config.js`; the dev server runs without it, because hot reload needs inline styles and a websocket. The Pages workflow builds with `BASE_PATH=/<repository name>`; to preview that locally, run `BASE_PATH=/svelte-whisper npm run build && BASE_PATH=/svelte-whisper npm run preview` and open `http://localhost:4173/svelte-whisper/`.
 
 Built with Svelte 5 and Vite 8, without SvelteKit. `svelte.config.js` turns on runes mode for every component, so legacy syntax (`export let`, `$:`, `on:` and so on) does not compile. There are no runtime dependencies, no CSS framework and no web fonts. About 32 KB of gzipped JavaScript and 4 KB of CSS load on first visit; the grid and dialogs (about 9 KB of JavaScript and 3 KB of CSS) load once a document is open, and the demo's sample files (1.5 KB) only for the demo.
 
