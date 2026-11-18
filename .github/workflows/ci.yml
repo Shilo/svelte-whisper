@@ -44,6 +44,8 @@ jobs:
           cache-dependency-path: editor/package-lock.json
       - run: npm ci
       - run: npm run check
+      # The data layer: locale file round trips, drafts, placeholders and plurals.
+      - run: npm test
       - run: npm run build
 
   example:
