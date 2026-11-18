@@ -325,9 +325,9 @@
         display: flex;
         flex-wrap: wrap;
         gap: 0.75rem 2rem;
-        max-width: 76rem;
+        width: calc(min(100%, 76rem) - 2 * var(--gutter));
         margin: 0 auto;
-        padding: 1.5rem var(--gutter) 3rem;
+        padding: 1.5rem 0 3rem;
         border-top: 1px solid var(--rule);
     }
     footer a {

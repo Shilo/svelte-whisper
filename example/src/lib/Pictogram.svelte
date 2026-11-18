@@ -1,7 +1,7 @@
 <script>
     // Small sign pictograms, drawn on a 24 × 24 grid with one stroke weight.
     const paths = {
-        mark: 'M4 7h16M4 12h11M4 17h6',
+        mark: 'M4 5h16v10.5H10.5L6 19.5v-4H4zM8 9h8M8 12h5',
         languages: 'M3.5 4.5h11v8H8l-3.5 3v-3h-1zM14.5 8.5h6v8h-1v3l-3.5-3h-4.5v-4',
         download: 'M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15',
         braces: 'M9 4.5c-2 0-2.5 1-2.5 3.5S6 12 4.5 12C6 12 6.5 13.5 6.5 16S7 19.5 9 19.5M15 4.5c2 0 2.5 1 2.5 3.5s.5 4 2 4c-1.5 0-2 1.5-2 4s-.5 3.5-2.5 3.5M12 12h.01',
