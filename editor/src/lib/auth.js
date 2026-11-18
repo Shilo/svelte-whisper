@@ -1,153 +1,94 @@
-import { get } from 'svelte/store';
-import { authStore } from './store.js';
+// GitHub sign-in: OAuth device flow (RFC 8628) through a CORS proxy, or a
+// personal access token. Device flow needs no client secret, so nothing secret
+// is ever shipped in the bundle.
+
+import { getUser } from './github.js';
+import { setSession, clearSession } from './session.svelte.js';
 
 const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || '';
-const CORS_PROXY = (import.meta.env.VITE_CORS_PROXY_URL || '').replace(/\/$/, '');
+const PROXY = (import.meta.env.VITE_CORS_PROXY_URL || '').replace(/\/$/, '');
 
-let _pollTimer = null;
+export const oauthAvailable = !!(CLIENT_ID && PROXY);
 
-async function githubPost(path, params) {
-    const url = CORS_PROXY ? `${CORS_PROXY}${path}` : `https://github.com${path}`;
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-        },
-        body: new URLSearchParams(params).toString(),
-    });
-    if (!res.ok) throw new Error(`OAuth request failed: ${res.status}`);
-    return res.json();
+export const PAT_URL =
+	'https://github.com/settings/personal-access-tokens/new?name=svelte-whisper%20editor&description=Edit%20locale%20files%20with%20the%20svelte-whisper%20editor';
+export const CLASSIC_PAT_URL = 'https://github.com/settings/tokens/new?scopes=public_repo&description=svelte-whisper%20editor';
+
+/** @param {string} path @param {Record<string, string>} params */
+async function post(path, params) {
+	const res = await fetch(PROXY + path, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+		body: new URLSearchParams(params)
+	});
+	if (!res.ok) throw new Error(`Sign-in service returned ${res.status}.`);
+	return res.json();
 }
 
-export const isOAuthConfigured = () => !!CLIENT_ID;
-
+/**
+ * Start the device flow. Resolves with the code to show; `done` settles when
+ * the user approves (or the code expires, or `cancel` is called).
+ * @returns {Promise<{ userCode: string, verificationUri: string, done: Promise<void>, cancel: () => void }>}
+ */
 export async function startDeviceFlow() {
-    if (!CLIENT_ID) {
-        throw new Error('No OAuth App configured. Please use a Personal Access Token instead.');
-    }
+	if (!oauthAvailable) throw new Error('GitHub sign-in is not configured for this copy of the editor. Use a token instead.');
+	const start = await post('/login/device/code', { client_id: CLIENT_ID, scope: 'public_repo' });
+	if (start.error) throw new Error(start.error_description || start.error);
 
-    authStore.update(s => ({ ...s, flowState: 'device-pending', errorMessage: null }));
+	let timer = 0;
+	let cancelled = false;
+	let interval = (start.interval || 5) * 1000;
+	const expires = Date.now() + (start.expires_in || 900) * 1000;
 
-    let data;
-    try {
-        data = await githubPost('/login/device/code', {
-            client_id: CLIENT_ID,
-            scope: 'repo',
-        });
-    } catch (e) {
-        authStore.update(s => ({ ...s, flowState: 'error', errorMessage: e.message }));
-        throw e;
-    }
+	const done = new Promise((resolve, reject) => {
+		const poll = async () => {
+			if (cancelled) return;
+			if (Date.now() > expires) return reject(new Error('The code expired. Start again.'));
+			try {
+				const r = await post('/login/oauth/access_token', {
+					client_id: CLIENT_ID,
+					device_code: start.device_code,
+					grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+				});
+				if (cancelled) return;
+				if (r.access_token) {
+					await finishSignIn(r.access_token);
+					return resolve();
+				}
+				if (r.error === 'slow_down') interval += 5000;
+				else if (r.error === 'access_denied') return reject(new Error('Sign-in was declined on GitHub.'));
+				else if (r.error === 'expired_token') return reject(new Error('The code expired. Start again.'));
+				else if (r.error !== 'authorization_pending') return reject(new Error(r.error_description || r.error));
+			} catch {
+				/* transient network error: keep polling until the code expires */
+			}
+			timer = window.setTimeout(poll, interval);
+		};
+		timer = window.setTimeout(poll, interval);
+	});
 
-    authStore.update(s => ({
-        ...s,
-        deviceCode: data.device_code,
-        userCode: data.user_code,
-        verificationUri: data.verification_uri || 'https://github.com/login/device',
-        flowState: 'device-pending',
-    }));
-
-    window.open(data.verification_uri || 'https://github.com/login/device', '_blank');
-    _startPolling(data.device_code, data.interval || 5);
-
-    return { userCode: data.user_code };
+	return {
+		userCode: start.user_code,
+		verificationUri: start.verification_uri || 'https://github.com/login/device',
+		done,
+		cancel() {
+			cancelled = true;
+			clearTimeout(timer);
+		}
+	};
 }
 
-function _startPolling(deviceCode, interval) {
-    authStore.update(s => ({ ...s, flowState: 'polling' }));
-    let currentInterval = interval;
-
-    const poll = async () => {
-        try {
-            const data = await githubPost('/login/oauth/access_token', {
-                client_id: CLIENT_ID,
-                device_code: deviceCode,
-                grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-            });
-
-            if (data.error === 'authorization_pending') {
-                _pollTimer = setTimeout(poll, currentInterval * 1000);
-            } else if (data.error === 'slow_down') {
-                currentInterval += 5;
-                _pollTimer = setTimeout(poll, currentInterval * 1000);
-            } else if (data.error === 'expired_token') {
-                authStore.update(s => ({ ...s, flowState: 'error', errorMessage: 'Code expired. Please try again.' }));
-            } else if (data.access_token) {
-                const userRes = await fetch('https://api.github.com/user', {
-                    headers: { 'Authorization': `Bearer ${data.access_token}` }
-                });
-                const user = userRes.ok ? await userRes.json() : {};
-                authStore.update(s => ({
-                    ...s,
-                    token: data.access_token,
-                    method: 'oauth',
-                    userLogin: user.login || null,
-                    userAvatar: user.avatar_url || null,
-                    flowState: 'authenticated',
-                    deviceCode: null,
-                    userCode: null,
-                    verificationUri: null,
-                    errorMessage: null,
-                }));
-            } else {
-                authStore.update(s => ({
-                    ...s,
-                    flowState: 'error',
-                    errorMessage: data.error_description || data.error || 'Unknown error',
-                }));
-            }
-        } catch {
-            // Network error — retry
-            _pollTimer = setTimeout(poll, currentInterval * 1000);
-        }
-    };
-
-    _pollTimer = setTimeout(poll, currentInterval * 1000);
-}
-
-export function cancelDeviceFlow() {
-    if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
-    authStore.update(s => ({
-        ...s,
-        flowState: 'idle',
-        deviceCode: null,
-        userCode: null,
-        verificationUri: null,
-        errorMessage: null,
-    }));
-}
-
-export function signInWithPat(token) {
-    authStore.update(s => ({
-        ...s,
-        token: token.trim(),
-        method: 'pat',
-        flowState: 'authenticated',
-        userLogin: null,
-        userAvatar: null,
-        errorMessage: null,
-    }));
+/**
+ * Validate a token against GitHub and keep it for this tab.
+ * @param {string} token
+ */
+export async function finishSignIn(token) {
+	const t = token.trim();
+	const user = await getUser(t);
+	setSession(t, user);
+	return user;
 }
 
 export function signOut() {
-    if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
-    authStore.set({
-        token: '',
-        method: null,
-        userLogin: null,
-        userAvatar: null,
-        flowState: 'idle',
-        deviceCode: null,
-        userCode: null,
-        verificationUri: null,
-        errorMessage: null,
-    });
-}
-
-export function openPatCreationPage() {
-    window.open(
-        'https://github.com/settings/tokens/new?scopes=repo&description=svelte-whisper+editor',
-        '_blank'
-    );
+	clearSession();
 }
