@@ -28,7 +28,7 @@
         <!-- setLocale() remembers the choice, because init() was given a persistKey. -->
         <LanguageGates onchoose={setLocale} />
     </nav>
-    <p class="size" dir="ltr">{t('nav.size', { size: formatNumber(1.6) })}</p>
+    <p class="size" dir="ltr">{t('nav.size', { size: formatNumber(1.8) })}</p>
 </header>
 
 <main>
