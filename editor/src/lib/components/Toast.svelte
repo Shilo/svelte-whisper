@@ -1,22 +1,27 @@
 <script>
 	import { toast, dismiss } from '../toast.svelte.js';
 	import Icon from './Icon.svelte';
+
+	/** The pinned message, then the passing one. */
+	const slots = /** @type {const} */ (['pinned', 'current']);
 </script>
 
 <!-- The live region is always present so screen readers announce new messages. -->
 <div class="region" role={toast.current?.tone === 'error' ? 'alert' : 'status'} aria-live={toast.current?.tone === 'error' ? 'assertive' : 'polite'}>
-	{#if toast.current}
-		{@const t = toast.current}
-		<div class="toast {t.tone}">
-			<p>{t.text}</p>
-			{#if t.action?.href}
-				<a class="btn quiet" href={t.action.href} target="_blank" rel="noopener noreferrer">{t.action.label} <Icon name="external" size={14} /></a>
-			{:else if t.action?.run}
-				<button class="btn quiet" onclick={() => (t.action.run(), dismiss())}>{t.action.label}</button>
-			{/if}
-			<button class="btn quiet icon" aria-label="Dismiss" onclick={dismiss}><Icon name="x" size={16} /></button>
-		</div>
-	{/if}
+	{#each slots as which (which)}
+		{@const t = toast[which]}
+		{#if t}
+			<div class="toast {t.tone}">
+				<p>{t.text}</p>
+				{#if t.action?.href}
+					<a class="btn quiet" href={t.action.href} target="_blank" rel="noopener noreferrer">{t.action.label} <Icon name="external" size={14} /></a>
+				{:else if t.action?.run}
+					<button class="btn quiet" onclick={() => (t.action?.run?.(), dismiss(which))}>{t.action.label}</button>
+				{/if}
+				<button class="btn quiet icon" aria-label="Dismiss" onclick={() => dismiss(which)}><Icon name="x" size={16} /></button>
+			</div>
+		{/if}
+	{/each}
 </div>
 
 <style>
@@ -27,6 +32,8 @@
 		bottom: calc(var(--bar-h) + 1rem + env(safe-area-inset-bottom));
 		translate: -50% 0;
 		width: min(34rem, calc(100vw - 2rem));
+		display: grid;
+		gap: 0.5rem;
 		pointer-events: none;
 	}
 	.toast {
@@ -53,6 +60,8 @@
 	}
 	p {
 		flex: 1;
+		min-width: 0;
+		overflow-wrap: anywhere;
 		font-size: var(--t-ui);
 		padding: 0.25rem 0;
 	}

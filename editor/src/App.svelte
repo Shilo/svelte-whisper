@@ -3,7 +3,7 @@
 	import { auth, config, saveConfig, clearSession } from './lib/session.svelte.js';
 	import { getRepo, listLocaleFiles, readFile, submit } from './lib/github.js';
 	import { LocaleDoc } from './lib/doc.svelte.js';
-	import { notify } from './lib/toast.svelte.js';
+	import { notify, dismiss } from './lib/toast.svelte.js';
 	import { languageName } from './lib/lang.js';
 	import AppBar from './lib/components/AppBar.svelte';
 	import SignIn from './lib/components/SignIn.svelte';
@@ -103,20 +103,40 @@
 		await loadUI();
 		const d = new LocaleDoc(files, config.dir, config.source);
 		const raw = readDraft();
-		if (raw) d.applyDraft(raw);
+		const lost = raw ? d.applyDraft(raw) : [];
 		const n = d.changeCount();
 		const notes = [];
 		if (n) notes.push(`Restored ${n} unsent ${n === 1 ? 'edit' : 'edits'} from your last visit.`);
+		if (lost.length) notes.push(`The files changed on GitHub since your last visit. Not restored: ${describeLost(lost)}.`);
 		if (skipped.length) {
 			notes.push(`Skipped ${skipped.join(', ')}: a locale file is named like a language, such as fr.json or pt-BR.json.`);
 		}
-		if (notes.length) notify(notes.join(' '), 'info', n ? { label: 'Discard', run: () => (discardOpen = true) } : undefined);
+		dismiss('pinned');
+		// A message that names files or lost edits stays until it is closed.
+		if (notes.length) notify(notes.join(' '), 'info', n ? { label: 'Discard', run: () => (discardOpen = true) } : undefined, !!(lost.length || skipped.length));
 		const langs = d.langs;
 		hidden = focusLang && langs.includes(focusLang) ? langs.filter((l) => l !== d.source && l !== focusLang) : [];
 		query = '';
 		filter = 'all';
 		doc = d;
 		view = 'editor';
+	}
+
+	/**
+	 * "app.title (fr, de), rename a → x, new key n", at most five, then "and N more".
+	 * @param {import('./lib/doc.svelte.js').Lost[]} lost
+	 */
+	function describeLost(lost) {
+		/** @type {Map<string, string[]>} */
+		const cells = new Map();
+		const items = [];
+		for (const l of lost) {
+			if (!l.lang) items.push(l.to ? `rename ${l.key} → ${l.to}` : `new key ${l.key}`);
+			else if (cells.has(l.key)) cells.get(l.key)?.push(l.lang);
+			else cells.set(l.key, [l.lang]);
+		}
+		items.unshift(...[...cells].map(([key, langs]) => `${key} (${langs.join(', ')})`));
+		return items.length > 5 ? `${items.slice(0, 5).join(', ')} and ${items.length - 5} more` : items.join(', ');
 	}
 
 	async function load() {
@@ -183,6 +203,7 @@
 
 	function handleSignOut() {
 		clearSession();
+		dismiss('pinned');
 		doc = null;
 		view = 'start';
 	}
@@ -240,6 +261,7 @@
 		doc = d;
 		hidden = hidden.filter((l) => d.langs.includes(l));
 		discardOpen = false;
+		dismiss('pinned');
 		notify('Edits discarded.');
 	}
 
