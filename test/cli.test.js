@@ -123,7 +123,7 @@ describe('apply', () => {
             'new.json': { hello: 'Bonjour {name} !', nav: { about: 'À propos' }, 'rules.0': 'Premier' },
         }, t);
         const result = p.json('apply', 'fr', 'new.json');
-        assert.deepEqual(result, { applied: 3, kept: 2, missing: ['items', 'rules.1'], removed: ['gone'] });
+        assert.deepEqual(result.fr, { applied: 3, kept: 2, glossary: 0, removed: ['gone'], missing: ['items', 'rules.1'] });
         assert.equal(p.read('src/locales/fr.json'), JSON.stringify({
             hello: 'Bonjour {name} !',
             nav: { home: 'Accueil', about: 'À propos' },
@@ -146,6 +146,47 @@ describe('apply', () => {
         const p = project({ 'src/locales/en.json': { a: 'A' }, 'x.json': { zzz: 'nope' } }, t);
         assert.throws(() => p.run('apply', 'fr', 'x.json'), /Not in the source locale.*zzz/);
         assert.throws(() => p.run('apply', 'en', 'x.json'), /is the source locale/);
+    });
+});
+
+describe('sync and glossary', () => {
+    test('sync prunes stale keys and reorders every locale without translating', t => {
+        const p = project({
+            'src/locales/en.json': { a: 'A', b: 'B' },
+            'src/locales/fr.json': { old: 'Vieux', b: 'B fr', a: 'A fr' },
+            'src/locales/ja.json': { b: 'B ja' },
+        }, t);
+        const result = p.json('sync');
+        assert.deepEqual(result.fr.removed, ['old']);
+        assert.deepEqual(result.ja.missing, ['a']);
+        assert.equal(p.read('src/locales/fr.json'), JSON.stringify({ a: 'A fr', b: 'B fr' }, null, 4) + '\n');
+    });
+
+    test('glossary terms win over new and existing translations, and check enforces them', t => {
+        const p = project({
+            'src/locales/en.json': { skills: { attack: 'Attack Boost', guard: 'Guard' }, title: 'Skills' },
+            'src/locales/ja.json': { skills: { attack: '攻撃ブースト', guard: 'ガード' }, title: 'スキル' },
+            'src/locales/glossary/ja.json': { skills: { attack: '攻撃力強化' } },
+            'new.json': { 'skills.attack': 'アタックブースト', title: 'スキル一覧' },
+        }, t);
+        assert.equal(p.run('check').code, 1);
+        assert.deepEqual(p.json('check').locales.ja.glossary, ['skills.attack']);
+
+        assert.deepEqual(p.json('apply', 'ja', 'new.json').ja, { applied: 1, kept: 1, glossary: 1, removed: [], missing: [] });
+        assert.deepEqual(JSON.parse(p.read('src/locales/ja.json')), {
+            skills: { attack: '攻撃力強化', guard: 'ガード' },
+            title: 'スキル一覧',
+        });
+        assert.equal(p.run('check').code, 0);
+    });
+
+    test('a glossary term identical to the source is not flagged as untranslated', t => {
+        const p = project({
+            'src/locales/en.json': { brand: 'Backpack Planner', other: 'Other words' },
+            'src/locales/fr.json': { brand: 'Backpack Planner', other: 'Other words' },
+            'src/locales/glossary/fr.json': { brand: 'Backpack Planner' },
+        }, t);
+        assert.deepEqual(p.json('check').locales.fr.identical, ['other']);
     });
 });
 
