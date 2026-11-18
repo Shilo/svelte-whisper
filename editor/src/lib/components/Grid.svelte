@@ -104,6 +104,20 @@
 		return !!el;
 	}
 
+	/**
+	 * Delete or restore a key, then keep focus in the row: the button pressed is replaced
+	 * by its opposite. A new key's row disappears, so focus moves to the row that took its place.
+	 * @param {string} key @param {number} r
+	 */
+	async function toggleDelete(key, r) {
+		if (doc.deleted[key]) doc.restoreKey(key);
+		else doc.deleteKey(key);
+		await tick();
+		const rows = root?.querySelectorAll('tbody tr') ?? [];
+		const row = rows[Math.min(r, rows.length - 1)];
+		/** @type {HTMLElement | null | undefined} */ (row?.querySelector('.row-actions button:last-child, textarea'))?.focus();
+	}
+
 	/** @param {string} key */
 	function split(key) {
 		const i = key.lastIndexOf('.');
@@ -147,20 +161,22 @@
 					<th scope="row" class="key-col">
 						<span class="key" title={key}><span class="prefix">{prefix}</span>{leaf}</span>
 						{#if doc.renamed[key]}<span class="tag" title="Renamed from {doc.renamed[key]}">renamed</span>{:else if doc.isNewKey(key)}<span class="tag">new</span>{/if}
-						<span class="row-actions">
-							{#if gone}
-								<button class="btn quiet mini" onclick={() => doc.restoreKey(key)}>
-									<Icon name="undo" size={15} /> Restore
-								</button>
-							{:else}
-								<button class="btn quiet icon mini" aria-label="Rename {key}" title="Rename" onclick={() => onrename(key)}>
-									<Icon name="pencil" size={15} />
-								</button>
-								<button class="btn quiet icon mini" aria-label="Delete {key}" title="Delete" onclick={() => doc.deleteKey(key)}>
-									<Icon name="trash" size={15} />
-								</button>
-							{/if}
-						</span>
+						{#if !doc.isFixedKey(key)}
+							<span class="row-actions">
+								{#if gone}
+									<button class="btn quiet mini" onclick={() => toggleDelete(key, r)}>
+										<Icon name="undo" size={15} /> Restore
+									</button>
+								{:else}
+									<button class="btn quiet icon mini" aria-label="Rename {key}" title="Rename" onclick={() => onrename(key)}>
+										<Icon name="pencil" size={15} />
+									</button>
+									<button class="btn quiet icon mini" aria-label="Delete {key}" title="Delete" onclick={() => toggleDelete(key, r)}>
+										<Icon name="trash" size={15} />
+									</button>
+								{/if}
+							</span>
+						{/if}
 					</th>
 					{#each langs as lang, c (lang)}
 						{@const fixed = doc.isFixed(lang, key)}
@@ -309,7 +325,7 @@
 	}
 	.prefix {
 		font-weight: 400;
-		opacity: 0.72;
+		color: var(--ink-2);
 	}
 	.tag {
 		display: inline-block;

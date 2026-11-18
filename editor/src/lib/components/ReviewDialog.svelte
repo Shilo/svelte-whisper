@@ -1,7 +1,7 @@
 <script>
 	import Dialog from './Dialog.svelte';
 	import Icon from './Icon.svelte';
-	import { comparePlaceholders, showPlaceholder } from '../json.js';
+	import { showPlaceholder } from '../json.js';
 	import { languageName } from '../lang.js';
 	import { auth } from '../session.svelte.js';
 
@@ -53,11 +53,9 @@
 		}
 	});
 
+	/** The grid's own check, so the grid and the review always agree. */
 	/** @param {string} lang @param {{ key: string, after: string | undefined }} c */
-	function warningFor(lang, c) {
-		if (lang === doc.source || c.after === undefined) return null;
-		return comparePlaceholders(doc.values[doc.source]?.[c.key], c.after);
-	}
+	const warningFor = (lang, c) => (c.after === undefined ? null : doc.warning(lang, c.key));
 
 	/** @param {string} lang @param {string} key */
 	function revert(lang, key) {
