@@ -2,7 +2,7 @@
 // svelte-whisper locale tools. Zero dependencies; never part of an app bundle.
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join, basename, extname, relative } from 'node:path';
+import { join, resolve, basename, extname, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 
 const HELP = `svelte-whisper — locale tools
@@ -57,7 +57,7 @@ export function main(argv, cwd = process.cwd()) {
     if (flags.help || !command) return { code: flags.help ? 0 : 1, out: HELP };
 
     const config = readJson(join(cwd, 'package.json'), {})['svelte-whisper'] || {};
-    const dir = join(cwd, flags.dir || config.locales || detectDir(cwd));
+    const dir = resolve(cwd, flags.dir || config.locales || detectDir(cwd));
     const source = flags.source || config.source || 'en';
     const project = { cwd, dir, source, sourceFile: join(dir, source + '.json') };
     if (!existsSync(project.sourceFile)) {
@@ -100,7 +100,7 @@ function check(project, flags) {
     }
 
     if (flags.usage) {
-        Object.assign(report, usage(project, join(project.cwd, flags.usage), source));
+        Object.assign(report, usage(project, resolve(project.cwd, flags.usage), source));
         // A key the code asks for but no file has is shown to users as a raw key.
         failed ||= report.undefined.length > 0;
     }
@@ -169,7 +169,7 @@ function apply(project, flags, [id, file]) {
     if (id.toLowerCase() === project.source.toLowerCase()) throw new UsageError(`"${id}" is the source locale; edit ${basename(project.sourceFile)} directly.`);
     let incoming;
     try {
-        const input = file ? readFileSync(join(project.cwd, file), 'utf8') : readFileSync(0, 'utf8');
+        const input = file ? readFileSync(resolve(project.cwd, file), 'utf8') : readFileSync(0, 'utf8');
         incoming = flatten(dictionary(JSON.parse(input.replace(/^\uFEFF/, '')), file || 'stdin'));
     } catch (error) {
         throw error instanceof UsageError ? error : new UsageError(`${file || 'stdin'}: ${error.message}`);

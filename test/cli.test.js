@@ -142,6 +142,17 @@ describe('apply', () => {
         assert.equal(p.run('check').code, 0);
     });
 
+    test('takes absolute paths for the file, the locale folder and the usage folder', t => {
+        const p = project({
+            'src/locales/en.json': { a: 'A' },
+            'src/App.svelte': `{t('a')}`,
+            'de.json': { a: 'Ä' },
+        }, t);
+        p.run('apply', 'de', join(p.cwd, 'de.json'), '--dir', join(p.cwd, 'src/locales'));
+        assert.deepEqual(JSON.parse(p.read('src/locales/de.json')), { a: 'Ä' });
+        assert.equal(p.run('check', '--usage', join(p.cwd, 'src')).code, 0);
+    });
+
     test('refuses keys that are not in the source, and refuses the source locale', t => {
         const p = project({ 'src/locales/en.json': { a: 'A' }, 'x.json': { zzz: 'nope' } }, t);
         assert.throws(() => p.run('apply', 'fr', 'x.json'), /Not in the source locale.*zzz/);

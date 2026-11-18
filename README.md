@@ -137,7 +137,7 @@ A placeholder with no matching value is left as written, so mistakes are visible
 {t('items', { count })}
 ```
 
-An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the language the text is in (the fallback's rules when the text comes from the fallback), then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given.
+An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules` gives for the language the text is in (the fallback's rules when the text comes from the fallback), then `other`. Each language uses the categories it needs: Japanese needs only `other`, Russian needs `one`, `few`, `many` and `other`. Every plural group must have an `other` form, which is also what `t('items')` returns when no count is given. `{count}` is inserted as it was passed; to show `1,234 items`, pass a formatted copy as well, `t('items', { count, n: formatNumber(count) })`, and write `{n} items`.
 
 **Always a string.** `t()` returns text and nothing else. A number or boolean in the JSON comes back as text, and items of a list are addressed by index: `t('rules.0')`. A key that points at a group or a list is not a message, so it comes back as the key, like any other missing key.
 
@@ -167,7 +167,7 @@ Svelte 5 compiles a component in its legacy mode when it still uses `export let`
 | Switch | `setLocale(id)` | `setLocale(id)`, `$locale = id` or `bind:value={$locale}` |
 | Format | `formatNumber(n)`, `formatPercent(x)` | `formatNumber(n, options, $locale)`, `formatPercent(x, 0, $locale)` |
 
-The dollar forms work in every component, so an app that mixes both kinds can use `$t` everywhere and convert at its own pace. Plain `.js` and `.ts` modules always use the functions.
+The dollar forms work in every component, so an app that mixes both kinds can use `$t` everywhere and convert at its own pace. Plain `.js` and `.ts` modules always use the functions, so a helper that a legacy component calls from its markup must be handed `$t` or `$locale` as an argument: `{label(item, $t)}`.
 
 `bind:value={$locale}` leaves the control on the chosen language when its download fails. Where that can happen, use the picker under [Locales](#locales) with `value={$locale}`.
 
