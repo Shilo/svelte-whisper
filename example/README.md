@@ -1,31 +1,49 @@
-# Svelte Whisper Demo 🤫
+# svelte-whisper example
 
-This directory contains a **Svelte 5 + Vite** sample project demonstrating the seamless UI integration of `svelte-whisper`. 
+A single-page Svelte 5 + Vite app that shows what svelte-whisper does, and how little code it takes.
+Read `src/` as documentation: it is the recommended setup, kept small on purpose.
 
-## Concept
+![The demo in light mode](../docs/assets/demo-light.png)
 
-This Single Page Application demonstrates:
-1. Utilizing the `$t` localized store variable across components.
-2. Handling deeply nested dictionaries & dictionary missing-key fallbacks.
-3. Showcasing reactive language shifting.
-4. Using dynamic language chunking via internal Vite dynamic imports mechanism (`() => import('./locales/es.json')`). Notice the Network Tab lazily pulling `es.json`!
-5. Real-time interpolation updates via Svelte 5 `$state` data bindings (modifying local inputs updates translations instantly).
-6. Auto-positional interpolation formatting using empty `{}` tags.
-7. **Missing key detection & dev overlay**: The app references `$t('app.coming_soon')` which doesn't exist in any locale file. In dev mode, a floating amber badge appears in the bottom-right corner collecting missing keys — click it to expand the panel, click any key to copy it.
+## What it shows
 
-## Setup and Run
+- **Lazy loading you can watch.** Five locales (English, Spanish, French, Japanese, Arabic), one file each.
+  The *Downloaded locale files* board lists every locale file the browser fetched, with its size
+  and when it arrived, read from the Resource Timing API. Switch back to a language you already
+  used and no new row appears.
+- **Instant switching.** A language switcher built from `getLocales()` and `localeName()`.
+  Text, numbers, dates, `<html lang>` and `dir` all change together. Arabic mirrors the layout.
+- **Persistence.** The choice is saved under `persistKey`; *Forget my choice* calls `resetLocale()`.
+- **Interpolation.** Named (`{user}`) and positional (`{}`) placeholders, driven by a live input.
+- **Plurals.** A counter that walks through each language's plural categories (Arabic has six).
+- **Formatting.** `formatNumber`, currency, `formatPercent` and `formatDate`, bound to the active locale.
+- **Fallback and missing keys.** One sentence exists only in English and falls back everywhere
+  else. One key exists nowhere, which makes the dev overlay appear in `npm run dev`.
+- **`tr()` outside components.** `src/greeting.js` translates from a plain module.
+- **Typed keys.** `src/whisper.d.ts` registers `en.json`, so keys autocomplete and typos are
+  underlined. The deliberately missing key is underlined too.
 
-Install dependencies inside the `example` folder (which points to the immediate local `svelte-whisper` package sibling directory).
+## Run it
 
-```bash
+```sh
 npm install
-npm run dev
+npm run dev       # http://localhost:5173, with the dev overlay
+npm run build     # each locale becomes its own chunk in dist/assets/locales/
+npm run preview
 ```
 
-Visit `http://localhost:5173` to interact with the demo!
+The example depends on the library in the parent folder (`"svelte-whisper": "file:.."`).
+To deploy under a sub-path, set `BASE_PATH`: `BASE_PATH=/svelte-whisper/ npm run build`.
 
-### Project Structure Breakdown:
+## Source map
 
-- **`src/locales/`**: Includes our `en.json`, `es.json`, and `fr.json` language assets mapping our translation layers.
-- **`src/main.js`**: Initializes `svelte-whisper` with `init()` which enables missing key detection and the dev overlay.
-- **`src/App.svelte`**: Simple, reactive Svelte 5 component invoking the localized `{$t}` strings and mutating state via `$locale`. Includes a deliberate missing key (`app.coming_soon`) to demonstrate the dev overlay.
+| File | What it does |
+| --- | --- |
+| `src/main.js` | The setup: `registerLoader(import.meta.glob(...))` and `init({ fallback, persistKey })`. |
+| `src/locales/*.json` | One dictionary per locale; the file name is the locale id. |
+| `src/App.svelte` | The page: every feature above, each next to the call that produces it. |
+| `src/greeting.js` | `tr()` in a plain JavaScript module. |
+| `src/whisper.d.ts` | Typed keys through the `Register` interface. Types only. |
+| `src/lib/LanguageGates.svelte` | The language switcher. |
+| `src/lib/downloads.svelte.js` | Watches the network for locale files. Demo instrumentation, not needed in your app. |
+| `src/lib/DownloadBoard.svelte`, `Sign.svelte`, `Pictogram.svelte` | Presentation. |

@@ -1,5 +1,5 @@
 {
-  "name": "example",
+  "name": "svelte-whisper-example",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,12 +8,14 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^6.2.1",
-    "svelte": "^5.45.2",
-    "vite": "^7.3.1"
-  },
   "dependencies": {
+    "@fontsource-variable/atkinson-hyperlegible-mono": "^5.3.0",
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
     "svelte-whisper": "file:.."
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "svelte": "^5.57.3",
+    "vite": "^8.3.8"
   }
 }

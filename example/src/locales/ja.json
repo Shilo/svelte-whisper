@@ -1,0 +1,50 @@
+{
+    "meta": { "title": "svelte-whisper · ライブデモ" },
+    "nav": { "languages": "言語", "size": "{size} kB gzip" },
+    "day": { "morning": "おはようございます。", "afternoon": "こんにちは。", "evening": "こんばんは。" },
+    "hero": {
+        "speaks": "このページは今、{language}で表示されています。",
+        "lede": "言語ごとに小さなファイルが一つずつあります。上で言語を選ぶと、そのファイルだけが一度だけダウンロードされ、すべての文が同時に切り替わります。",
+        "saved": "選んだ言語は localStorage に保存されています。",
+        "unsaved": "まだ何も保存されていません。言語はブラウザの設定または既定値から選ばれました。",
+        "forget": "選択を消去"
+    },
+    "log": {
+        "title": "ダウンロードした言語ファイル",
+        "file": "ファイル",
+        "size": "サイズ",
+        "when": "時点",
+        "cached": "キャッシュ済み",
+        "note": "ブラウザの Resource Timing API から取得しています。一度使った言語に戻っても、新しい行は増えません。"
+    },
+    "greet": {
+        "title": "変数の埋め込み",
+        "label": "お名前",
+        "named": "{user}さん、ようこそ。",
+        "positional": "{}さんはこのページを{}で読んでいます。"
+    },
+    "plural": {
+        "title": "複数形",
+        "files": { "0": "待機中のファイルはありません。", "other": "待機中のファイルは{count}件です。" },
+        "fewer": "減らす",
+        "more": "増やす",
+        "rule": "複数形のカテゴリ"
+    },
+    "format": {
+        "title": "数値と日付",
+        "number": "数値",
+        "price": "価格",
+        "share": "割合",
+        "date": "今日",
+        "currency": "JPY"
+    },
+    "fallback": {
+        "title": "フォールバック",
+        "falls_back": "この文は{language}に翻訳されていないため、英語版が表示されます。"
+    },
+    "missing": {
+        "title": "存在しないキー",
+        "note": "このキーはどのファイルにもないため、キーがそのまま表示され、onMissing・コンソール・開発用パネルに報告されます。"
+    },
+    "footer": { "source": "ソースコードを読む", "repo": "GitHub の svelte-whisper" }
+}

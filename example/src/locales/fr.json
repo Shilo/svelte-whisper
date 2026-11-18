@@ -1,0 +1,50 @@
+{
+    "meta": { "title": "svelte-whisper · démo en direct" },
+    "nav": { "languages": "Langue", "size": "{size} kB gzip" },
+    "day": { "morning": "Bonjour.", "afternoon": "Bonjour.", "evening": "Bonsoir." },
+    "hero": {
+        "speaks": "Cette page parle maintenant {language}.",
+        "lede": "Chaque langue vit dans son propre petit fichier. Choisissez-en une ci-dessus : seul ce fichier est téléchargé, une seule fois, et chaque ligne change au même instant.",
+        "saved": "Votre choix est enregistré dans localStorage.",
+        "unsaved": "Rien n’est encore enregistré. La langue vient des réglages de votre navigateur ou de la valeur par défaut.",
+        "forget": "Oublier mon choix"
+    },
+    "log": {
+        "title": "Fichiers de langue téléchargés",
+        "file": "Fichier",
+        "size": "Taille",
+        "when": "Quand",
+        "cached": "en cache",
+        "note": "Données de l’API Resource Timing du navigateur. Revenez à une langue déjà utilisée : aucune nouvelle ligne n’apparaît."
+    },
+    "greet": {
+        "title": "Interpolation",
+        "label": "Votre nom",
+        "named": "Ravi de vous voir, {user}.",
+        "positional": "{} lit cette page en {}."
+    },
+    "plural": {
+        "title": "Pluriels",
+        "files": { "0": "Aucun fichier en attente.", "one": "{count} fichier en attente.", "other": "{count} fichiers en attente." },
+        "fewer": "Moins",
+        "more": "Plus",
+        "rule": "Catégorie de pluriel"
+    },
+    "format": {
+        "title": "Nombres et dates",
+        "number": "Nombre",
+        "price": "Prix",
+        "share": "Part",
+        "date": "Aujourd’hui",
+        "currency": "EUR"
+    },
+    "fallback": {
+        "title": "Langue de repli",
+        "falls_back": "Cette phrase n’est pas traduite en {language} : la version anglaise s’affiche."
+    },
+    "missing": {
+        "title": "Clé manquante",
+        "note": "Cette clé n’existe dans aucun fichier : la clé elle-même s’affiche et elle est signalée à onMissing, à la console et au panneau de développement."
+    },
+    "footer": { "source": "Lire le code source", "repo": "svelte-whisper sur GitHub" }
+}
