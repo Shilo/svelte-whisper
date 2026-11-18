@@ -11,7 +11,7 @@
 	let busy = $state(false);
 	let error = $state('');
 	/** @type {{ userCode: string, verificationUri: string, cancel: () => void } | null} */
-	let device = $state(null);
+	let device = $state.raw(null);
 	let copied = $state(false);
 	/** @type {HTMLButtonElement | undefined} */ let githubButton = $state();
 	/** @type {HTMLAnchorElement | undefined} */ let deviceLink = $state();
