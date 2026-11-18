@@ -14,11 +14,11 @@
 	let { address = null, demo = false, onsettings, onsignout, onexitdemo } = $props();
 </script>
 
-<header class="bar">
+<header class="bar" class:compact={!!address || demo}>
 	<span class="mark">
 		<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
 			<rect x="1.5" y="1.5" width="21" height="21" rx="2" fill="none" stroke="currentColor" stroke-width="1.5" />
-			<path d="M6 8h12M6 12h8M6 16h4" stroke="var(--air)" stroke-width="1.75" stroke-linecap="round" />
+			<path d="M6 8h12M6 12h8M6 16h4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
 		</svg>
 		<span class="word">whisper</span><span class="sub">editor</span>
 	</span>
@@ -153,7 +153,7 @@
 		}
 	}
 	@media (max-width: 26rem) {
-		.word {
+		.compact .word {
 			display: none;
 		}
 	}

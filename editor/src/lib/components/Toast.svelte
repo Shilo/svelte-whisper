@@ -49,7 +49,7 @@
 		color: var(--alert);
 	}
 	.toast.success {
-		border-color: var(--air);
+		border-color: var(--form-ink);
 	}
 	p {
 		flex: 1;
@@ -57,7 +57,7 @@
 		padding: 0.25rem 0;
 	}
 	.toast :global(.btn.quiet) {
-		color: var(--air);
+		color: var(--form-ink);
 	}
 	@keyframes rise {
 		from {

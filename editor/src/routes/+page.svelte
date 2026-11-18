@@ -532,7 +532,7 @@
 		padding: 0;
 		border: 0;
 		background: none;
-		color: var(--air);
+		color: var(--form-ink);
 		text-decoration: underline;
 		text-underline-offset: 0.2em;
 		cursor: pointer;

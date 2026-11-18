@@ -69,9 +69,9 @@
 		</p>
 		<figure class="specimen" aria-label="Example: one row per key, one box per language">
 			<div class="s-row s-head"><span>Key</span><span><b>en</b> English</span><span><b>fr</b> French</span></div>
-			<div class="s-row"><code><i>nav.</i>search</code><span>Search</span><span>Rechercher</span></div>
-			<div class="s-row"><code>greeting</code><span>Welcome back, {'{name}'}.</span><span class="s-edit">Bon retour, {'{name}'}.</span></div>
-			<div class="s-row"><code><i>notes.</i>pinned</code><span>Pinned</span><span class="s-miss">Not translated</span></div>
+			<div class="s-row"><code><i>nav.</i>home</code><span>Home</span><span>Accueil</span></div>
+			<div class="s-row"><code>greeting</code><span>Hi, {'{name}'}</span><span class="s-edit">Salut, {'{name}'}</span></div>
+			<div class="s-row"><code><i>nav.</i>help</code><span>Help</span><span class="s-miss">Not translated</span></div>
 			<figcaption class="hint">
 				<span class="m-edit" aria-hidden="true"></span> your edit
 				<span class="m-miss" aria-hidden="true"></span> still missing
@@ -349,7 +349,7 @@
 		width: 0.5rem;
 		height: 0.5rem;
 		border-radius: 50%;
-		background: var(--air);
+		background: var(--form-ink);
 		animation: pulse 1.6s var(--ease) infinite;
 	}
 	@keyframes pulse {

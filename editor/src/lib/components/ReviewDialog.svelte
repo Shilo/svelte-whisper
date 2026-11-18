@@ -3,6 +3,7 @@
 	import Icon from './Icon.svelte';
 	import { comparePlaceholders, showPlaceholder } from '../json.js';
 	import { languageName } from '../lang.js';
+	import { auth } from '../session.svelte.js';
 
 	/**
 	 * The declaration: every change, file by file, then how to send it.
@@ -36,6 +37,9 @@
 			}
 		return { added, changed, removed, warnings };
 	});
+
+	let changeTotal = $derived(files.reduce((n, f) => n + f.changes.length, 0));
+	let langList = $derived(files.map((f) => languageName(f.lang)).join(', '));
 
 	let renamedTo = $derived(Object.fromEntries(Object.entries(doc.renamed).map(([to, from]) => [from, to])));
 
@@ -90,7 +94,7 @@
 			<div><dt class="caption">Added</dt><dd>{totals.added}</dd></div>
 			<div><dt class="caption">Changed</dt><dd>{totals.changed}</dd></div>
 			<div><dt class="caption">Removed</dt><dd>{totals.removed}</dd></div>
-			<div class:alert={totals.warnings}><dt class="caption">Placeholder issues</dt><dd>{totals.warnings}</dd></div>
+			<div class="issues" class:alert={totals.warnings}><dt class="caption">Placeholder issues</dt><dd>{totals.warnings}</dd></div>
 		</dl>
 
 		{#each files as f (f.lang)}
@@ -161,6 +165,20 @@
 				</div>
 			{/if}
 		</fieldset>
+
+		<section class="declaration" aria-labelledby="decl-title">
+			<h3 id="decl-title" class="caption">Declaration</h3>
+			<p>
+				{changeTotal}
+				{changeTotal === 1 ? 'change' : 'changes'} to {langList} in <code>{repo}</code>,
+				{mode === 'pr' ? 'sent as a pull request into' : 'committed directly to'} <code>{branch}</code>{#if totals.warnings}, with
+					<strong class="alert-text">{totals.warnings} placeholder {totals.warnings === 1 ? 'issue' : 'issues'}</strong>{/if}.
+			</p>
+			<p class="sign">
+				<span class="signature">{demo ? 'demo visitor' : auth.user?.login || 'you'}</span>
+				<span class="caption">Sender</span>
+			</p>
+		</section>
 	{/if}
 
 	{#snippet footer()}
@@ -176,9 +194,10 @@
 <style>
 	.totals {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+		grid-template-columns: repeat(5, 1fr);
 		margin: 0;
 		border: 1px solid var(--rule-strong);
+		border-bottom: 3px double var(--rule-strong);
 	}
 	.totals div {
 		padding: 0.5rem 0.75rem;
@@ -248,12 +267,12 @@
 		text-decoration-color: var(--alert);
 	}
 	ins {
-		text-decoration: none;
+		text-decoration: underline;
+		text-decoration-color: var(--air);
+		text-decoration-thickness: 1px;
+		text-underline-offset: 0.25em;
 		color: var(--ink);
-		background: var(--air-wash);
-		box-shadow: inset 0 -1px 0 var(--air);
 		justify-self: start;
-		padding: 0 0.125rem;
 	}
 	.moved {
 		font-size: var(--t-sm);
@@ -302,8 +321,8 @@
 		cursor: pointer;
 	}
 	.option:has(input:checked) {
-		border-color: var(--air);
-		box-shadow: inset 0 0 0 1px var(--air);
+		border-color: var(--form-ink);
+		box-shadow: inset 0 0 0 1px var(--form-ink);
 	}
 	.option.off {
 		cursor: not-allowed;
@@ -311,7 +330,7 @@
 	}
 	.option input {
 		margin: 0.2rem 0 0;
-		accent-color: var(--air);
+		accent-color: var(--form-ink);
 	}
 	.option span {
 		display: grid;
@@ -327,7 +346,48 @@
 		margin-right: auto;
 		align-self: center;
 	}
+	.declaration {
+		display: grid;
+		gap: 0.5rem;
+		padding: 0.875rem 1rem;
+		border: 1px solid var(--rule-strong);
+		background: var(--paper);
+	}
+	.declaration p {
+		max-width: 65ch;
+	}
+	.declaration code {
+		font-size: var(--t-sm);
+		color: var(--form-ink);
+	}
+	.alert-text {
+		color: var(--alert);
+	}
+	.sign {
+		display: grid;
+		justify-items: start;
+		margin-top: 0.25rem;
+	}
+	.signature {
+		min-width: min(16rem, 100%);
+		padding: 0 0.25rem 0.125rem;
+		border-bottom: 1px solid var(--ink);
+		font-family: var(--mono);
+		font-size: var(--t-body);
+	}
 	@media (max-width: 36rem) {
+		.totals {
+			grid-template-columns: repeat(3, 1fr);
+		}
+		.totals div:nth-child(3) {
+			border-right: 0;
+		}
+		.totals div:nth-child(-n + 3) {
+			border-bottom: 1px solid var(--rule);
+		}
+		.totals .issues {
+			grid-column: span 2;
+		}
 		li {
 			grid-template-columns: 1fr auto;
 		}

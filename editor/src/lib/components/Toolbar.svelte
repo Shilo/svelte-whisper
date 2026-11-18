@@ -56,12 +56,12 @@
 		</fieldset>
 
 		<button class="btn" onclick={onnext} aria-label="Next missing" title="Jump to the next untranslated box (Alt+N)">
-			<Icon name="next" size={16} /> <span class="label">Next missing</span>
+			<Icon name="next" size={16} /> <span>Next<span class="label"> missing</span></span>
 		</button>
 
 		<span class="spacer"></span>
 
-		<button class="btn" onclick={onaddkey}><Icon name="plus" size={16} /> <span>Key</span></button>
+		<button class="btn" onclick={onaddkey} aria-label="Add key" title="Add a key"><Icon name="plus" size={16} /> <span class="key-label">Key</span></button>
 	</div>
 
 	<div class="row langs" role="group" aria-label="Languages shown">
@@ -115,8 +115,8 @@
 		gap: 0.375rem;
 	}
 	.search:focus-within {
-		border-color: var(--air);
-		box-shadow: inset 0 0 0 1px var(--air);
+		border-color: var(--focus);
+		box-shadow: inset 0 0 0 1px var(--focus);
 	}
 	.search input {
 		flex: 1;
@@ -169,7 +169,7 @@
 		color: var(--field);
 	}
 	.segmented input:focus-visible + span {
-		outline: 2px solid var(--air);
+		outline: 2px solid var(--focus);
 		outline-offset: -2px;
 	}
 	.langs {
@@ -216,8 +216,8 @@
 		min-width: 1.25rem;
 		padding: 0 0.3rem;
 		border-radius: 1rem;
-		background: var(--alert-wash);
-		color: var(--alert);
+		background: var(--paper-2);
+		color: var(--form-ink);
 		font-size: var(--t-sm);
 		font-weight: 600;
 		text-align: center;
@@ -237,13 +237,27 @@
 		.search kbd {
 			display: none;
 		}
-		.segmented {
-			flex: 1;
+		.row:first-child {
+			flex-wrap: wrap;
 		}
-		.segmented label {
-			flex: 1;
-			text-align: center;
+		.segmented span {
+			padding: 0 0.55rem;
 		}
+		.spacer {
+			display: none;
+		}
+		.row:first-child > .btn:last-child {
+			margin-left: auto;
+		}
+		.key-label {
+			display: none;
+		}
+		.langs {
+			flex-wrap: wrap;
+			overflow: visible;
+		}
+	}
+	@media (max-width: 24.5rem) {
 		.label {
 			display: none;
 		}

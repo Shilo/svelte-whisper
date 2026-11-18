@@ -19,6 +19,22 @@
 	let rows = $derived(keys.slice(0, limit));
 	/** @type {HTMLElement | undefined} */ let sentinel = $state();
 	/** @type {HTMLElement | undefined} */ let root = $state();
+	let moreRight = $state(false);
+
+	// Show an edge cue while columns are hidden to the right.
+	$effect(() => {
+		const el = root;
+		if (!el) return;
+		const check = () => (moreRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+		check();
+		const ro = new ResizeObserver(check);
+		ro.observe(el);
+		el.addEventListener('scroll', check, { passive: true });
+		return () => {
+			ro.disconnect();
+			el.removeEventListener('scroll', check);
+		};
+	});
 
 	// A new filter starts at the top with a fresh page.
 	$effect(() => {
@@ -103,6 +119,7 @@
 	}
 </script>
 
+<div class="wrap" class:more-right={moreRight}>
 <div class="scroller" bind:this={root} style:--n={langs.length}>
 	<table>
 		<thead>
@@ -183,8 +200,32 @@
 		<div class="more" bind:this={sentinel}>Showing {rows.length} of {keys.length} keys…</div>
 	{/if}
 </div>
+</div>
 
 <style>
+	.wrap {
+		position: relative;
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	.wrap::after {
+		content: '';
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: 1.5rem;
+		background: linear-gradient(to left, oklch(0.2 0.02 170 / 0.14), transparent);
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 160ms var(--ease);
+		z-index: 4;
+	}
+	.wrap.more-right::after {
+		opacity: 1;
+	}
 	.scroller {
 		overflow: auto;
 		flex: 1;
@@ -197,7 +238,7 @@
 		border-spacing: 0;
 		min-width: 100%;
 		table-layout: fixed;
-		width: max(100%, calc(16rem + var(--n) * 17rem));
+		width: max(100%, calc(15rem + var(--n) * 13rem));
 	}
 	th,
 	td {
@@ -249,7 +290,7 @@
 		position: sticky;
 		left: 0;
 		z-index: 1;
-		width: 16rem;
+		width: 15rem;
 		background: var(--paper);
 		border-right-color: var(--rule-strong);
 	}
@@ -338,7 +379,7 @@
 	}
 	textarea:focus {
 		outline: none;
-		box-shadow: inset 0 0 0 2px var(--air);
+		box-shadow: inset 0 0 0 2px var(--focus);
 		background: var(--field);
 	}
 	textarea:disabled {
@@ -464,6 +505,23 @@
 		}
 		td.missing textarea {
 			background-position: left 0.75rem bottom 0.55rem;
+		}
+		/* The source text reads as the printed reference under the key, not as another box. */
+		td.src {
+			background: var(--paper-2);
+			border-bottom-color: var(--rule-strong);
+		}
+		td.src .cell-lang {
+			display: none;
+		}
+		td.src textarea {
+			min-height: 0;
+			padding-top: 0.125rem;
+			padding-bottom: 0.5rem;
+			color: var(--ink-2);
+		}
+		td.src textarea:focus {
+			color: var(--ink);
 		}
 	}
 </style>
