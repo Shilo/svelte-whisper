@@ -5,8 +5,6 @@
     "hero": {
         "speaks": "Cette page parle maintenant {language}.",
         "lede": "Chaque langue vit dans son propre petit fichier. Choisissez-en une ci-dessus : seul ce fichier est téléchargé, une seule fois, et chaque ligne change au même instant.",
-        "saved": "Votre choix est enregistré dans localStorage.",
-        "unsaved": "Rien n’est encore enregistré. La langue vient des réglages de votre navigateur ou de la valeur par défaut.",
         "forget": "Oublier mon choix"
     },
     "log": {

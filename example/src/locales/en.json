@@ -5,8 +5,6 @@
     "hero": {
         "speaks": "This page now speaks {language}.",
         "lede": "Each language lives in its own small file. Pick one above: only that file is downloaded, only once, and every line changes in the same moment.",
-        "saved": "Your choice is saved in localStorage.",
-        "unsaved": "Nothing saved yet. The language came from your browser settings or the default.",
         "forget": "Forget my choice"
     },
     "log": {

@@ -13,7 +13,9 @@ Read `src/` as documentation: it is the recommended setup, kept small on purpose
   used and no new row appears.
 - **Instant switching.** A language switcher built from `getLocales()` and `localeName()`.
   Text, numbers, dates, `<html lang>` and `dir` all change together. Arabic mirrors the layout.
-- **Persistence.** The choice is saved under `persistKey`; *Forget my choice* calls `resetLocale()`.
+- **Persistence.** `init()` is given a `persistKey`, so `setLocale()` remembers the choice and the next visit starts with it.
+  *Forget my choice* calls `resetLocale()`, which drops it and picks again from the browser's languages.
+  The app never touches the storage itself.
 - **Interpolation.** Named (`{user}`) and indexed (`{0}`) placeholders, driven by a live input.
 - **Plurals.** A counter that walks through each language's plural categories (Arabic has six).
 - **Formatting.** `formatNumber` for numbers, currency and percentages, and `formatDate`, bound to the active locale.

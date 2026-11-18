@@ -9,35 +9,14 @@
     import Sign from './lib/Sign.svelte';
     import Pictogram from './lib/Pictogram.svelte';
 
-    const PERSIST_KEY = 'whisper-demo-locale'; // the same key passed to init() in main.js
     const today = new Date();
 
     let user = $state('Ada');
     let count = $state(1);
-    let saved = $state(readSaved());
 
     $effect(() => {
         document.title = t('meta.title');
     });
-
-    function readSaved() {
-        try {
-            return localStorage.getItem(PERSIST_KEY);
-        } catch {
-            return null;
-        }
-    }
-
-    /** @param {string} id */
-    async function choose(id) {
-        await setLocale(id); // remembered, because init() was given a persistKey
-        saved = readSaved();
-    }
-
-    async function forget() {
-        await resetLocale(); // clears the saved choice and picks again, like init() did
-        saved = readSaved();
-    }
 
     // The dictionary entry a count lands on: an exact "0", else the Intl plural category.
     const pluralKey = $derived(count === 0 ? '0' : new Intl.PluralRules(getLocale()).select(count));
@@ -46,7 +25,8 @@
 <header class="band">
     <p class="wordmark"><Pictogram name="mark" /> svelte-whisper</p>
     <nav aria-label={t('nav.languages')}>
-        <LanguageGates onchoose={choose} />
+        <!-- setLocale() remembers the choice, because init() was given a persistKey. -->
+        <LanguageGates onchoose={setLocale} />
     </nav>
     <p class="size" dir="ltr">{t('nav.size', { size: formatNumber(1.6) })}</p>
 </header>
@@ -59,11 +39,9 @@
                 <span class="speaks">{t('hero.speaks', { language: localeName(getLocale()) })}</span>
             </h1>
             <p class="lede">{t('hero.lede')}</p>
-            <div class="saved">
-                <p>{saved ? t('hero.saved') : t('hero.unsaved')}</p>
-                {#if saved}
-                    <button class="button" onclick={forget}>{t('hero.forget')}</button>
-                {/if}
+            <div class="reset">
+                <!-- resetLocale() forgets the saved choice and picks again from the browser's languages. -->
+                <button class="button" onclick={resetLocale}>{t('hero.forget')}</button>
             </div>
         </section>
         <DownloadBoard />
@@ -223,18 +201,10 @@
         line-height: 1.55;
         text-wrap: pretty;
     }
-    .saved {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.75rem 1rem;
+    .reset {
         margin-top: 1.75rem;
         padding-top: 1rem;
         border-top: 1px solid var(--rule);
-    }
-    .saved p {
-        margin: 0;
-        font-size: 0.9375rem;
     }
 
     .signs {
