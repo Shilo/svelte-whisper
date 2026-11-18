@@ -78,8 +78,8 @@ export function registerLoader(locale, loader) {
 export function loadLocale(locale) {
     if (dictionaries[locale]) return Promise.resolve(true);
     return pending[locale] ??= (async () => {
-        let dict;
         try {
+            let dict;
             if (loaders[locale]) {
                 dict = await loaders[locale]();
                 // Unwrap `import('./fr.json')` and `{ default: dict }`, but not a dictionary
@@ -92,13 +92,16 @@ export function loadLocale(locale) {
                 const response = await fetch(`${base}locales/${locale}.json`);
                 if (response.ok) dict = await response.json();
             }
+            if (dict && typeof dict === 'object') {
+                addDictionary(locale, dict);
+                return true;
+            }
         } catch (error) {
             console.error(`svelte-whisper: Failed to load locale "${locale}"`, error);
         }
-        delete pending[locale];
-        if (dict) addDictionary(locale, dict);
-        return !!dict;
-    })();
+        return false;
+        // Cleared once settled, so a failed load can be retried.
+    })().finally(() => { delete pending[locale]; });
 }
 
 // --- Locale ---
@@ -197,7 +200,8 @@ function translate(key, vars) {
         }
     }
     if (vars == null) return value;
-    if (typeof value === 'object' && typeof vars.count === 'number') {
+    // A plural group is an object with an `other` form; arrays and strings have none.
+    if (typeof vars.count === 'number' && value.other !== undefined) {
         // Plural categories belong to the language the text is written in, which may be the fallback.
         value = value[vars.count] ?? value[intl('PluralRules', undefined, source).select(vars.count)] ?? value.other;
     }
@@ -223,8 +227,11 @@ function flatten(node, prefix, out) {
     for (const key in node) {
         const value = node[key];
         if (value == null) continue; // a null in JSON reads as "not translated yet"
-        out[prefix + key] = value;
-        if (typeof value === 'object') flatten(value, prefix + key + '.', out);
+        const path = prefix + key;
+        const group = typeof value === 'object';
+        // Groups are merged, so adding one plural form keeps the others.
+        out[path] = group && !Array.isArray(value) ? { ...out[path], ...value } : value;
+        if (group) flatten(value, path + '.', out);
     }
 }
 
@@ -271,7 +278,7 @@ function refresh() {
 function change(next, persist) {
     const id = ++request;
     if (dictionaries[next]) return Promise.resolve(apply(next, persist));
-    return loadLocale(next).then(ok => ok && (id === request ? apply(next, persist) : undefined));
+    return loadLocale(next).then(ok => id === request ? ok && apply(next, persist) : undefined);
 }
 
 function apply(next, persist) {
@@ -284,7 +291,8 @@ function apply(next, persist) {
             root.dir = RTL.test(next) ? 'rtl' : 'ltr';
         }
         refresh();
-        for (const fn of localeSubscribers) fn(next);
+        // `current`, not `next`: a subscriber may switch again while this loop runs.
+        for (const fn of localeSubscribers) fn(current);
     }
     return true;
 }

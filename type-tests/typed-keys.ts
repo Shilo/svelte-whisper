@@ -7,11 +7,21 @@ import {
 } from 'svelte-whisper';
 import type en from './en.json';
 
+// Optional groups and readonly arrays must still expose their paths.
+interface Extra {
+    optional?: { label: string; list?: readonly string[] };
+}
+
 declare module 'svelte-whisper' {
     interface Register {
-        dictionary: typeof en;
+        dictionary: typeof en & Extra;
     }
 }
+
+tr('optional.label');
+tr('optional.list.0');
+// @ts-expect-error an optional group is still not a message
+tr('optional');
 
 // Registered keys: leaves, branches (for plurals and arrays) and array indexes.
 tr('greeting', { name: 'Ada' });

@@ -67,7 +67,7 @@ export function main(argv, cwd = process.cwd()) {
 // --- Commands ---
 
 function check(project, flags) {
-    const source = flatten(readJson(project.sourceFile));
+    const source = flatten(readLocale(project.sourceFile));
     const report = { source: project.source, keys: source.size, locales: {} };
     let failed = false;
 
@@ -123,7 +123,7 @@ function diff(project, flags) {
         before = flatten(JSON.parse(git('show', `${flags.since}:${path}`)));
     } catch { /* the source file did not exist at that ref: every key is new */ }
 
-    const now = flatten(readJson(project.sourceFile));
+    const now = flatten(readLocale(project.sourceFile));
     const report = { since: flags.since, added: [], changed: [], removed: [] };
     for (const [key, value] of now) {
         if (!before.has(key)) report.added.push(key);
@@ -143,16 +143,25 @@ function apply(project, flags, [id, file]) {
     if (!id) throw new UsageError('apply needs a locale: svelte-whisper apply fr translations.json');
     if (id === project.source) throw new UsageError(`"${id}" is the source locale; edit ${basename(project.sourceFile)} directly.`);
     const input = file ? readFileSync(join(project.cwd, file), 'utf8') : readFileSync(0, 'utf8');
-    const result = write(project, id, flatten(JSON.parse(input)));
-    return summary(flags, { [id]: result });
+    let incoming;
+    try {
+        incoming = flatten(dictionary(JSON.parse(input), file || 'stdin'));
+    } catch (error) {
+        throw error instanceof UsageError ? error : new UsageError(`${file || 'stdin'}: ${error.message}`);
+    }
+    return summary(flags, { [id]: write(project, id, incoming) });
 }
 
 function sync(project, flags) {
-    return summary(flags, Object.fromEntries(targets(project).map(id => [id, write(project, id, new Map())])));
+    const ids = targets(project);
+    // Read everything first: an unreadable file must stop the run before anything is rewritten.
+    flatten(readLocale(project.sourceFile));
+    for (const id of ids) localeEntries(project, id);
+    return summary(flags, Object.fromEntries(ids.map(id => [id, write(project, id, new Map())])));
 }
 
 function keys(project, flags) {
-    const entries = flatten(readJson(project.sourceFile));
+    const entries = flatten(readLocale(project.sourceFile));
     if (flags.json) return { code: 0, out: JSON.stringify(Object.fromEntries(entries), null, 2) };
     return { code: 0, out: [...entries].map(([key, value]) => `${key}\t${text(value)}`).join('\n') };
 }
@@ -164,7 +173,7 @@ function keys(project, flags) {
 // instead of silently shipping source text.
 function write(project, id, incoming) {
     const sourceText = readFileSync(project.sourceFile, 'utf8');
-    const sourceJson = JSON.parse(sourceText);
+    const sourceJson = readLocale(project.sourceFile);
     const source = flatten(sourceJson);
     const existing = localeEntries(project, id);
     const terms = glossary(project, id);
@@ -201,21 +210,36 @@ export function flatten(node, prefix = '', out = new Map()) {
     for (const [key, value] of Object.entries(node)) {
         const path = prefix + key;
         if (value == null) continue;
-        if (typeof value === 'object' && !isPlural(value)) flatten(value, path + '.', out);
-        else out.set(path, value);
+        if (isGroup(value)) {
+            flatten(value, path + '.', out);
+            continue;
+        }
+        // { "a": { "b": … }, "a.b": … } names one message twice; rewriting it would lose one of them.
+        if (out.has(path)) throw new UsageError(`"${path}" is defined twice, once nested and once as a dotted key. Keep one.`);
+        out.set(path, value);
     }
     return out;
 }
 
+// Something to descend into. Plural objects and empty arrays or objects are values in their own right.
+function isGroup(value) {
+    return typeof value === 'object' && !isPlural(value) && Object.keys(value).length > 0;
+}
+
 // A copy of the source's shape holding the target's values; keys without a value are left out.
 function rebuild(node, prefix, valueOf) {
-    const out = Array.isArray(node) ? [] : {};
+    // No prototype, so a key named "__proto__" is written as an ordinary property.
+    const out = Array.isArray(node) ? [] : Object.create(null);
     for (const [key, value] of Object.entries(node)) {
         const path = prefix + key;
-        const next = value && typeof value === 'object' && !isPlural(value)
-            ? rebuild(value, path + '.', valueOf)
-            : valueOf(path);
-        if (next !== undefined && (typeof next !== 'object' || Object.keys(next).length)) out[key] = next;
+        if (value == null) continue;
+        if (isGroup(value)) {
+            const group = rebuild(value, path + '.', valueOf);
+            if (Object.keys(group).length) out[key] = group;
+        } else {
+            const leaf = valueOf(path);
+            if (leaf !== undefined) out[key] = leaf;
+        }
     }
     return out;
 }
@@ -227,15 +251,33 @@ function isPlural(value) {
 const text = value => typeof value === 'string' ? value : JSON.stringify(value);
 const same = (a, b) => text(a) === text(b);
 const hasWords = value => /\p{L}{2}/u.test(text(value).replace(/\{[^{}]*\}/g, ''));
-const placeholders = value => [...new Set(text(value).match(/\{[^{}"]*\}/g) || [])].sort();
+// Named placeholders may repeat; each automatic `{}` is a separate argument, so they are numbered.
+function placeholders(value) {
+    let auto = 0;
+    const found = (text(value).match(/\{[^{}"]*\}/g) || []).map(p => p.slice(1, -1).trim() ? p : `{#${++auto}}`);
+    return [...new Set(found)].sort();
+}
 
 function localeEntries(project, id) {
     const file = join(project.dir, id + '.json');
-    return existsSync(file) ? flatten(readJson(file)) : new Map();
+    return existsSync(file) ? flatten(readLocale(file)) : new Map();
 }
 
 function glossary(project, id) {
-    return flatten(readJson(join(project.dir, 'glossary', id + '.json'), {}));
+    const file = join(project.dir, 'glossary', id + '.json');
+    return existsSync(file) ? flatten(readLocale(file)) : new Map();
+}
+
+function readLocale(file) {
+    return dictionary(readJson(file), file);
+}
+
+// A locale file must be a JSON object. Anything else would read as "no keys" and wipe the targets.
+function dictionary(value, name) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new UsageError(`${name}: a locale file must contain a JSON object.`);
+    }
+    return value;
 }
 
 function usage(project, dir, source) {

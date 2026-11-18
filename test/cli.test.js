@@ -223,3 +223,59 @@ describe('cli', () => {
         );
     });
 });
+
+describe('damage limits', () => {
+    test('a locale file that is not a JSON object stops the run before anything is written', t => {
+        const p = project({ 'src/locales/en.json': '"oops"', 'src/locales/fr.json': { hello: 'Bonjour' } }, t);
+        assert.throws(() => p.run('sync'), /must contain a JSON object/);
+        assert.throws(() => p.run('check'), /must contain a JSON object/);
+        assert.deepEqual(JSON.parse(p.read('src/locales/fr.json')), { hello: 'Bonjour' });
+
+        const q = project({
+            'src/locales/en.json': { a: 'A' },
+            'src/locales/de.json': { a: 'Ä', old: 'Alt' },
+            'src/locales/fr.json': '[1, 2]',
+            'bad.json': '"text"',
+        }, t);
+        assert.throws(() => q.run('sync'), /fr\.json: a locale file must contain a JSON object/);
+        assert.deepEqual(JSON.parse(q.read('src/locales/de.json')), { a: 'Ä', old: 'Alt' }, 'de was not rewritten');
+        assert.throws(() => q.run('apply', 'de', 'bad.json'), /must contain a JSON object/);
+    });
+
+    test('keys named __proto__ survive a rewrite', t => {
+        const p = project({
+            'src/locales/en.json': '{"__proto__":{"title":"Title"},"ok":"OK"}',
+            'src/locales/fr.json': '{"ok":"Bien","__proto__":{"title":"Titre"}}',
+        }, t);
+        assert.equal(p.json('sync').fr.kept, 2);
+        assert.equal(p.read('src/locales/fr.json').replace(/\s/g, ''), '{"__proto__":{"title":"Titre"},"ok":"Bien"}');
+    });
+
+    test('a message defined both nested and as a dotted key is refused, not merged', t => {
+        const p = project({
+            'src/locales/en.json': { a: { b: 'Nested' }, 'a.b': 'Literal' },
+            'src/locales/fr.json': { a: { b: 'Imbriqué' }, 'a.b': 'Littéral' },
+        }, t);
+        assert.throws(() => p.run('sync'), /"a\.b" is defined twice/);
+        assert.deepEqual(JSON.parse(p.read('src/locales/fr.json')), { a: { b: 'Imbriqué' }, 'a.b': 'Littéral' });
+    });
+
+    test('literal dotted keys and empty arrays are kept as they are', t => {
+        const p = project({
+            'src/locales/en.json': { 'errors.network': 'Offline', items: [], nav: { home: 'Home' } },
+            'src/locales/fr.json': { nav: { home: 'Accueil' }, items: [], 'errors.network': 'Hors ligne' },
+        }, t);
+        assert.equal(p.run('check').code, 0);
+        p.run('sync');
+        assert.equal(p.read('src/locales/fr.json'), JSON.stringify({ 'errors.network': 'Hors ligne', items: [], nav: { home: 'Accueil' } }, null, 4) + '\n');
+    });
+
+    test('each automatic {} placeholder counts', t => {
+        const p = project({
+            'src/locales/en.json': { pair: '{} and {}', twice: '{name} is {name}' },
+            'src/locales/fr.json': { pair: '{} seulement', twice: '{name}' },
+        }, t);
+        const { fr } = p.json('check').locales;
+        assert.deepEqual(fr.placeholders.map(entry => entry.key), ['pair']);
+    });
+});

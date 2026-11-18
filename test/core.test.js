@@ -748,3 +748,78 @@ describe('formatting', () => {
         assert.equal(typeof w.formatDate(0), 'string');
     });
 });
+
+describe('regressions', () => {
+    test('a superseded init whose load then fails does not replace the newer locale', async () => {
+        const w = await load();
+        w.addDictionary('en', {});
+        w.addDictionary('fr', {});
+        const slow = deferred();
+        w.registerLoader('de', () => slow.promise);
+        const starting = w.init({ initial: 'de', detect: false, warn: false });
+        await w.setLocale('fr');
+        slow.resolve(null);
+        await starting;
+        assert.equal(w.getLocale(), 'fr');
+    });
+
+    test('a load that fails without awaiting anything can be retried', async () => {
+        const w = await load();
+        w.registerLoader('en', async () => ({}));
+        assert.equal(await w.loadLocale('fr'), false);
+        w.registerLoader('fr', async () => ({ hello: 'Bonjour' }));
+        assert.equal(await w.loadLocale('fr'), true);
+
+        let calls = 0;
+        w.registerLoader('ja', () => {
+            if (!calls++) throw new Error('sync failure');
+            return Promise.resolve({ hello: 'こんにちは' });
+        });
+        await captureConsole('error', async () => assert.equal(await w.loadLocale('ja'), false));
+        assert.equal(await w.loadLocale('ja'), true);
+    });
+
+    test('a loader result that is not a dictionary is refused, without rejecting', async () => {
+        const w = await load();
+        w.addDictionary('en', { hello: 'Hello' });
+        await w.init({ detect: false, warn: false });
+        w.registerLoader('text', async () => 'not a dictionary');
+        const cyclic = {};
+        cyclic.self = cyclic;
+        w.registerLoader('loop', async () => cyclic);
+        assert.equal(await w.setLocale('text'), false);
+        await captureConsole('error', async () => assert.equal(await w.setLocale('loop'), false));
+        assert.equal(w.getLocale(), 'en');
+        assert.equal(w.tr('0'), '0');
+    });
+
+    test('adding one plural form keeps the others', async () => {
+        const w = await load();
+        w.addDictionary('en', { items: { one: 'One', other: 'Many' } });
+        await w.init({ detect: false, warn: false });
+        w.addDictionary('en', { items: { one: 'Single' } });
+        assert.equal(w.tr('items', { count: 1 }), 'Single');
+        assert.equal(w.tr('items', { count: 2 }), 'Many');
+    });
+
+    test('an array stays an array when vars carry a count', async () => {
+        const w = await load();
+        w.addDictionary('en', { rules: ['A', 'B'], group: { a: 'A' } });
+        await w.init({ detect: false, warn: false });
+        assert.deepEqual(w.tr('rules', { count: 1 }), ['A', 'B']);
+        assert.deepEqual(w.tr('group', { count: 1 }), { a: 'A' });
+    });
+
+    test('a subscriber that switches locale leaves every subscriber on the final locale', async () => {
+        const w = await load();
+        w.addDictionary('en', {});
+        w.addDictionary('fr', {});
+        await w.init({ detect: false });
+        const seen = [];
+        w.locale.subscribe(id => { if (id === 'fr') w.setLocale('en'); });
+        w.locale.subscribe(id => seen.push(id));
+        await w.setLocale('fr');
+        assert.equal(w.getLocale(), 'en');
+        assert.equal(seen.at(-1), 'en');
+    });
+});

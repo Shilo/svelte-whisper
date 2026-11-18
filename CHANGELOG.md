@@ -45,7 +45,7 @@ A rewrite of the core with the same everyday API. Most apps upgrade without code
 - **Unknown locales are not fetched once loaders exist.** The zero-config request for `/locales/{locale}.json` now applies only when no loader has been registered. If you mix loaders with fetched files, register a loader for those files as well.
 - **The zero-config request honours Vite's `base`.** It was always `/locales/…`; it is now `{base}locales/…`.
 - **`null` interpolation values** leave the placeholder in place, as `undefined` already did, instead of printing `null`.
-- **`{count}` plural selection** applies when a value is an object and `vars.count` is a number. A dictionary that stored objects under a key and called it with a numeric `count` will now receive one member.
+- **`{count}` plural selection** applies when a value is an object with an `other` form and `vars.count` is a number. A dictionary that stored such an object under a key and called it with a numeric `count` will now receive one member.
 - **`init({ detect: { ja: 'jp' } })`** selects the mapped locale only if it can be loaded, like any other candidate.
 - **Loader results** are unwrapped only when they are an ES module or an object whose single key is `default`. A dictionary that has a `default` group next to other keys is now used as written.
 - The `svelte-whisper/dev-overlay` export is gone; the overlay is internal. Its bridge changed from `mount({ subscribe, getKeys, clear })` to `mount({ keys, listen, clear })`.

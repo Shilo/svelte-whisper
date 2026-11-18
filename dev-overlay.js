@@ -290,14 +290,16 @@ export function mount({ keys, listen, clear }) {
 
     function copySkeleton() {
         const locales = filter ? [filter] : [...groups.keys()];
-        const tree = {};
+        // No prototype: a key such as "__proto__.x" or "constructor" must stay plain data.
+        const blank = () => Object.create(null);
+        const tree = blank();
         for (const { locale, key } of entries) {
             if (!locales.includes(locale)) continue;
-            let node = locales.length > 1 ? (tree[locale] ??= {}) : tree;
+            let node = locales.length > 1 ? (tree[locale] ??= blank()) : tree;
             const parts = key.split('.');
             const last = parts.pop();
-            for (const part of parts) node = node[part] = typeof node[part] === 'object' ? node[part] : {};
-            if (!(last in node)) node[last] = '';
+            for (const part of parts) node = node[part] = typeof node[part] === 'object' ? node[part] : blank();
+            node[last] ??= '';
         }
         const count = entries.filter(entry => locales.includes(entry.locale)).length;
         copy(JSON.stringify(tree, null, 4), `Copied ${count} key${count === 1 ? '' : 's'} as JSON`);

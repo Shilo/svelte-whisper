@@ -4,7 +4,7 @@ import { build } from 'esbuild';
 import { gzipSync, brotliCompressSync } from 'node:zlib';
 
 // Gzipped bytes. Raise deliberately, never by accident.
-const BUDGET = { typical: 1700, everything: 1900 };
+const BUDGET = { typical: 1750, everything: 1950 };
 
 const entries = {
     // What a typical app imports. Everything else is tree-shaken away.

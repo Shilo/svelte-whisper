@@ -377,8 +377,8 @@ Measured with `npm run size` (esbuild, minified, production build):
 
 | Imports | Minified | Gzip | Brotli |
 |---|---|---|---|
-| Typical app: `init`, `t`, `tr`, `locale`, `registerLoader`, `addDictionary` | 3.2 kB | 1.7 kB | 1.5 kB |
-| Every export | 3.8 kB | 1.9 kB | 1.7 kB |
+| Typical app: `init`, `t`, `tr`, `locale`, `registerLoader`, `addDictionary` | 3.3 kB | 1.7 kB | 1.6 kB |
+| Every export | 3.9 kB | 1.9 kB | 1.8 kB |
 
 The only import is `createSubscriber` from `svelte/reactivity`, which Svelte's own runtime already includes. A size budget is enforced in CI.
 
