@@ -1,17 +1,17 @@
 <script>
 	import { onMount, untrack, tick } from 'svelte';
-	import { auth, config, saveConfig } from '#lib/session.svelte.js';
-	import { signOut } from '#lib/auth.js';
-	import { getRepo, listLocaleFiles, readFile, submit } from '#lib/github.js';
-	import { LocaleDoc } from '#lib/doc.svelte.js';
-	import { notify } from '#lib/toast.svelte.js';
-	import { languageName } from '#lib/lang.js';
-	import AppBar from '#lib/components/AppBar.svelte';
-	import SignIn from '#lib/components/SignIn.svelte';
-	import ConnectForm from '#lib/components/ConnectForm.svelte';
-	import Dialog from '#lib/components/Dialog.svelte';
-	import Toast from '#lib/components/Toast.svelte';
-	import Icon from '#lib/components/Icon.svelte';
+	import { auth, config, saveConfig } from './lib/session.svelte.js';
+	import { signOut } from './lib/auth.js';
+	import { getRepo, listLocaleFiles, readFile, submit } from './lib/github.js';
+	import { LocaleDoc } from './lib/doc.svelte.js';
+	import { notify } from './lib/toast.svelte.js';
+	import { languageName } from './lib/lang.js';
+	import AppBar from './lib/components/AppBar.svelte';
+	import SignIn from './lib/components/SignIn.svelte';
+	import ConnectForm from './lib/components/ConnectForm.svelte';
+	import Dialog from './lib/components/Dialog.svelte';
+	import Toast from './lib/components/Toast.svelte';
+	import Icon from './lib/components/Icon.svelte';
 
 	/** @type {'boot' | 'start' | 'connect' | 'loading' | 'editor'} */
 	let view = $state('boot');
@@ -30,11 +30,11 @@
 	/** @type {string[]} */
 	let hidden = $state([]);
 	let refresh = $state(0);
-	/** @type {typeof import('#lib/components/editor.js') | null} */
+	/** @type {typeof import('./lib/components/editor.js') | null} */
 	let ui = $state.raw(null);
 	/** @type {Promise<unknown> | null} */
 	let uiLoading = null;
-	const loadUI = () => (uiLoading ??= import('#lib/components/editor.js').then((m) => (ui = m)));
+	const loadUI = () => (uiLoading ??= import('./lib/components/editor.js').then((m) => (ui = m)));
 	/** @type {{ focusCell: (key: string, lang: string) => Promise<boolean> } | undefined} */
 	let grid = $state();
 	/** @type {HTMLInputElement | undefined} */
@@ -80,7 +80,7 @@
 	});
 
 	// ── Loading ───────────────────────────────────────────────────────
-	/** @param {import('#lib/doc.svelte.js').SourceFile[]} files */
+	/** @param {import('./lib/doc.svelte.js').SourceFile[]} files */
 	async function open(files) {
 		await loadUI();
 		const d = new LocaleDoc(files, config.dir, config.source);
@@ -129,7 +129,7 @@
 	async function openDemo(large = false) {
 		view = 'loading';
 		demo = true;
-		const { demoFiles, largeDemoFiles } = await import('#lib/demo.js');
+		const { demoFiles, largeDemoFiles } = await import('./lib/demo.js');
 		canPush = true;
 		mode = 'pr';
 		await open(large ? largeDemoFiles() : demoFiles);
@@ -291,7 +291,7 @@
 	}
 
 	// ── Sending ───────────────────────────────────────────────────────
-	/** @param {{ mode: 'pr' | 'commit', title: string, body: string, files: import('#lib/doc.svelte.js').OutFile[] }} o */
+	/** @param {{ mode: 'pr' | 'commit', title: string, body: string, files: import('./lib/doc.svelte.js').OutFile[] }} o */
 	async function send(o) {
 		if (!doc) return;
 		sending = true;

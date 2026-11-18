@@ -1,8 +1,18 @@
 {
-	"extends": "$app/tsconfig",
-	"include": ["src"],
 	"compilerOptions": {
+		"target": "esnext",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"lib": ["esnext", "DOM", "DOM.Iterable"],
+		"types": ["vite/client"],
+		"allowJs": true,
+		"checkJs": true,
+		"noEmit": true,
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true,
+		"skipLibCheck": true,
 		"strict": false,
 		"sourceMap": true
-	}
+	},
+	"include": ["src/**/*.js", "src/**/*.svelte", "vite.config.js", "svelte.config.js"]
 }
