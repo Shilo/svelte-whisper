@@ -88,7 +88,7 @@ export function setupI18n() {
 </select>
 ```
 
-- `t('key', vars)` everywhere: markup, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive, so whatever called it updates when the locale changes.
+- `t('key', vars)` everywhere: markup, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive: markup, `$derived` and `$effect` that call it, directly or through a function, run again when the locale changes. A value computed once at the top level of a module does not.
 - Placeholders: named `{name}` with an object, indexed `{0}` with an array.
 - Plurals: an object value keyed by plural category, selected by a numeric `count`.
 - `formatNumber` and `formatDate` follow the active locale and update on a switch. A percentage is `formatPercent(value, precision?)`.

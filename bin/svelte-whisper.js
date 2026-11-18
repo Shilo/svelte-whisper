@@ -143,7 +143,7 @@ function diff(project, flags) {
     const path = relative(root, realpathSync(project.sourceFile)).replaceAll('\\', '/');
     let before = new Map();
     try {
-        before = flatten(JSON.parse(git('show', `${flags.since}:${path}`)));
+        before = flatten(JSON.parse(git('show', `${flags.since}:${path}`).replace(/^﻿/, '')));
     } catch { /* the source file did not exist at that commit: every key is new */ }
 
     const now = flatten(readLocale(project.sourceFile));
@@ -315,26 +315,37 @@ function usage(project, dir, source) {
     const call = /(?<![\w$.])\$?t\(\s*(?:'([^'\n]*)'|"([^"\n]*)"|`([^`\n]*)`)(\s*\+)?/g;
     const literal = /'([^'\n]+)'|"([^"\n]+)"|`([^`\n]+)`/g;
 
+    // One form of a plural, asked for by name: `t('items.one')`.
+    const pluralOf = key => {
+        const dot = key.lastIndexOf('.'), group = source.get(key.slice(0, dot));
+        return dot > 0 && typeof group === 'object' && Object.hasOwn(group, key.slice(dot + 1)) ? key.slice(0, dot) : undefined;
+    };
+
     for (const file of statSync(dir).isDirectory() ? walk(dir) : [dir]) {
-        readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
-            // Keys are often kept in data (`{ label: 'nav.home' }`) and translated elsewhere,
-            // so any string literal that is exactly a source key counts as a use.
-            for (const match of line.matchAll(literal)) {
-                const value = match[1] ?? match[2] ?? match[3];
-                if (source.has(value)) used.add(value);
+        const text = readFileSync(file, 'utf8');
+        // Keys are often kept in data (`{ label: 'nav.home' }`) and translated elsewhere,
+        // so any string literal that is exactly a source key counts as a use.
+        for (const match of text.matchAll(literal)) {
+            const value = match[1] ?? match[2] ?? match[3];
+            if (source.has(value)) used.add(value);
+        }
+        // The whole file at once: a formatter may put the key on the line after `t(`.
+        for (const match of text.matchAll(call)) {
+            const key = match[1] ?? match[2] ?? match[3];
+            if (match[3]?.includes('${')) prefixes.add(key.slice(0, key.indexOf('${')));
+            else if (match[4]) prefixes.add(key);
+            else if (source.has(key)) used.add(key);
+            else if (pluralOf(key)) used.add(pluralOf(key));
+            else if (key) {
+                undefinedKeys.push({
+                    key,
+                    file: relative(project.cwd, file).replaceAll('\\', '/'),
+                    line: text.slice(0, match.index).split('\n').length,
+                });
             }
-            for (const match of line.matchAll(call)) {
-                const key = match[1] ?? match[2] ?? match[3];
-                if (match[3]?.includes('${')) prefixes.add(key.slice(0, key.indexOf('${')));
-                else if (match[4]) prefixes.add(key);
-                else if (sourceKeys.some(k => k === key || k.startsWith(key + '.'))) used.add(key);
-                else if (key) undefinedKeys.push({ key, file: relative(project.cwd, file).replaceAll('\\', '/'), line: index + 1 });
-            }
-        });
+        }
     }
-    const isUsed = key => used.has(key)
-        || [...used].some(u => key.startsWith(u + '.'))
-        || [...prefixes].some(p => key.startsWith(p));
+    const isUsed = key => used.has(key) || [...prefixes].some(p => key.startsWith(p));
     return {
         unused: sourceKeys.filter(key => !isUsed(key)),
         undefined: undefinedKeys,

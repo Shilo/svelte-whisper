@@ -15,7 +15,7 @@ Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on
 
 - **Small.** 1.8 kB gzipped for a typical app, 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
-- **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. Components still written with `export let` or `$:` write `$t()` instead, and get the same thing.
+- **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived` or in `$effect`, directly or through a function in a `.js` module, and the result updates when the language changes. Components still written with `export let` or `$:` write `$t()` instead, and get the same thing.
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
 - **Fast.** A lookup is one signal read and one property read, about 11 ns. See [Size and speed](#size-and-speed).
 
@@ -116,7 +116,7 @@ This is handy for prototypes. The fetched files are not hashed or bundled, so pr
 
 It is reactive in the Svelte sense: markup, `$derived` and `$effect` that call it run again when the locale or a dictionary changes. The same holds when the call is inside a helper in a plain `.js` or `.ts` module, such as a toast or a formatter of your own.
 
-**Keys** are dotted paths into your JSON: `nav.home`. A key that is missing from the active locale is looked up in the fallback locale, and if it is missing there too, the key itself is returned.
+**Keys** are dotted paths into your JSON: `nav.home`. A key that is missing from the active locale is looked up in the fallback locale, and if it is missing there too, the key itself is returned. A fallback that is loaded lazily is downloaded the first time it is needed, so that first key shows as itself until the file arrives.
 
 **Interpolation** replaces placeholders with values:
 
@@ -216,7 +216,7 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
 When every language is bundled, or a failed download is handled elsewhere, the picker is one line: `<select bind:value={getLocale, setLocale}>`. In a [legacy component](#legacy-components), read the locale as `$locale` in either form.
 
 - `getLocale()` is the active locale, and is reactive. `setLocale(id)` switches.
-- Switching downloads the dictionary if needed and only then changes the text, so the page never shows a half-loaded language. The promise resolves `true` once active, or `false` if the download failed or a newer switch won, in which case this call changed nothing.
+- Switching downloads the dictionary if needed and only then changes the text. The promise resolves `true` once active, or `false` if the download failed or a newer switch won.
 - `localeName('ja')` returns `日本語`: every language is listed under its own name, with no translation keys to maintain. `localeName('ja', 'en')` returns `Japanese`.
 - `loadLocale(id)` downloads a locale without switching, for example on hover.
 - `<html lang>` and `dir` are kept in step. Direction comes from the script the browser associates with the locale, so Arabic, Hebrew, Persian, Urdu and the rest are `rtl` without a list of languages.

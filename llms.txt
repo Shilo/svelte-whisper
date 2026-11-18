@@ -41,7 +41,7 @@ mount(App, { target: document.getElementById('app') });
 - Never build a sentence by joining translated fragments. One sentence, one key.
 - Format with `formatNumber(value, intlOptions?, locale?)` and `formatDate(value, intlOptions?, locale?)`; never bare `toLocaleString()` or `toFixed()`. Percentages are `formatPercent(value, precision?, locale?)`. Both follow the active locale and are reactive.
 - `localeName(id)` returns a language's own name (`ja` → `日本語`); do not add translation keys for language names.
-- `getLocale()` reads the active locale (reactive). `setLocale(id)` switches: resolves `true` when active, `false` if the load failed (the locale then stays as it was). `loadLocale(id)` preloads. `resetLocale()` forgets the stored choice.
+- `getLocale()` reads the active locale (reactive). `setLocale(id)` switches: resolves `true` when active, `false` if the load failed or a newer switch won. `loadLocale(id)` preloads. `resetLocale()` forgets the stored choice.
 - `init` chooses the starting locale: stored choice (`persistKey`) → browser language (`detect`, default on) → `initial` → `fallback`. Only explicit `setLocale` calls are stored.
 - The library sets `<html lang>` and `dir`; do not do it by hand.
 - `addDictionary(id, dict)` adds translations already in memory (bundled main language, tests).

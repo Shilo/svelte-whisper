@@ -26,7 +26,7 @@ Requires `svelte@^5.9.0`.
 
 - **Plurals.** A dictionary value that is an object with an `other` form (`one`, `few`, `many`, `other`, or an exact number such as `"0"`) is selected by a numeric `count`, using the browser's `Intl.PluralRules`.
 - **Formatting.** `formatNumber(value, options?, locale?)` accepts every `Intl.NumberFormat` option (currency, percent, compact, units). New `formatDate(value, options?, locale?)` and `localeName(id, displayLocale?)`.
-- **Everything is reactive in runes code.** `t()`, `getLocale()` and the formatters re-run inside markup, `$derived` and `$effect` when the locale or a dictionary changes. In 1.x, `{formatNumber(n)}` kept the old locale's format after a switch. In a legacy component, pass the locale: `formatNumber(n, options, $locale)`.
+- **Everything is reactive in runes code.** `t()`, `getLocale()` and the formatters (unless given a locale of their own) re-run inside markup, `$derived` and `$effect` when the locale or a dictionary changes. In 1.x, `{formatNumber(n)}` kept the old locale's format after a switch. In a legacy component, pass the locale: `formatNumber(n, options, $locale)`.
 - **Glob registration.** `registerLoader(import.meta.glob('./locales/*.json'))` registers every file, using the file name as the locale id.
 - **Lazy fallback.** A fallback locale that is registered with a loader is downloaded the first time a key is missing, then the text updates. In 1.x it was never loaded, so users saw raw keys.
 - `loadLocale(id)` to preload a locale, `getLocale()`, and `detectLocale()`.
@@ -41,7 +41,7 @@ Requires `svelte@^5.9.0`.
 - **`setLocale()` resolves a boolean**, and when several calls overlap the last one wins, whichever download finishes first.
 - **Number and percent output is locale-aware throughout**, including spacing and separators (`20 %` in French).
 - **Unknown locales are not fetched once loaders exist.** The zero-config request for `{base}locales/{locale}.json` applies only while no loader is registered, and it honours Vite's `base`.
-- **Detection** matches by language and script as the browser understands them: `zh-TW` selects `zh-Hant` and never `zh-Hans`, `pt` selects `pt-BR`, `en-GB` prefers a plain `en` and otherwise falls back to `en-US`, and a different language that shares a prefix no longer matches (`fil` no longer selects `fi`).
+- **Detection** matches by language and script as the browser understands them: `zh-TW` selects `zh-Hant` and never `zh-Hans`, `pt` selects `pt-BR`, `en-GB` prefers a plain `en` and otherwise takes another region of English, and a different language that shares a prefix no longer matches (`fil` no longer selects `fi`).
 - **`null` interpolation values** leave the placeholder in place, as `undefined` does.
 - **Loader results** are unwrapped only when they are an ES module (`() => import('./fr.json')`). A loader you write yourself returns the dictionary itself.
 - **`addDictionary`** merges nested groups deeply and `null` values read as "not translated". For a locale that also has a loader, added translations sit on top of the loaded file and the loader still runs; in 1.x an added dictionary stopped the loader from ever running.

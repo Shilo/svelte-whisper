@@ -405,3 +405,37 @@ describe('store-style calls', () => {
         assert.deepEqual(report.dynamic, ['skills.*']);
     });
 });
+
+describe('review round 6', () => {
+    test('a group or list is not a message, and a key on the line after t( is still read', t => {
+        const p = project({
+            'src/locales/en.json': { nav: { home: 'Home' }, rules: ['First'], items: { one: '{count} item', other: '{count} items' } },
+            'src/App.svelte': [
+                "{t('nav')} {t('rules')}",
+                '{t(',
+                "    'missing.key',",
+                '    { name }',
+                ')}',
+                "{t(\n    'nav.home'\n)} {t('rules.0')} {t('items.one')}",
+            ].join('\n'),
+        }, t);
+        const report = p.json('check', '--usage', 'src');
+        assert.deepEqual(report.undefined, [
+            { key: 'nav', file: 'src/App.svelte', line: 1 },
+            { key: 'rules', file: 'src/App.svelte', line: 1 },
+            { key: 'missing.key', file: 'src/App.svelte', line: 2 },
+        ]);
+        assert.deepEqual(report.unused, []);
+        assert.equal(p.run('check', '--usage', 'src').code, 1);
+    });
+
+    test('diff reads a source file that had a byte order mark at the old commit', t => {
+        const p = project({ 'src/locales/en.json': '﻿' + JSON.stringify({ keep: 'Keep', change: 'Old' }) }, t);
+        const git = (...args) => execFileSync('git', args, { cwd: p.cwd, stdio: 'ignore' });
+        git('init', '-q');
+        git('add', '-A');
+        git('-c', 'user.name=test', '-c', 'user.email=test@example.com', 'commit', '-q', '-m', 'first');
+        writeFileSync(join(p.cwd, 'src/locales/en.json'), JSON.stringify({ keep: 'Keep', change: 'New' }));
+        assert.deepEqual(p.json('diff', '--since', 'HEAD'), { since: 'HEAD', added: [], changed: ['change'], removed: [] });
+    });
+});

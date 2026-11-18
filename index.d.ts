@@ -110,7 +110,7 @@ interface Subscribable<T> {
  * Reactive: `{t('key', vars)}` in markup, or inside `$derived` and `$effect`, updates when the
  * locale or a dictionary changes.
  *
- * In a legacy component (one that uses `export let`, `$:` or `$$props`, or has runes switched off),
+ * In a legacy component (one that uses `export let`, `$:`, `$$props` or `$$restProps`, or has runes switched off),
  * Svelte only follows stores, so write `{$t('key', vars)}`: `t` is also a store of itself.
  */
 export const t: Translate & Subscribable<Translate>;
@@ -122,7 +122,7 @@ export const t: Translate & Subscribable<Translate>;
  */
 export const locale: Subscribable<string> & { set: (locale: string) => Promise<boolean> };
 
-/** `Intl.NumberFormat` for the active locale (or `locale`). Reactive. */
+/** `Intl.NumberFormat` for the active locale (or `locale`). Reactive unless `locale` is given. */
 export function formatNumber(
     value: number | bigint,
     options?: Intl.NumberFormatOptions,
@@ -135,7 +135,7 @@ export function formatNumber(
  */
 export function formatPercent(value: number, precision?: number, locale?: string): string;
 
-/** `Intl.DateTimeFormat` for the active locale (or `locale`). Reactive. */
+/** `Intl.DateTimeFormat` for the active locale (or `locale`). Reactive unless `locale` is given. */
 export function formatDate(
     value: Date | number,
     options?: Intl.DateTimeFormatOptions,
