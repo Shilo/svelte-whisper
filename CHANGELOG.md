@@ -13,7 +13,7 @@ A rewrite on Svelte 5 runes. The API is smaller and is not compatible with 1.x: 
 | `locale.set('fr')`, `$locale = 'fr'` | `setLocale('fr')`; in a form control, `bind:value={getLocale, setLocale}` |
 | `formatPercent(0.2, 1)` | `formatNumber(0.2, { style: 'percent', maximumFractionDigits: 1 })` |
 | `getFallbackLocale()` | Removed. You passed the fallback to `init`. |
-| `index.js` importing `svelte/store` | `index.svelte.js`, a runes module with no imports, compiled by your app's Svelte plugin |
+| `index.js` importing `svelte/store` | `index.svelte.js`, a runes module with no dependencies, compiled by your app's Svelte plugin |
 | `svelte-whisper/dev-overlay` export | Removed. The overlay is internal. |
 
 Requires `svelte@^5.9.0`.

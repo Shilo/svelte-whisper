@@ -360,7 +360,7 @@ npx svelte-whisper apply fr new.json   # merge translations, drop stale keys, ke
 npx svelte-whisper sync                # tidy every locale without translating
 ```
 
-`check` exits with an error when a locale is out of step with the source, so it works as a CI gate. It finds the locale folder itself, or reads it from `package.json`:
+`check` exits with an error when a locale is out of step with the source, or when `--usage` finds code using a key that does not exist, so it works as a CI gate. It finds the locale folder itself, or reads it from `package.json`:
 
 ```json
 { "svelte-whisper": { "locales": "src/locales", "source": "en" } }
@@ -401,7 +401,7 @@ Measured with `npm run size` (compiled as an app's Svelte plugin would, minified
 | Typical app: `init`, `t`, `getLocale`, `setLocale`, `registerLoader` | 3.1 kB | 1.6 kB | 1.5 kB |
 | Every export | 3.5 kB | 1.8 kB | 1.6 kB |
 
-The source has no imports at all. A size budget is enforced in CI.
+The module has no dependencies: its only import is its own dev overlay, in dev mode. A size budget is enforced in CI.
 
 Measured with `npm run bench` (Node 25, one core of a desktop CPU, a 600-message dictionary):
 

@@ -8,7 +8,7 @@ In this order: simplicity, runtime speed, bundle size, and as little network tra
 
 - The core is one Svelte runes module, `index.svelte.js`, with a hand-written `index.d.ts`. It is shipped as source and compiled by the consuming app's Svelte plugin; there is no build step of our own, so keep it that way.
 - Runes only, everywhere in this repository: no `svelte/store`, no legacy component syntax, and no SvelteKit. `example/` and `editor/` are plain Vite + Svelte apps with `compilerOptions.runes` switched on.
-- The module has no imports and one `$state` signal. Do not add dependencies, and keep dictionaries as plain non-reactive data.
+- The module imports nothing but its own dev overlay (in dev mode) and has one `$state` signal. Do not add dependencies, and keep dictionaries as plain non-reactive data.
 - This is a 2.0 with no compatibility layer: do not add aliases, deprecated exports or shims for 1.x.
 - Anything not needed at startup must stay lazy: locale files load on demand, and `dev-overlay.js` is requested only by the Vite dev server.
 - `npm run size` enforces a gzip budget. If a change needs more room, raise the budget deliberately in `scripts/size.js` and justify it in the commit message.

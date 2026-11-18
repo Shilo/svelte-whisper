@@ -11,7 +11,7 @@ Run from the app's root, with `svelte-whisper` installed:
 npx svelte-whisper check --usage src
 ```
 
-Add `--json` when you want to process the result. Pass `--dir <folder> --source <id>` if the locales are not found. The command exits 1 when a locale has missing keys, extra keys, placeholder mismatches or ignored glossary terms.
+Add `--json` when you want to process the result. Pass `--dir <folder> --source <id>` if the locales are not found. The command exits 1 when a locale has missing keys, extra keys, placeholder mismatches or ignored glossary terms, or when code uses a key the source locale does not have. Unused keys and identical strings are reported but do not fail it.
 
 ## Reading the report
 

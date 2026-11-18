@@ -24,7 +24,8 @@ Options
 A glossary at <locale folder>/glossary/<locale>.json holds fixed terms in the same shape as a
 locale file. apply and sync write its values over anything else; check fails when one is ignored.
 
-check exits 1 on missing keys, extra keys, placeholder mismatches or ignored glossary terms.`;
+check exits 1 on missing keys, extra keys, placeholder mismatches or ignored glossary terms,
+and with --usage also when code uses a key that the source locale does not have.`;
 
 const PLURAL = /^(zero|one|two|few|many|other|\d+)$/;
 const CODE = new Set(['.svelte', '.js', '.ts', '.mjs', '.jsx', '.tsx']);
@@ -91,7 +92,11 @@ function check(project, flags) {
         report.locales[id] = result;
     }
 
-    if (flags.usage) Object.assign(report, usage(project, join(project.cwd, flags.usage), source));
+    if (flags.usage) {
+        Object.assign(report, usage(project, join(project.cwd, flags.usage), source));
+        // A key the code asks for but no file has is shown to users as a raw key.
+        failed ||= report.undefined.length > 0;
+    }
     if (flags.json) return { code: failed ? 1 : 0, out: JSON.stringify(report, null, 2) };
 
     const lines = [`Source "${report.source}": ${report.keys} keys`];
@@ -101,7 +106,7 @@ function check(project, flags) {
             `${r.placeholders.length} placeholder mismatches, ${r.identical.length} identical to source`);
         list(lines, 'missing', r.missing);
         list(lines, 'extra (not in source)', r.extra);
-        list(lines, 'placeholder mismatch', r.placeholders.map(p => `${p.key}  source {${p.source}} ≠ ${id} {${p[id]}}`));
+        list(lines, 'placeholder mismatch', r.placeholders.map(p => `${p.key}  source ${p.source.join(' ') || 'none'} ≠ ${id} ${p[id].join(' ') || 'none'}`));
         list(lines, 'differs from the glossary', r.glossary);
         list(lines, 'identical to source (untranslated?)', r.identical);
     }
@@ -142,10 +147,10 @@ function diff(project, flags) {
 function apply(project, flags, [id, file]) {
     if (!id) throw new UsageError('apply needs a locale: svelte-whisper apply fr translations.json');
     if (id === project.source) throw new UsageError(`"${id}" is the source locale; edit ${basename(project.sourceFile)} directly.`);
-    const input = file ? readFileSync(join(project.cwd, file), 'utf8') : readFileSync(0, 'utf8');
     let incoming;
     try {
-        incoming = flatten(dictionary(JSON.parse(input), file || 'stdin'));
+        const input = file ? readFileSync(join(project.cwd, file), 'utf8') : readFileSync(0, 'utf8');
+        incoming = flatten(dictionary(JSON.parse(input.replace(/^\uFEFF/, '')), file || 'stdin'));
     } catch (error) {
         throw error instanceof UsageError ? error : new UsageError(`${file || 'stdin'}: ${error.message}`);
     }
@@ -178,6 +183,8 @@ function write(project, id, incoming) {
     const existing = localeEntries(project, id);
     const terms = glossary(project, id);
 
+    // An emptied or truncated source would otherwise erase every translation.
+    if (!source.size) throw new UsageError(`${basename(project.sourceFile)} has no keys, so nothing was rewritten.`);
     const unknown = [...incoming.keys()].filter(key => !source.has(key));
     if (unknown.length) throw new UsageError(`Not in the source locale, so not applied: ${unknown.join(', ')}`);
 
@@ -190,7 +197,10 @@ function write(project, id, incoming) {
     }
     const out = rebuild(sourceJson, '', key => terms.get(key) ?? incoming.get(key) ?? existing.get(key));
     const indent = sourceText.match(/^[ \t]+/m)?.[0] ?? '  ';
-    writeFileSync(join(project.dir, id + '.json'), JSON.stringify(out, null, indent) + '\n');
+    // Keep the line endings the file already has (or the source's, for a new file).
+    const targetFile = join(project.dir, id + '.json');
+    const eol = (existsSync(targetFile) ? readFileSync(targetFile, 'utf8') : sourceText).includes('\r\n') ? '\r\n' : '\n';
+    writeFileSync(targetFile, (JSON.stringify(out, null, indent) + '\n').replaceAll('\n', eol));
     return result;
 }
 
@@ -337,7 +347,7 @@ function detectDir(cwd) {
 function readJson(file, missing) {
     if (missing !== undefined && !existsSync(file)) return missing;
     try {
-        return JSON.parse(readFileSync(file, 'utf8'));
+        return JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); // tolerate a byte order mark
     } catch (error) {
         throw new UsageError(`${file}: ${error.message}`);
     }

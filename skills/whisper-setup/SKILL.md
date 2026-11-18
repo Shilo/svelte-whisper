@@ -10,10 +10,10 @@ svelte-whisper is a runtime i18n library for client-side Svelte 5 apps, built on
 ## 1. Install
 
 ```bash
-npm install svelte-whisper
+npm install github:Shilo/svelte-whisper#v2.0.0
 ```
 
-If the package is not on the npm registry, install a tagged release from GitHub: `npm install github:Shilo/svelte-whisper#v2.0.0`. Requires `svelte@^5.9.0`. The package is a runes module that the app's Svelte plugin compiles; nothing needs configuring.
+The package is distributed from GitHub, not the npm registry. Pin a release tag as above rather than the default branch. Requires `svelte@^5.9.0`. The package is a runes module that the app's Svelte plugin compiles; nothing needs configuring.
 
 ## 2. Create the source locale
 
@@ -56,12 +56,17 @@ mount(App, { target: document.getElementById('app') });
 
 `init` picks the starting locale in this order: the user's stored choice, the browser's language, `initial`, then `fallback`. Awaiting it before `mount` means the first paint is already translated.
 
-To skip the extra request for the main language, bundle it and lazy-load the rest:
+To skip the extra request for the main language, bundle it and lazy-load the rest. The whole of `src/lib/i18n.js` then reads:
 
 ```js
+import { init, addDictionary, registerLoader } from 'svelte-whisper';
 import en from '../locales/en.json';
-addDictionary('en', en);
-registerLoader(import.meta.glob(['../locales/*.json', '!../locales/en.json']));
+
+export function setupI18n() {
+    addDictionary('en', en);
+    registerLoader(import.meta.glob(['../locales/*.json', '!../locales/en.json']));
+    return init({ fallback: 'en', persistKey: 'my-app-locale' });
+}
 ```
 
 ## 4. Translate in components and modules
@@ -125,15 +130,30 @@ npx svelte-whisper check --usage src
 
 ## 7. Apps with a service worker
 
-A PWA plugin's default precache list includes every locale chunk, so installing the app downloads all languages. Exclude the locale chunks from the precache and cache each one the first time it is used instead. Vite names a locale chunk after its file (`assets/fr-3f9a1c2b.js`); confirm the names in `dist/assets` after a build. With `vite-plugin-pwa`:
+A PWA plugin's default precache list includes every locale chunk, so installing the app downloads all languages. Give the locale chunks a folder of their own, keep that folder out of the precache, and cache each file the first time it is used.
+
+In `vite.config.js`, name the chunks (Vite 8; on Vite 7 the option is `rollupOptions`):
+
+```js
+build: {
+    rolldownOptions: {
+        output: {
+            chunkFileNames: chunk =>
+                chunk.facadeModuleId?.includes('/locales/') ? 'assets/locales/[name]-[hash].js' : 'assets/[name]-[hash].js',
+        },
+    },
+},
+```
+
+Then, with `vite-plugin-pwa`:
 
 ```js
 VitePWA({
     workbox: {
-        globIgnores: ['**/assets/{en,fr,ja}-*.js'],
-        runtimeCaching: [{ urlPattern: /\/assets\/(en|fr|ja)-[\w-]+\.js$/, handler: 'CacheFirst' }],
+        globIgnores: ['**/assets/locales/**'],
+        runtimeCaching: [{ urlPattern: /\/assets\/locales\//, handler: 'CacheFirst' }],
     },
 })
 ```
 
-List your own locale ids in both patterns, and extend them when a language is added.
+Build, then confirm that `dist/assets/locales/` holds one file per language and that the generated service worker's precache list contains none of them.

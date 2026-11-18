@@ -279,3 +279,47 @@ describe('damage limits', () => {
         assert.deepEqual(fr.placeholders.map(entry => entry.key), ['pair']);
     });
 });
+
+describe('review round 1', () => {
+    test('code that uses a key no file has fails the check', t => {
+        const p = project({
+            'src/locales/en.json': { hello: 'Hello' },
+            'src/locales/fr.json': { hello: 'Bonjour' },
+            'src/App.svelte': `<p>{t('hello')} {t('nope')}</p>`,
+        }, t);
+        assert.equal(p.run('check').code, 0);
+        assert.equal(p.run('check', '--usage', 'src').code, 1);
+    });
+
+    test('placeholder mismatches are printed without doubled braces', t => {
+        const p = project({
+            'src/locales/en.json': { hello: 'Hello {name}' },
+            'src/locales/fr.json': { hello: 'Bonjour {nom}' },
+        }, t);
+        assert.match(p.run('check').out, /hello {2}source \{name\} ≠ fr \{nom\}/);
+    });
+
+    test('a missing apply input is reported, not thrown as a stack trace', t => {
+        const p = project({ 'src/locales/en.json': { a: 'A' } }, t);
+        assert.throws(() => p.run('apply', 'fr', 'nope.json'), error => error.constructor.name === 'UsageError' && /nope\.json/.test(error.message));
+    });
+
+    test('an empty source never erases the translations', t => {
+        const p = project({ 'src/locales/en.json': {}, 'src/locales/fr.json': { a: 'A' } }, t);
+        assert.throws(() => p.run('sync'), /en\.json has no keys/);
+        assert.throws(() => p.run('apply', 'fr', 'src/locales/en.json'), /en\.json has no keys/);
+        assert.deepEqual(JSON.parse(p.read('src/locales/fr.json')), { a: 'A' });
+    });
+
+    test('a byte order mark is tolerated and line endings are kept', t => {
+        const p = project({
+            'src/locales/en.json': '\uFEFF{\r\n    "a": "A",\r\n    "b": "B"\r\n}\r\n',
+            'src/locales/fr.json': '{\r\n    "b": "B fr",\r\n    "a": "A fr"\r\n}\r\n',
+            'src/locales/de.json': '{\n    "b": "B de",\n    "a": "A de"\n}\n',
+        }, t);
+        assert.equal(p.run('check').code, 0);
+        p.run('sync');
+        assert.equal(p.read('src/locales/fr.json'), '{\r\n    "a": "A fr",\r\n    "b": "B fr"\r\n}\r\n');
+        assert.equal(p.read('src/locales/de.json'), '{\n    "a": "A de",\n    "b": "B de"\n}\n');
+    });
+});
