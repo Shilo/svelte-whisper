@@ -217,7 +217,7 @@
 		right: 0;
 		bottom: 0;
 		width: 1.5rem;
-		background: linear-gradient(to left, oklch(0.2 0.02 170 / 0.14), transparent);
+		background: linear-gradient(to left, var(--edge), transparent);
 		pointer-events: none;
 		opacity: 0;
 		transition: opacity 160ms var(--ease);

@@ -215,7 +215,7 @@
 	.chip .n {
 		min-width: 1.25rem;
 		padding: 0 0.3rem;
-		border-radius: 1rem;
+		border-radius: var(--radius);
 		background: var(--paper-2);
 		color: var(--form-ink);
 		font-size: var(--t-sm);
