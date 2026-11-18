@@ -308,7 +308,7 @@ export class LocaleDoc {
 					before: this.base[lang][key],
 					after: after ?? undefined
 				})),
-				text: serialize(f.parsed, e, { nested: sourceNested })
+				text: serialize(f.parsed, e, { nested: sourceNested, order: this.keys })
 			};
 		});
 	}

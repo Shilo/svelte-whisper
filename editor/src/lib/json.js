@@ -59,14 +59,16 @@ export function flatten(data) {
  * `edits` maps a dotted key to its new string, or to `null` to remove it.
  * @param {ParsedFile | null} file  null for a language file that does not exist yet
  * @param {Record<string, string | null>} edits
- * @param {{ nested?: boolean }} [hint]  shape to use for a new file
+ * @param {{ nested?: boolean, order?: string[] }} [hint]  `nested`: shape to use for a new file.
+ *   `order`: every key in the source language's order, so a new key lands where the source has it.
  */
 export function serialize(file, edits, hint = {}) {
 	const data = structuredClone(file?.data ?? {});
 	const nested = file ? file.nested : !!hint.nested;
+	const order = hint.order ?? [];
 	for (const [key, value] of Object.entries(edits)) {
 		if (value === null) remove(data, key);
-		else set(data, key, value, nested);
+		else set(data, key, value, nested, order);
 	}
 	const indent = file?.indent ?? '\t';
 	const eol = file?.eol ?? '\n';
@@ -75,10 +77,13 @@ export function serialize(file, edits, hint = {}) {
 	return (file ? file.finalNewline : true) ? out + eol : out;
 }
 
-/** @param {Record<string, any>} data @param {string} key @param {string} value @param {boolean} nested */
-function set(data, key, value, nested) {
+/**
+ * @param {Record<string, any>} data @param {string} key @param {string} value
+ * @param {boolean} nested @param {string[]} order
+ */
+function set(data, key, value, nested, order) {
 	if (Object.hasOwn(data, key) || !key.includes('.')) {
-		data[key] = value;
+		place(data, key, value, '', order);
 		return;
 	}
 	const parts = key.split('.');
@@ -87,17 +92,48 @@ function set(data, key, value, nested) {
 	let i = 0;
 	while (i < parts.length - 1 && isObject(obj[parts[i]])) obj = obj[parts[i++]];
 	const rest = parts.slice(i);
+	const prefix = parts.slice(0, i).map((part) => part + '.').join('');
 	if (i === 0 && !nested) {
-		data[key] = value; // flat file: keep the dotted key literal
+		place(data, key, value, '', order); // flat file: keep the dotted key literal
 		return;
 	}
 	if (rest.length > 1 && obj[rest[0]] !== undefined) {
 		// A string sits where an object would need to go; fall back to a literal key.
-		obj[rest.join('.')] = value;
+		place(obj, rest.join('.'), value, prefix, order);
 		return;
 	}
-	for (let j = 0; j < rest.length - 1; j++) obj = obj[rest[j]] = {};
-	obj[rest[rest.length - 1]] = value;
+	// Build any missing groups, then put the new branch in its place.
+	/** @type {any} */
+	let branch = value;
+	for (let j = rest.length - 1; j > 0; j--) branch = { [rest[j]]: branch };
+	place(obj, rest[0], branch, prefix, order);
+}
+
+/**
+ * Set `obj[name]`. An existing property keeps its position. A new one goes right after the
+ * closest earlier sibling in the source's key order, so files stay in step with the source
+ * instead of collecting every new translation at the bottom.
+ * @param {Record<string, any>} obj @param {string} name @param {any} value
+ * @param {string} prefix  dotted path of `obj`, with a trailing dot, or ''
+ * @param {string[]} order
+ */
+function place(obj, name, value, prefix, order) {
+	const isNew = !Object.hasOwn(obj, name);
+	obj[name] = value;
+	const full = prefix + name;
+	const at = order.findIndex((key) => key === full || key.startsWith(full + '.'));
+	if (!isNew || at < 0) return;
+	let after = null;
+	for (let i = at - 1; i >= 0 && after === null; i--) {
+		if (!order[i].startsWith(prefix)) continue;
+		const rest = order[i].slice(prefix.length);
+		const sibling = Object.hasOwn(obj, rest) ? rest : rest.split('.')[0];
+		if (sibling !== name && Object.hasOwn(obj, sibling)) after = sibling;
+	}
+	const entries = Object.entries(obj).filter(([key]) => key !== name);
+	entries.splice(after === null ? 0 : entries.findIndex(([key]) => key === after) + 1, 0, [name, value]);
+	for (const key of Object.keys(obj)) delete obj[key];
+	for (const [key, entry] of entries) obj[key] = entry;
 }
 
 /** @param {Record<string, any>} data @param {string} key */
