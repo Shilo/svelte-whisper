@@ -366,7 +366,7 @@ npx svelte-whisper sync                # tidy every locale without translating
 { "svelte-whisper": { "locales": "src/locales", "source": "en" } }
 ```
 
-Fixed terms that must never be retranslated go in `glossary/<locale>.json` beside the locale files, in the same shape. `apply` and `sync` write them over anything else, and `check` fails if one is changed.
+Only files named like a language tag (`fr.json`, `pt-BR.json`) are treated as locales. Fixed terms that must never be retranslated go in `glossary/<locale>.json` beside the locale files, in the same shape. `apply` and `sync` write them over anything else, and `check` fails if one is changed.
 
 ### Agent skills
 

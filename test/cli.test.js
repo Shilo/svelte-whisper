@@ -322,3 +322,47 @@ describe('review round 1', () => {
         assert.equal(p.read('src/locales/de.json'), '{\n    "a": "A de",\n    "b": "B de"\n}\n');
     });
 });
+
+describe('review round 2', () => {
+    test('JSON files that are not locales are left alone', t => {
+        const p = project({
+            'src/locales/en.json': { a: 'A' },
+            'src/locales/fr.json': { a: 'A fr', old: 'x' },
+            'src/locales/pt-BR.json': { a: 'A pt' },
+            'src/locales/notes.json': { note: 'not a locale', author: 'me' },
+        }, t);
+        assert.deepEqual(Object.keys(p.json('sync')), ['fr', 'pt-BR']);
+        assert.deepEqual(JSON.parse(p.read('src/locales/notes.json')), { note: 'not a locale', author: 'me' });
+        assert.equal(p.run('check').code, 0);
+    });
+
+    test('apply refuses an id that is not a language tag', t => {
+        const p = project({ 'src/locales/en.json': { a: 'A' }, 'x.json': { a: 'x' } }, t);
+        assert.throws(() => p.run('apply', '../escape', 'x.json'), /is not a locale id/);
+        assert.throws(() => p.run('apply', 'notes', 'x.json'), /is not a locale id/);
+    });
+
+    test('a key built with + is dynamic, not undefined, and --usage accepts one file', t => {
+        const p = project({
+            'src/locales/en.json': { nav: { home: 'Home', settings: 'Settings' }, title: 'Title' },
+            'src/locales/fr.json': { nav: { home: 'Accueil', settings: 'Réglages' }, title: 'Titre' },
+            'src/a.js': `export const label = section => t('nav.' + section);\nexport const title = () => t('title');`,
+        }, t);
+        const report = p.json('check', '--usage', 'src');
+        assert.deepEqual(report.undefined, []);
+        assert.deepEqual(report.unused, []);
+        assert.deepEqual(report.dynamic, ['nav.*']);
+        assert.equal(p.run('check', '--usage', 'src/a.js').code, 0);
+    });
+
+    test('diff explains a missing repository and an unknown ref', t => {
+        const p = project({ 'src/locales/en.json': { a: 'A' } }, t);
+        assert.throws(() => p.run('diff', '--since', 'HEAD'), /needs a git repository/);
+        const git = (...args) => execFileSync('git', args, { cwd: p.cwd, stdio: 'ignore' });
+        git('init', '-q');
+        git('add', '-A');
+        git('-c', 'user.name=test', '-c', 'user.email=test@example.com', 'commit', '-q', '-m', 'first');
+        assert.throws(() => p.run('diff', '--since', 'no-such-ref'), /"no-such-ref" is not a commit/);
+        assert.deepEqual(p.json('diff', '--since', 'HEAD'), { since: 'HEAD', added: [], changed: [], removed: [] });
+    });
+});

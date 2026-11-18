@@ -22,8 +22,8 @@ All commands are run from the app's root. They need `svelte-whisper` installed i
 2. **Find reworded source strings**, when the source text may have changed since the locales were last translated. Use the last commit that touched a target locale as the reference:
 
    ```bash
-   git log -1 --format=%H -- <locale folder>/fr.json
-   npx svelte-whisper diff --since <that-commit> --json
+   git log -1 --format=%H -- src/locales/fr.json      # use your own locale folder
+   npx svelte-whisper diff --since THAT_COMMIT --json
    ```
 
    Every key under `changed` needs a fresh translation in every locale. Skip this step when only new keys were added. The reference only reaches back to the last translation commit: a source string reworded before it, and never retranslated, will not show up, so pick an older commit if translations are known to be behind.

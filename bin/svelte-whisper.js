@@ -18,16 +18,23 @@ Options
   --dir <path>     Locale folder   (default: package.json "svelte-whisper".locales, else auto-detected)
   --source <id>    Source locale   (default: package.json "svelte-whisper".source, else "en")
   --usage <dir>    With check: also scan code for unused and undefined keys
+  --since <ref>    With diff: the commit, tag or branch to compare the source locale with
   --json           Machine-readable output
   -h, --help
+
+Only files named like a language tag (fr.json, pt-BR.json, zh-Hant.json) count as locales;
+any other JSON file in the folder is left alone.
 
 A glossary at <locale folder>/glossary/<locale>.json holds fixed terms in the same shape as a
 locale file. apply and sync write its values over anything else; check fails when one is ignored.
 
 check exits 1 on missing keys, extra keys, placeholder mismatches or ignored glossary terms,
-and with --usage also when code uses a key that the source locale does not have.`;
+and with --usage also when code uses a key that the source locale does not have.
+A usage error (bad arguments, unreadable files) exits 2 and changes nothing.`;
 
 const PLURAL = /^(zero|one|two|few|many|other|\d+)$/;
+// en, fil, pt-BR, zh-Hant, sr-Latn-RS. Keeps notes.json, and paths such as ../x, out of the locale set.
+const LOCALE_ID = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 const CODE = new Set(['.svelte', '.js', '.ts', '.mjs', '.jsx', '.tsx']);
 const SKIP = new Set(['node_modules', 'dist', 'build', '.svelte-kit', '.git']);
 
@@ -122,11 +129,22 @@ function check(project, flags) {
 function diff(project, flags) {
     if (!flags.since) throw new UsageError('diff needs --since <git-ref>, for example --since HEAD~5 or --since v1.2.0');
     const git = (...args) => execFileSync('git', args, { cwd: project.cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    const path = relative(git('rev-parse', '--show-toplevel').trim(), realpathSync(project.sourceFile)).replaceAll('\\', '/');
+    let root;
+    try {
+        root = git('rev-parse', '--show-toplevel').trim();
+    } catch {
+        throw new UsageError('diff needs a git repository.');
+    }
+    try {
+        git('rev-parse', '--verify', '--quiet', `${flags.since}^{commit}`);
+    } catch {
+        throw new UsageError(`"${flags.since}" is not a commit, tag or branch in this repository.`);
+    }
+    const path = relative(root, realpathSync(project.sourceFile)).replaceAll('\\', '/');
     let before = new Map();
     try {
         before = flatten(JSON.parse(git('show', `${flags.since}:${path}`)));
-    } catch { /* the source file did not exist at that ref: every key is new */ }
+    } catch { /* the source file did not exist at that commit: every key is new */ }
 
     const now = flatten(readLocale(project.sourceFile));
     const report = { since: flags.since, added: [], changed: [], removed: [] };
@@ -146,6 +164,7 @@ function diff(project, flags) {
 
 function apply(project, flags, [id, file]) {
     if (!id) throw new UsageError('apply needs a locale: svelte-whisper apply fr translations.json');
+    if (!LOCALE_ID.test(id)) throw new UsageError(`"${id}" is not a locale id. Use a language tag such as fr, pt-BR or zh-Hant.`);
     if (id === project.source) throw new UsageError(`"${id}" is the source locale; edit ${basename(project.sourceFile)} directly.`);
     let incoming;
     try {
@@ -287,13 +306,14 @@ function dictionary(value, name) {
 }
 
 function usage(project, dir, source) {
-    if (!existsSync(dir)) throw new UsageError(`--usage folder not found: ${dir}`);
+    if (!existsSync(dir)) throw new UsageError(`--usage path not found: ${dir}`);
     const sourceKeys = [...source.keys()];
     const used = new Set(), prefixes = new Set(), undefinedKeys = [];
-    const call = /(?<![\w$.])t\(\s*(?:'([^'\n]*)'|"([^"\n]*)"|`([^`\n]*)`)/g;
+    // The last group catches `t('nav.' + section)`: a key that is only the start of one.
+    const call = /(?<![\w$.])t\(\s*(?:'([^'\n]*)'|"([^"\n]*)"|`([^`\n]*)`)(\s*\+)?/g;
     const literal = /'([^'\n]+)'|"([^"\n]+)"|`([^`\n]+)`/g;
 
-    for (const file of walk(dir)) {
+    for (const file of statSync(dir).isDirectory() ? walk(dir) : [dir]) {
         readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
             // Keys are often kept in data (`{ label: 'nav.home' }`) and translated elsewhere,
             // so any string literal that is exactly a source key counts as a use.
@@ -304,6 +324,7 @@ function usage(project, dir, source) {
             for (const match of line.matchAll(call)) {
                 const key = match[1] ?? match[2] ?? match[3];
                 if (match[3]?.includes('${')) prefixes.add(key.slice(0, key.indexOf('${')));
+                else if (match[4]) prefixes.add(key);
                 else if (sourceKeys.some(k => k === key || k.startsWith(key + '.'))) used.add(key);
                 else if (key) undefinedKeys.push({ key, file: relative(project.cwd, file).replaceAll('\\', '/'), line: index + 1 });
             }
@@ -332,6 +353,7 @@ function targets({ dir, source }) {
     return readdirSync(dir)
         .filter(name => name.endsWith('.json') && name !== source + '.json')
         .map(name => name.slice(0, -5))
+        .filter(id => LOCALE_ID.test(id))
         .sort();
 }
 
