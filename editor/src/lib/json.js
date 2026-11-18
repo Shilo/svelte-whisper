@@ -147,8 +147,9 @@ function set(data, key, value, nested, order) {
 		place(data, key, value, '', order); // flat file: keep the dotted key literal
 		return;
 	}
-	if (rest.length > 1 && obj[rest[0]] !== undefined) {
-		// A string sits where an object would need to go; fall back to a literal key.
+	if (rest.length > 1 && (obj[rest[0]] !== undefined || Object.keys(obj).some((name) => name.startsWith(rest[0] + '.')))) {
+		// A string sits where an object would need to go, or this group already writes
+		// its children as literal dotted keys ("file.open"): use a literal key.
 		place(obj, rest.join('.'), value, prefix, order);
 		return;
 	}

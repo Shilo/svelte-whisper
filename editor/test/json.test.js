@@ -84,3 +84,11 @@ test('only files named like a language tag are locales', () => {
 		assert.ok(!isLocaleFile(name), name);
 	}
 });
+
+test('a new key joins the literal dotted keys of its group, after its source sibling', () => {
+	const out = edit('{\n  "menu": {\n    "file.open": "Ouvrir"\n  }\n}\n', { 'menu.file.save': 'Enregistrer' }, {
+		nested: true,
+		order: ['menu.file.open', 'menu.file.save']
+	});
+	assert.equal(out, '{\n  "menu": {\n    "file.open": "Ouvrir",\n    "file.save": "Enregistrer"\n  }\n}\n');
+});
