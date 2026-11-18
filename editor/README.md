@@ -1,215 +1,139 @@
-# 🌐 Svelte Whisper Companion Editor
+# svelte-whisper editor
 
-![Localization Editor Screenshot Placeholder](https://via.placeholder.com/800x400.png?text=Localization+Editor)
+A small, browser-only editor for the locale files of apps that use [svelte-whisper](../README.md). Open a repository, fill in what is missing, and send the result back as a pull request or a commit. There is no server and no database: the page talks to the GitHub API directly from your browser.
 
-Welcome to the **Svelte Whisper Companion Editor**—a beautiful, intuitive, and secure visual localization editor explicitly designed for `svelte-whisper` projects.
+**Live:** https://shilo.github.io/svelte-whisper/ · **Try it without signing in:** https://shilo.github.io/svelte-whisper/?demo
 
-## 💡 Inspiration & Use Case
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png">
+  <img alt="The editor showing one row per key and one column per language, with untranslated boxes underlined, edited boxes marked in the corner, and a placeholder warning on a French translation." src="docs/screenshot-light.png">
+</picture>
 
-Managing massive `.json` localization files manually in your IDE can quickly become a tedious, error-prone headache, especially across multiple languages and deep keys.
+## What it does
 
-We loved the visual translation approach of the [Inlang Fink](https://fink.inlang.com/) editor but wanted something more closely tied to the frictionless, zero-config philosophy of `svelte-whisper`. We needed a solution that required absolutely **zero database setup**, **no backend API keys**, and could run directly on top of your existing Git workflow.
+- Reads every `*.json` file in a folder (default `src/locales`), one file per language.
+- Shows one row per key and one column per language. Nested objects appear as dotted keys, the same way svelte-whisper resolves them.
+- Marks untranslated boxes, counts what is missing per language, and filters to **Missing** or **Edited** keys. **Next missing** (<kbd>Alt</kbd>+<kbd>N</kbd>) jumps to the next gap.
+- Warns when a translation drops or invents a placeholder that the source language uses (`{name}`, `{0}`, `{}`).
+- Adds, renames and deletes keys, and adds languages.
+- Shows every change, file by file, before anything is sent. Each change can be undone there, and each file can be downloaded as JSON.
+- Sends a **pull request** (default) or, for people with write access, a **commit** to the branch. Contributors without write access get a fork automatically, and the pull request goes to the original repository.
+- Writes files back in their own format: indentation, line endings, key order and nested-vs-flat shape are kept, so the diff only touches the lines that changed. Clearing a box removes the key from that file, so svelte-whisper falls back to the fallback language.
+- Keeps unsent edits as a draft in your browser (per repository, branch and folder) and warns before you close a tab with unsent edits.
+- Refuses to overwrite a file that changed on the branch after you loaded it.
 
-### The Solution:
-The Companion Editor is a 100% Client-Side SPA built with **SvelteKit** and **Material Design 3**. It natively parses your Git repository tree, reads your `src/locales/*.json` files, and presents them in an ultra-fast data grid where you can visually manage translations with ease!
+Keyboard: <kbd>/</kbd> search, <kbd>Enter</kbd> next row, <kbd>Shift</kbd>+<kbd>Enter</kbd> new line, <kbd>Esc</kbd> restore the box to what the file says.
 
-Contributors sign in with **GitHub OAuth** (no token creation required) and submit changes as **Pull Requests** for the repo owner to review. A Personal Access Token fallback is also available.
+## Using it
 
-Because it's a completely static site, it can be deployed via GitHub Pages absolutely free and securely connects directly to the GitHub REST API using GitHub authentication.
+1. Open the editor and sign in with GitHub, or paste a personal access token.
+2. Enter the repository (`owner/name` or a GitHub URL), the branch and the locales folder.
+3. Fill in the gaps, then choose **Review & send**.
 
----
+### Share a link with translators
 
-## 🚀 Getting Started (For Contributors)
+Pre-fill the repository and show only one language next to the source:
 
-1. Visit the live editor at `https://shilo.github.io/svelte-whisper/`
-2. Click **"Sign in with GitHub"** — you'll be shown a short code (e.g. `ABCD-1234`)
-3. Click **"Open GitHub"** to go to `github.com/login/device` and enter the code
-4. Approve the authorization on GitHub and return to the editor — it signs you in automatically
-5. Enter the **repository** (e.g. `owner/repo`), **branch**, and **locales path**, then click **Load Translations**
-6. Edit translations in the visual grid
-7. Click the **"Create PR"** button — a Pull Request is opened automatically for the repo owner to review
+```
+https://shilo.github.io/svelte-whisper/?repo=owner/name&branch=main&path=src/locales&lang=fr
+```
 
-> **No token setup required.** If OAuth is not configured for the hosted instance, click **"Use a Personal Access Token"** as a fallback.
+### Tokens
 
----
+For a personal access token, [create a fine-grained token](https://github.com/settings/personal-access-tokens/new) limited to the repository, with **Contents** and **Pull requests** set to *Read and write*. Contributors to someone else's repository can use a token for their own account; the editor opens the pull request from their fork.
 
-## 🔐 GitHub OAuth Setup (For Repo Owners / Self-Hosters)
+**Where the token lives.** The token is kept in `sessionStorage` for the open tab only. It survives a reload, is forgotten when the tab closes, and is sent only to `api.github.com`. It is never written to `localStorage`. The page ships a Content-Security-Policy that allows scripts only from the editor itself and network requests only to GitHub (and the sign-in proxy, when configured). The honest trade-off: any script running in the page could read a token in `sessionStorage`, as with every browser-only GitHub client; the CSP, the absence of third-party scripts and fonts, and a short-lived or fine-grained token are what limit that risk. Sign out to clear it immediately.
 
-Enabling OAuth allows contributors to sign in with their GitHub account — no token creation required. This requires:
+## Sign in with GitHub (OAuth device flow)
 
-1. A **GitHub OAuth App** (free, takes 2 minutes)
-2. A **Cloudflare Worker** as a CORS proxy (free tier, takes 5 minutes)
+Without configuration the editor offers token sign-in only. To enable **Continue with GitHub**, the deployment needs a GitHub OAuth App and a tiny CORS proxy, because GitHub's OAuth endpoints do not send CORS headers.
 
-### Step 1 — Register a GitHub OAuth App
+The editor uses the [device flow](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow): the user enters a short code on github.com, and the page polls for the token. No client secret is involved, so nothing secret is built into the page. The editor requests the `public_repo` scope; for private repositories, use a fine-grained token instead.
 
-1. Go to **[github.com/settings/developers](https://github.com/settings/developers)**
-2. Click **"New OAuth App"**
-3. Fill in the form:
-   - **Application name**: `Svelte Whisper Editor` (or any name you prefer)
-   - **Homepage URL**: your GitHub Pages URL, e.g. `https://your-username.github.io/svelte-whisper`
-   - **Authorization callback URL**: same as Homepage URL (Device Flow does not use a redirect callback, but GitHub requires a value — any valid URL works)
-4. Click **"Register application"**
-5. On the next page, copy the **Client ID** — you will need this shortly
-   - Do **not** generate a Client Secret (Device Flow does not use one)
+### 1. Register an OAuth App
 
-> **Why Device Flow?** The Device Authorization Grant (RFC 8628) is designed for environments that cannot host a redirect URI — exactly what a static SPA needs. The user enters a code on GitHub's website; the app polls for the token. No secret is ever embedded in the client.
+1. Go to [github.com/settings/developers](https://github.com/settings/developers) → **New OAuth App**.
+2. Homepage URL: your Pages URL, for example `https://your-name.github.io/svelte-whisper/`. Authorization callback URL: the same URL (the device flow does not use it, but GitHub requires one).
+3. Register, then on the app's page tick **Enable Device Flow** and copy the **Client ID**. Do not create a client secret.
 
-### Step 2 — Deploy the Cloudflare Worker CORS Proxy
+### 2. Deploy the CORS proxy (Cloudflare Worker)
 
-GitHub's OAuth token endpoints (`github.com/login/oauth/access_token` and `github.com/login/device/code`) do not include CORS headers, so browsers block direct requests from a web page. A tiny Cloudflare Worker forwards these requests server-side and adds the required CORS headers.
-
-**The worker stores no secrets and does nothing except proxy requests to GitHub.**
-
-#### Option A — Cloudflare Dashboard (no CLI required)
-
-1. Sign up or log in at **[dash.cloudflare.com](https://dash.cloudflare.com)** (free account)
-2. In the left sidebar, click **Workers & Pages** → **Create**
-3. Choose **"Hello World"** starter → click **Deploy**
-4. Click **"Edit code"** and replace the entire contents with:
+Create a Worker (dashboard: **Workers & Pages → Create → Hello World**, then **Edit code**), paste this, and deploy:
 
 ```js
-const corsHeaders = () => ({
-  'Access-Control-Allow-Origin': '*',
+// Forwards the two OAuth device-flow endpoints to github.com and adds CORS headers.
+// It stores nothing and handles no secrets; requests carry only the public client ID.
+const ALLOWED_PATHS = new Set(['/login/device/code', '/login/oauth/access_token']);
+const ALLOWED_ORIGIN = 'https://your-name.github.io'; // the origin that hosts the editor
+
+const cors = {
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Accept',
-});
+  'Access-Control-Max-Age': '86400',
+};
 
 export default {
   async fetch(req) {
-    if (req.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders() });
+    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+    const { pathname } = new URL(req.url);
+    if (req.method !== 'POST' || !ALLOWED_PATHS.has(pathname)) {
+      return new Response('Not found', { status: 404, headers: cors });
     }
-
-    const targetUrl = 'https://github.com' + new URL(req.url).pathname;
-
-    const res = await fetch(targetUrl, {
+    const res = await fetch('https://github.com' + pathname, {
       method: 'POST',
-      body: req.body,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      },
+      body: await req.text(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
     });
-
-    const text = await res.text();
-
-    return new Response(text, {
+    return new Response(await res.text(), {
       status: res.status,
-      headers: {
-        ...corsHeaders(),
-        'Content-Type': 'application/json',
-      },
+      headers: { ...cors, 'Content-Type': 'application/json' },
     });
   },
 };
 ```
 
-5. Click **"Deploy"**
-6. Copy the Worker URL shown at the top of the page — it looks like `https://your-worker-name.your-subdomain.workers.dev`
+Copy the Worker URL, for example `https://whisper-auth.your-account.workers.dev`. With [Wrangler](https://developers.cloudflare.com/workers/wrangler/) instead: `npm create cloudflare@latest whisper-auth`, replace `src/index.js` with the code above, then `npx wrangler deploy`.
 
-#### Option B — Wrangler CLI
+### 3. Configure the build
 
-```bash
-# Install Wrangler
-npm install -g wrangler
+Both variables are required for GitHub sign-in; if either is missing, only token sign-in is shown.
 
-# Log in to Cloudflare
-wrangler login
+| Variable | Value |
+| --- | --- |
+| `VITE_GITHUB_CLIENT_ID` | The OAuth App's Client ID. Public by design. |
+| `VITE_CORS_PROXY_URL` | The Worker URL. Its origin is also added to the page's CSP. |
 
-# Create a new worker
-wrangler init whisper-auth-proxy --no-bundle
-cd whisper-auth-proxy
-```
+Locally, put them in `editor/.env.local` (git-ignored). For GitHub Pages, add them under **Settings → Secrets and variables → Actions** as repository secrets with the same names; [`deploy-editor.yml`](../.github/workflows/deploy-editor.yml) passes them to the build.
 
-Replace the generated `src/index.js` with the worker code above, then deploy:
+## Development
 
-```bash
-wrangler deploy
-```
-
-The CLI prints the Worker URL on success.
-
-#### Security Notes
-
-- The Worker only accepts `POST` and `OPTIONS` requests
-- It only proxies paths that you call from the app (`/login/device/code` and `/login/oauth/access_token`)
-- No GitHub secrets or tokens pass through the Worker — only the public `client_id` is sent
-- Cloudflare's free tier allows 100,000 requests/day — more than sufficient for any translation workflow
-
-### Step 3 — Configure Environment Variables
-
-Create a `.env.local` file in the `editor/` directory (this file is gitignored and safe to use locally):
-
-```env
-VITE_GITHUB_CLIENT_ID=your_client_id_here
-VITE_CORS_PROXY_URL=https://your-worker-name.your-subdomain.workers.dev
-```
-
-For production deployments (e.g. GitHub Pages via GitHub Actions), you need to add these values as **repository secrets** and expose them as environment variables in your workflow.
-
-To add the variables as secrets to your GitHub repository:
-1. Go to your GitHub repository on github.com and click **Settings**.
-2. Go to **Secrets and variables** -> **Actions** on the left menu.
-3. Under the **Repository secrets** tab, click **New repository secret**.
-4. Add a secret with the name `VITE_GITHUB_CLIENT_ID` and your Client ID as the value.
-5. Add another secret with the name `VITE_CORS_PROXY_URL` and your proxy worker URL as the value.
-
-Then expose the secrets to your build step in your GitHub Actions workflow configuration:
-
-```yaml
-# .github/workflows/deploy-editor.yml (example snippet)
-- name: Build editor
-  working-directory: editor
-  env:
-    VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
-    VITE_CORS_PROXY_URL: ${{ secrets.VITE_CORS_PROXY_URL }}
-  run: npm run build
-```
-
-> **Note:** `VITE_GITHUB_CLIENT_ID` is a **public** value — it is safe to embed in the built JS bundle. GitHub OAuth App Client IDs are not secret. Only Client Secrets are sensitive, and Device Flow never uses one.
-
-### Step 4 — Build and Deploy
+Requires Node.js 22.17 or newer.
 
 ```bash
 cd editor
 npm install
-npm run build   # outputs to editor/build/
+npm run dev      # http://localhost:5173, demo at /?demo, 3000-key stress test at /?demo=large
+npm run check    # svelte-check
+npm run build    # static site in editor/build
 ```
 
-Deploy the `build/` directory to GitHub Pages, Netlify, Cloudflare Pages, or any static host.
+The production build is a static site (`@sveltejs/adapter-static`) with a prerendered `index.html` and a `404.html` fallback. The Pages workflow builds with `BASE_PATH=/<repository name>`; to preview that locally, run `BASE_PATH=/svelte-whisper npm run build && BASE_PATH=/svelte-whisper npm run preview` and open `/svelte-whisper/`.
 
-Once deployed with both env vars set, users will see the **"Sign in with GitHub"** button and can authenticate without creating a Personal Access Token.
+Built with SvelteKit 3, Svelte 5 and Vite 8. There are no runtime dependencies, no CSS framework and no web fonts. About 52 KB of gzipped JavaScript loads on first visit; the grid and dialogs (about 12 KB) load once a document is open.
 
----
+### Layout
 
-## 🔑 Personal Access Token Fallback
+| Path | Purpose |
+| --- | --- |
+| `src/routes/+page.svelte` | Screen flow: sign-in, connect, loading, editor; drafts and sending |
+| `src/lib/doc.svelte.js` | The document model: values, edits, keys, languages, drafts |
+| `src/lib/json.js` | Locale file parsing, format-preserving writes, placeholder checks |
+| `src/lib/github.js` | GitHub REST calls: read files, commit, fork, pull request |
+| `src/lib/auth.js`, `session.svelte.js` | Device flow, token sign-in, stored settings |
+| `src/lib/components/` | `Grid`, `Toolbar`, `StatusBar`, `ReviewDialog`, `SignIn`, dialogs |
+| `src/lib/demo.js` | Sample files for the demo, loaded on demand |
 
-If `VITE_GITHUB_CLIENT_ID` is not set (or the user prefers a PAT), they can click **"Use a Personal Access Token"**. The editor opens GitHub's token creation page pre-filled with the required `repo` scope. The PAT is stored in `sessionStorage` only (cleared when the browser tab is closed).
+The visual system is documented in [`DESIGN.md`](../DESIGN.md).
 
----
-
-## ⚙️ Environment Variables Reference
-
-| Variable | Required | Description |
-|---|---|---|
-| `VITE_GITHUB_CLIENT_ID` | Optional | GitHub OAuth App Client ID. Enables "Sign in with GitHub" Device Flow. If omitted, only PAT mode is shown. |
-| `VITE_CORS_PROXY_URL` | Required if using OAuth | Cloudflare Worker URL that proxies GitHub OAuth endpoints to add CORS headers. |
-
----
-
-## 🛠️ Local Development
-
-```bash
-cd editor
-npm install
-npm run dev
-```
-
-Open `http://localhost:5173`. For local OAuth testing, set the env vars in `editor/.env.local`.
-
-### Stack
-- **Framework**: [SvelteKit 5](https://svelte.dev/)
-- **Styling**: **Material Design 3** design tokens + Tailwind CSS v4 (`@tailwindcss/vite`), Roboto font
-- **Auth**: GitHub Device Flow OAuth + PAT fallback
-- **Submissions**: Pull Request workflow (default) or direct push (owner toggle in Settings)
-- **Deployment**: `@sveltejs/adapter-static` — fully static HTML/CSS/JS bundle, perfect for GitHub Pages
+Inspired by inlang's [Fink](https://fink.inlang.com/) editor.
