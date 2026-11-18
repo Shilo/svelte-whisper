@@ -375,3 +375,22 @@ describe('review round 3', () => {
         assert.deepEqual(Object.keys(p.json('check', '--source', 'EN').locales), ['fr']);
     });
 });
+
+describe('store-style calls', () => {
+    test('the usage scan reads $t() like t()', t => {
+        const p = project({
+            'src/locales/en.json': { hello: 'Hello', skills: { fire: 'Fire' }, stats: { header: 'Stats' }, orphan: 'Orphan' },
+            'src/locales/fr.json': { hello: 'Bonjour', skills: { fire: 'Feu' }, stats: { header: 'Stats' }, orphan: 'Orphelin' },
+            'src/Legacy.svelte': [
+                "<h1>{$t('hello')}</h1>",
+                '<p>{$t(`skills.${id}`)} {$t("nope")}</p>',
+                'const text = `${$t("stats.header")}: 1`;',
+                "<p>{my$t('not.a.call')} {obj.$t('nor.this')}</p>",
+            ].join('\n'),
+        }, t);
+        const report = p.json('check', '--usage', 'src');
+        assert.deepEqual(report.unused, ['orphan']);
+        assert.deepEqual(report.undefined.map(entry => entry.key), ['nope']);
+        assert.deepEqual(report.dynamic, ['skills.*']);
+    });
+});

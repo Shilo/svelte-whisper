@@ -310,8 +310,9 @@ function usage(project, dir, source) {
     if (!existsSync(dir)) throw new UsageError(`--usage path not found: ${dir}`);
     const sourceKeys = [...source.keys()];
     const used = new Set(), prefixes = new Set(), undefinedKeys = [];
-    // The last group catches `t('nav.' + section)`: a key that is only the start of one.
-    const call = /(?<![\w$.])t\(\s*(?:'([^'\n]*)'|"([^"\n]*)"|`([^`\n]*)`)(\s*\+)?/g;
+    // `t('key')`, or `$t('key')` in components without runes. The last group catches
+    // `t('nav.' + section)`: a key that is only the start of one.
+    const call = /(?<![\w$.])\$?t\(\s*(?:'([^'\n]*)'|"([^"\n]*)"|`([^`\n]*)`)(\s*\+)?/g;
     const literal = /'([^'\n]+)'|"([^"\n]+)"|`([^`\n]+)`/g;
 
     for (const file of statSync(dir).isDirectory() ? walk(dir) : [dir]) {
