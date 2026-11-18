@@ -11,7 +11,7 @@ A small, browser-only editor for the locale files of apps that use [svelte-whisp
 
 ## What it does
 
-- Reads the locale files in a folder (default `src/locales`), one file per language. Only files named like a language tag count (`en.json`, `pt-BR.json`, `zh-Hant.json`), the same rule as the `svelte-whisper` command line tool, so `tsconfig.json` or `notes.json` in the same folder are skipped. After loading, the editor names any `.json` file it skipped (`pt_BR.json` is not a language tag; `pt-BR.json` is).
+- Reads the locale files in a folder (default `src/locales`), one file per language. Only files named like a language tag count (`en.json`, `pt-BR.json`, `zh-Hant.json`), the same rule as the `svelte-whisper` command line tool, so `tsconfig.json` or `notes.json` in the same folder are skipped. After loading, the editor names any `.json` file it skipped (`pt_BR.json` is not a language tag; `pt-BR.json` is), in a message that stays until you close it.
 - Shows one row per key and one column per language. Nested objects appear as dotted keys, the same way svelte-whisper resolves them.
 - Marks untranslated boxes (a missing key, or a `null` value, which svelte-whisper also reads as "not translated yet"), counts what is missing per language, and filters to **Missing** or **Edited** keys. **Next missing** (<kbd>Alt</kbd>+<kbd>N</kbd>) jumps to the next gap.
 - Warns when a translation drops or invents a placeholder that the source language uses: named `{name}` or indexed `{0}`. Empty braces `{}` are plain text, as in svelte-whisper.
@@ -21,9 +21,20 @@ A small, browser-only editor for the locale files of apps that use [svelte-whisp
 - Sends a **pull request** (default) or, for people with write access, a **commit** to the branch. Contributors without write access get a fork automatically, and the pull request goes to the original repository.
 - Writes files back in their own format. Kept: indentation, line endings, a byte order mark, the final newline (or its absence), nested or flat dotted keys, and key order. New keys go where the source language has them. A file you did not edit is not sent at all. A renamed key that is `null` (not translated yet) in a file stays `null` under its new name. Normalised, because the file is rewritten with `JSON.stringify`: escapes (`\/` becomes `/`, `\u00e9` becomes `é`), numbers (`1.0` becomes `1`), a minified file is indented with tabs, and numeric keys such as a plural `"0"` move to the top of their object (a JavaScript object rule). Usually the diff is just the changed lines; check the review if a file uses any of these.
 - Clearing a box removes the key from that file, so svelte-whisper falls back to the fallback language.
-- Keeps unsent edits as a draft in your browser (per repository, branch and folder) and warns before you close a tab with unsent edits.
+- Keeps unsent edits as a draft in your browser (per repository, branch and folder) and warns before you close a tab with unsent edits. See [Drafts](#drafts).
 - Refuses to overwrite a file that changed on the branch after you loaded it.
 - Refuses to open a file that defines the same key twice, once nested and once as a dotted key (`{"a.b": …, "a": {"b": …}}`), as the command line tool does: only the file's author can say which value is right.
+
+### Drafts
+
+The draft is saved in `localStorage` a moment after each edit. It records the working state, not a list of steps: the version (blob SHA) of every file it was made against, the key list in order, renamed keys (new name and the name in the file), keys marked for deletion, new keys, added languages and the column order, and the text of every box that differs from what the file has for that row. A row marked for deletion keeps its text in the draft, so restoring it after a reload gives back what it had before.
+
+When you come back:
+
+- **The files are unchanged** (every file has the version the draft was made against): the editor is put back exactly as you left it. What the review shows and what would be sent are the same as before the reload.
+- **The files changed on GitHub** in the meantime, for example after a send was refused because someone else changed a file: the draft is applied to the new files as far as it goes. Added languages first; then renames, where the old key still exists and the new name is free (a key someone else added under that name is never overwritten: your row stays under its old name and keeps the text you typed); then new keys (if someone added the same key, your text goes onto it and shows as a change in the review); then your text, on the rows that still exist; then deletions. A box you did not edit shows the text that is on GitHub now. What could not be placed (text on a key that was deleted or renamed upstream, a rename that could not be applied, a new key whose name is taken, text in a language file that was deleted) is listed in a message that stays until you close it.
+
+The count of restored edits counts what is in the editor after this, not what the draft held. A draft saved by an older version of the editor is ignored.
 
 Keyboard: <kbd>/</kbd> search, <kbd>Enter</kbd> next row, <kbd>Shift</kbd>+<kbd>Enter</kbd> new line, <kbd>Esc</kbd> restore the box to what the file says.
 
@@ -134,7 +145,7 @@ npm run build    # static site in editor/dist
 
 The editor is a plain Vite single-page app: `index.html` loads `src/main.js`, which mounts `src/App.svelte`. There is no router; the screens are driven by state and query parameters (`?demo`, `?repo=…`), so the build is one `index.html` plus hashed assets, with no fallback page. The Content-Security-Policy is added to the built `index.html` as a `<meta>` tag by a small plugin in `vite.config.js`; the dev server runs without it, because hot reload needs inline styles and a websocket. The Pages workflow builds with `BASE_PATH=/<repository name>`; to preview that locally, run `BASE_PATH=/svelte-whisper npm run build && BASE_PATH=/svelte-whisper npm run preview` and open `http://localhost:4173/svelte-whisper/`.
 
-Built with Svelte 5 and Vite 8, without SvelteKit. `svelte.config.js` turns on runes mode for every component, so legacy syntax (`export let`, `$:`, `on:` and so on) does not compile. There are no runtime dependencies, no CSS framework and no web fonts. About 32 KB of gzipped JavaScript and 4 KB of CSS load on first visit; the grid and dialogs (about 9 KB of JavaScript and 3 KB of CSS) load once a document is open, and the demo's sample files (1.5 KB) only for the demo.
+Built with Svelte 5 and Vite 8, without SvelteKit. `svelte.config.js` turns on runes mode for every component, so legacy syntax (`export let`, `$:`, `on:` and so on) does not compile. There are no runtime dependencies, no CSS framework and no web fonts. About 33 KB of gzipped JavaScript and 4 KB of CSS load on first visit; the grid and dialogs (about 9 KB of JavaScript and 3 KB of CSS) load once a document is open, and the demo's sample files (1.5 KB) only for the demo.
 
 ### Layout
 
