@@ -1,7 +1,7 @@
 {
   "name": "svelte-whisper",
   "version": "2.0.0",
-  "description": "Tiny runtime i18n for Svelte 5 single-page apps: lazy-loaded locales, plurals and Intl formatting in about 1.5 kB.",
+  "description": "Tiny runtime i18n for Svelte 5 single-page apps: lazy-loaded locales, plurals and Intl formatting in under 2 kB.",
   "keywords": [
     "svelte",
     "svelte5",
@@ -30,9 +30,9 @@
   "exports": {
     ".": {
       "types": "./index.d.ts",
+      "svelte": "./index.js",
       "default": "./index.js"
     },
-    "./dev-overlay": "./dev-overlay.js",
     "./package.json": "./package.json"
   },
   "bin": {

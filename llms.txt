@@ -1,6 +1,6 @@
 # svelte-whisper
 
-> Tiny runtime i18n for Svelte 5 single-page apps. Locale files load on demand. About 1.6 kB gzipped, no dependencies beyond Svelte, no build plugin. Client-side only: it keeps state in the module, so do not use it for server-side rendering.
+> Tiny runtime i18n for Svelte 5 single-page apps. Locale files load on demand. About 1.7 kB gzipped, no dependencies beyond Svelte, no build plugin. Client-side only: it keeps state in the module, so do not use it for server-side rendering.
 
 Requires `svelte@^5.7.0`. Install with `npm install github:Shilo/svelte-whisper`.
 

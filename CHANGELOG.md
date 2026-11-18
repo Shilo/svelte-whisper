@@ -32,6 +32,10 @@ A rewrite of the core with the same everyday API. Most apps upgrade without code
 - Keys named like `Object.prototype` members (`constructor`, `toString`) no longer resolve to functions.
 - `addDictionary` merges nested objects deeply instead of replacing the whole branch.
 - Missing keys are no longer reported for the empty locale before `init()` runs.
+- Calling `init()` again without `fallback` returns to the default (`en`) instead of keeping the previous value.
+- Locale ids and keys named like `Object.prototype` members no longer match inherited properties.
+- A plural taken from the fallback locale is chosen with the fallback language's rules.
+- Detection prefers the most specific match (`zh-Hant-TW` selects `zh-Hant` before `zh`).
 
 ### Upgrading from 1.x
 
@@ -43,4 +47,5 @@ A rewrite of the core with the same everyday API. Most apps upgrade without code
 - **`null` interpolation values** leave the placeholder in place, as `undefined` already did, instead of printing `null`.
 - **`{count}` plural selection** applies when a value is an object and `vars.count` is a number. A dictionary that stored objects under a key and called it with a numeric `count` will now receive one member.
 - **`init({ detect: { ja: 'jp' } })`** selects the mapped locale only if it can be loaded, like any other candidate.
-- The undocumented dev overlay bridge changed from `mount({ subscribe, getKeys, clear })` to `mount({ keys, listen, clear })`.
+- **Loader results** are unwrapped only when they are an ES module or an object whose single key is `default`. A dictionary that has a `default` group next to other keys is now used as written.
+- The `svelte-whisper/dev-overlay` export is gone; the overlay is internal. Its bridge changed from `mount({ subscribe, getKeys, clear })` to `mount({ keys, listen, clear })`.

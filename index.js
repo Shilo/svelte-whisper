@@ -3,11 +3,14 @@ import { createSubscriber } from 'svelte/reactivity';
 
 const RTL = /^(ar|ckb|dv|fa|he|ps|sd|ug|ur|yi)\b/i;
 
+// Registries have no prototype, so ids and keys such as "constructor" are just strings.
+const blank = () => Object.create(null);
+
 // Dictionaries are stored flattened, so `a.b.c` is a single property lookup.
-const dictionaries = {};
-const loaders = {};
-const pending = {};
-const formatters = {};
+const dictionaries = blank();
+const loaders = blank();
+const pending = blank();
+const formatters = blank();
 const missingListeners = new Set();
 const localeSubscribers = new Set();
 const tSubscribers = new Set();
@@ -18,7 +21,7 @@ let options = {};
 let warn = true;
 let request = 0;
 let fallbackTried = false;
-let missing = {};
+let missing = blank();
 let active, backup, tFn;
 
 // Vite replaces import.meta.env.* at build time; elsewhere the lookup throws and '/' stays.
@@ -36,10 +39,10 @@ refresh();
 
 export async function init(opts = {}) {
     options = opts;
-    fallback = opts.fallback || fallback;
+    fallback = opts.fallback || 'en';
     warn = opts.warn ?? !opts.onMissing;
     fallbackTried = false;
-    missing = {};
+    missing = blank();
     refresh();
     await pick(persisted('getItem'));
 
@@ -50,14 +53,14 @@ export async function init(opts = {}) {
             import('./dev-overlay.js').then(m => m.mount({
                 keys: () => Object.keys(missing).flatMap(locale => [...missing[locale]].map(key => ({ locale, key }))),
                 listen: fn => missingListeners.add(fn),
-                clear() { missing = {}; },
-            }));
+                clear() { missing = blank(); },
+            })).catch(() => { });
         }
     } catch { }
 }
 
 export function addDictionary(locale, dict) {
-    flatten(dict, '', dictionaries[locale] ??= Object.create(null));
+    flatten(dict, '', dictionaries[locale] ??= blank());
     if (locale === current || locale === fallback) refresh();
 }
 
@@ -79,7 +82,11 @@ export function loadLocale(locale) {
         try {
             if (loaders[locale]) {
                 dict = await loaders[locale]();
-                if (dict && typeof dict.default === 'object') dict = dict.default;
+                // Unwrap `import('./fr.json')` and `{ default: dict }`, but not a dictionary
+                // that merely has a "default" key among others.
+                if (dict?.default && (dict[Symbol.toStringTag] === 'Module' || Object.keys(dict).length === 1)) {
+                    dict = dict.default;
+                }
             } else if (!Object.keys(loaders).length) {
                 // Zero-config: with no loaders registered, locales are fetched by convention.
                 const response = await fetch(`${base}locales/${locale}.json`);
@@ -123,16 +130,14 @@ export function getFallbackLocale() {
 export function detectLocale(mapping) {
     if (typeof navigator === 'undefined') return '';
     const known = mapping ? Object.keys(mapping) : getLocales();
+    const tags = known.map(id => id.toLowerCase());
     for (const language of [...navigator.languages || [], navigator.language || '']) {
-        const lang = language.toLowerCase();
-        for (const matches of [
-            tag => tag === lang,                                    // ja-JP → ja-JP
-            tag => lang.startsWith(tag + '-'),                      // ja-JP → ja
-            tag => tag.split('-')[0] === lang.split('-')[0],        // pt → pt-BR, en-GB → en-US
-        ]) {
-            const id = known.find(id => matches(id.toLowerCase()));
-            if (id) return mapping ? mapping[id] : id;
-        }
+        const parts = language.toLowerCase().split('-');
+        let i = -1;
+        // Most specific first: zh-Hant-TW → zh-Hant → zh. Then any region: pt → pt-BR, en-GB → en-US.
+        for (let n = parts.length; n && i < 0; n--) i = tags.indexOf(parts.slice(0, n).join('-'));
+        if (i < 0) i = tags.findIndex(tag => tag.startsWith(parts[0] + '-'));
+        if (i >= 0) return mapping ? mapping[known[i]] : known[i];
     }
     return '';
 }
@@ -177,10 +182,11 @@ export function localeName(id, displayLocale = id) {
 // --- Internals ---
 
 function translate(key, vars) {
-    let value = active?.[key];
+    let value = active?.[key], source = current;
     if (value === undefined) {
         if (current) reportMissing(key);
         value = backup?.[key];
+        source = fallback;
         if (value === undefined) {
             // A lazily registered fallback is fetched on the first miss, then the text heals itself.
             if (current && !fallbackTried && !dictionaries[fallback]) {
@@ -192,7 +198,8 @@ function translate(key, vars) {
     }
     if (vars == null) return value;
     if (typeof value === 'object' && typeof vars.count === 'number') {
-        value = value[vars.count] ?? value[intl('PluralRules', undefined, current).select(vars.count)] ?? value.other;
+        // Plural categories belong to the language the text is written in, which may be the fallback.
+        value = value[vars.count] ?? value[intl('PluralRules', undefined, source).select(vars.count)] ?? value.other;
     }
     return typeof value === 'string' ? interpolate(value, vars) : value;
 }

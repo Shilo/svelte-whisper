@@ -134,6 +134,14 @@ describe('plurals', () => {
         assert.equal(w.tr('items', { count: 1 }), '1 items');
     });
 
+    test('text taken from the fallback uses the plural rules of the fallback language', async () => {
+        const w = await english({ items: { one: '{count} item', other: '{count} items' } });
+        w.addDictionary('fr', {});
+        await w.setLocale('fr');
+        // French counts 0 as "one"; the English sentence must still read "0 items".
+        assert.equal(w.tr('items', { count: 0 }), '0 items');
+    });
+
     test('does not throw for a locale id that is not a valid language tag', async () => {
         const w = await english();
         w.addDictionary('not_a_tag', items);
@@ -153,6 +161,25 @@ describe('loading', () => {
         await w.setLocale('fr');
         assert.equal(calls, 1);
         assert.equal(w.tr('hello'), 'Bonjour');
+    });
+
+    test('a dictionary may have a top-level "default" group', async () => {
+        const w = await english();
+        w.registerLoader('fr', async () => ({ default: { label: 'Défaut' }, other: 'Autre' }));
+        await w.setLocale('fr');
+        assert.equal(w.tr('default.label'), 'Défaut');
+        assert.equal(w.tr('other'), 'Autre');
+    });
+
+    test('unwraps an ES module namespace', async () => {
+        const w = await english();
+        const namespace = Object.defineProperty(
+            { default: { hello: 'Bonjour' }, hello: 'Bonjour' }, Symbol.toStringTag, { value: 'Module' },
+        );
+        w.registerLoader('fr', async () => namespace);
+        await w.setLocale('fr');
+        assert.equal(w.tr('hello'), 'Bonjour');
+        assert.equal(w.tr('default.hello'), 'default.hello');
     });
 
     test('a dictionary may have a top-level "default" string', async () => {
@@ -233,6 +260,19 @@ describe('loading', () => {
         assert.equal(w.getLocale(), 'en');
         w.setLocale('fr');
         assert.equal(w.tr('hello'), 'Bonjour');
+    });
+
+    test('locale ids named like Object.prototype members are ordinary ids', async () => {
+        const w = await english({ hello: 'Hello' });
+        w.registerLoader('fr', async () => ({}));
+        for (const id of ['toString', 'constructor', '__proto__']) {
+            assert.equal(await w.setLocale(id), false);
+        }
+        assert.equal(w.getLocale(), 'en');
+        w.addDictionary('constructor', { hello: 'Built' });
+        assert.equal(await w.setLocale('constructor'), true);
+        assert.equal(w.tr('hello'), 'Built');
+        assert.equal((await captureConsole('warn', () => w.tr('nope'))).length, 0);
     });
 
     test('an unknown locale is refused once loaders are registered', async () => {
@@ -377,6 +417,14 @@ describe('choosing the starting locale', () => {
         assert.equal(w.tr('hello'), 'Hello');
     });
 
+    test('init without a fallback option returns to the default', async () => {
+        const w = await app();
+        await w.init({ fallback: 'fr', detect: false });
+        assert.equal(w.getFallbackLocale(), 'fr');
+        await w.init({ detect: false });
+        assert.equal(w.getFallbackLocale(), 'en');
+    });
+
     test('init is synchronous when the chosen dictionary is in memory', async () => {
         const w = await app();
         w.init({ detect: false });
@@ -505,6 +553,8 @@ describe('detectLocale', () => {
     test('prefers the most specific match for one language', async () => {
         assert.equal(await detect(['zh', 'zh-TW'], ['zh-TW']), 'zh-TW');
         assert.equal(await detect(['zh-TW', 'zh'], ['zh-CN']), 'zh');
+        assert.equal(await detect(['zh', 'zh-Hant'], ['zh-Hant-TW']), 'zh-Hant');
+        assert.equal(await detect(['zh-Hant', 'zh'], ['zh-Hans-CN']), 'zh');
     });
 
     test('maps language tags to custom locale ids', async () => {

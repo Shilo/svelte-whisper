@@ -1,6 +1,6 @@
 # Svelte Whisper 🤫
 
-Tiny runtime i18n for Svelte 5 single-page apps. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.6 kB** to your bundle.
+Tiny runtime i18n for Svelte 5 single-page apps. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.7 kB** to your bundle.
 
 ```svelte
 <script>
@@ -13,12 +13,12 @@ Tiny runtime i18n for Svelte 5 single-page apps. Locales load on demand, the API
 <button onclick={() => locale.set('fr')}>Français</button>
 ```
 
-- **Small.** 1.6 kB gzipped for a typical app, 1.8 kB with every export. No dependencies beyond Svelte. No build plugin, no code generation.
+- **Small.** 1.7 kB gzipped for a typical app, 1.9 kB with every export. No dependencies beyond Svelte. No build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
-- **Fast.** A key lookup is one property read, about 7 ns. See [Size and speed](#size-and-speed).
+- **Fast.** A key lookup is one property read, under 10 ns. See [Size and speed](#size-and-speed).
 
-It is built for client-side apps: a Vite SPA, a PWA, or SvelteKit with `ssr = false`. For server-rendered, per-route localisation, use [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+It is built for client-side apps: a Vite SPA, a PWA, or SvelteKit with `ssr = false`. See [How it compares](#how-it-compares) for when another library fits better.
 
 ## Contents
 
@@ -34,6 +34,7 @@ It is built for client-side apps: a Vite SPA, a PWA, or SvelteKit with `ssr = fa
 - [Locale tools and agent skills](#locale-tools-and-agent-skills)
 - [Editor](#editor)
 - [Size and speed](#size-and-speed)
+- [How it compares](#how-it-compares)
 - [Upgrading from 1.x](#upgrading-from-1x)
 
 ## Install
@@ -44,7 +45,7 @@ npm install github:Shilo/svelte-whisper
 
 Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.0.0`. Requires `svelte@^5.7.0`.
 
-The library is one plain JavaScript file with no build step, so you can also copy `index.js` into your project.
+The library is plain JavaScript with no build step, so you can also copy `index.js` and `dev-overlay.js` into your project.
 
 ## Quick start
 
@@ -372,8 +373,8 @@ Measured with `npm run size` (esbuild, minified, production build):
 
 | Imports | Minified | Gzip | Brotli |
 |---|---|---|---|
-| Typical app: `init`, `t`, `tr`, `locale`, `registerLoader`, `addDictionary` | 3.1 kB | 1.6 kB | 1.5 kB |
-| Every export | 3.7 kB | 1.8 kB | 1.6 kB |
+| Typical app: `init`, `t`, `tr`, `locale`, `registerLoader`, `addDictionary` | 3.2 kB | 1.7 kB | 1.5 kB |
+| Every export | 3.8 kB | 1.9 kB | 1.7 kB |
 
 The only import is `createSubscriber` from `svelte/reactivity`, which Svelte's own runtime already includes. A size budget is enforced in CI.
 
@@ -382,12 +383,34 @@ Measured with `npm run bench` (Node 25, one core of a desktop CPU):
 | Operation | Time |
 |---|---|
 | Key lookup, flat or nested | 6–8 ns |
-| Missing key | 9 ns |
+| Missing key | 10–16 ns |
 | Interpolation, two placeholders | 150 ns |
-| Plural | 315 ns |
-| `formatNumber` | 365 ns |
+| Plural | 320 ns |
+| `formatNumber` | 360 ns |
 
 Dictionaries are flattened once when they are added, which is why nesting depth does not matter.
+
+## How it compares
+
+Svelte Whisper is deliberately small: a runtime library with no compiler, no message-format parser and no server integration. That is the right trade for a client-side app, and the wrong one for some others.
+
+| | Approach | Library size, gzip | Build step |
+|---|---|---|---|
+| **svelte-whisper 2.0** | Runtime, lazy JSON per locale | 1.7 kB | None |
+| [typesafe-i18n](https://github.com/codingcommons/typesafe-i18n) 5.27 | Generated typed functions plus a small runtime | 1.3 kB plus generated code | Generator |
+| [svelte-i18n](https://github.com/kaisermann/svelte-i18n) 4.0 | Runtime with ICU MessageFormat | 14.6 kB | None |
+| [i18next](https://www.i18next.com) 27.1 | Runtime with plugins | 15.5 kB before plugins | None |
+| [sveltekit-i18n](https://github.com/sveltekit-i18n/lib) 3.4 | Runtime, route-aware loading | 15.6 kB | None |
+| [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) 3.2 | Compiler that emits message functions | Depends on the messages you use | Compiler |
+
+Sizes of the other libraries are Bundlephobia's figures for the versions shown, read in November 2026. They measure each package's main entry only, so treat them as an order of magnitude.
+
+Choose something else when you need:
+
+- **Server-side rendering or localised routes.** Svelte Whisper keeps one locale for the whole page in module state. Paraglide and sveltekit-i18n are built for per-request locales.
+- **ICU MessageFormat**, with `select`, gender, ordinals or nested plurals inside one message. svelte-i18n and i18next support it. Svelte Whisper has plural objects and placeholders, nothing more.
+- **One translation setup shared across frameworks.** i18next has adapters for most of them.
+- **Messages checked and tree-shaken at build time.** Paraglide compiles each message into a function, so unused ones disappear from the bundle.
 
 ## Upgrading from 1.x
 
