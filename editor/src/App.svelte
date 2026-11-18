@@ -79,6 +79,21 @@
 		if (auth.token && view === 'start') untrack(() => (config.repo ? load() : (view = 'connect')));
 	});
 
+	// When a new screen replaces the control that had focus, keyboard users start from its
+	// main control (marked data-focus) instead of the top of the page. Not on the first screen.
+	let settled = false;
+	$effect(() => {
+		const v = view;
+		doc;
+		if (v === 'boot' || v === 'loading') return;
+		if (!settled) return void (settled = true);
+		tick().then(() => {
+			const active = document.activeElement;
+			if (active && active !== document.body) return;
+			/** @type {HTMLElement | null} */ (document.querySelector('#main [data-focus]'))?.focus();
+		});
+	});
+
 	// ── Loading ───────────────────────────────────────────────────────
 	/**
 	 * @param {import('./lib/doc.svelte.js').SourceFile[]} files
@@ -302,7 +317,9 @@
 		hidden = hidden.filter((l) => l !== lang);
 		notify(`${languageName(lang)} added. Its file is created when you send.`, 'success');
 		await tick();
-		nextMissing();
+		const d = doc;
+		const key = d && visibleKeys.find((k) => !d.deleted[k] && d.isMissing(lang, k));
+		if (key) grid?.focusCell(key, lang);
 	}
 
 	// ── Sending ───────────────────────────────────────────────────────

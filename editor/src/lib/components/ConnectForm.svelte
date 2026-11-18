@@ -20,6 +20,16 @@
 	let dir = $state(start.dir);
 	let error = $state('');
 
+	// The branch belongs to the repository: another repository starts on its default branch,
+	// and typing the saved repository again brings its saved branch back.
+	let current = normaliseRepo(start.repo);
+	function changeRepo() {
+		const next = normaliseRepo(repo);
+		if (next === current) return;
+		current = next;
+		branch = next === normaliseRepo(start.repo) ? start.branch : '';
+	}
+
 	/** @param {SubmitEvent} e */
 	function submit(e) {
 		e.preventDefault();
@@ -38,6 +48,8 @@
 			id="c-repo"
 			class="input mono"
 			bind:value={repo}
+			oninput={changeRepo}
+			data-focus
 			placeholder="owner/repository"
 			autocomplete="off"
 			autocapitalize="off"

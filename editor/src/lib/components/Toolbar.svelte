@@ -36,6 +36,7 @@
 			<Icon name="search" size={16} />
 			<input
 				bind:this={searchEl}
+				data-focus
 				type="search"
 				placeholder="Search keys and text"
 				bind:value={query}
