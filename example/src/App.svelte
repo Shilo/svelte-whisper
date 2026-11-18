@@ -1,7 +1,7 @@
 <script>
     import {
-        t, locale, setLocale, resetLocale, getFallbackLocale,
-        localeName, formatNumber, formatPercent, formatDate,
+        t, getLocale, setLocale, resetLocale,
+        localeName, formatNumber, formatDate,
     } from 'svelte-whisper';
     import { greeting } from './greeting.js';
     import LanguageGates from './lib/LanguageGates.svelte';
@@ -17,7 +17,7 @@
     let saved = $state(readSaved());
 
     $effect(() => {
-        document.title = $t('meta.title');
+        document.title = t('meta.title');
     });
 
     function readSaved() {
@@ -40,15 +40,15 @@
     }
 
     // The dictionary entry a count lands on: an exact "0", else the Intl plural category.
-    const pluralKey = $derived(count === 0 ? '0' : new Intl.PluralRules($locale).select(count));
+    const pluralKey = $derived(count === 0 ? '0' : new Intl.PluralRules(getLocale()).select(count));
 </script>
 
 <header class="band">
     <p class="wordmark"><Pictogram name="mark" /> svelte-whisper</p>
-    <nav aria-label={$t('nav.languages')}>
+    <nav aria-label={t('nav.languages')}>
         <LanguageGates onchoose={choose} />
     </nav>
-    <p class="size" dir="ltr">{$t('nav.size', { size: formatNumber(1.7) })}</p>
+    <p class="size" dir="ltr">{t('nav.size', { size: formatNumber(1.7) })}</p>
 </header>
 
 <main>
@@ -56,13 +56,13 @@
         <section class="welcome" aria-labelledby="welcome-title">
             <h1 id="welcome-title">
                 <span class="hello">{greeting()}</span>
-                <span class="speaks">{$t('hero.speaks', { language: localeName($locale) })}</span>
+                <span class="speaks">{t('hero.speaks', { language: localeName(getLocale()) })}</span>
             </h1>
-            <p class="lede">{$t('hero.lede')}</p>
+            <p class="lede">{t('hero.lede')}</p>
             <div class="saved">
-                <p>{saved ? $t('hero.saved') : $t('hero.unsaved')}</p>
+                <p>{saved ? t('hero.saved') : t('hero.unsaved')}</p>
                 {#if saved}
-                    <button class="button" onclick={forget}>{$t('hero.forget')}</button>
+                    <button class="button" onclick={forget}>{t('hero.forget')}</button>
                 {/if}
             </div>
         </section>
@@ -70,79 +70,79 @@
     </div>
 
     <div class="signs">
-        <Sign icon="braces" title={$t('greet.title')} span="major"
-            call={["$t('greet.named', { user })", "$t('greet.positional', [user, localeName($locale)])"]}>
+        <Sign icon="braces" title={t('greet.title')} span="major"
+            call={["t('greet.named', { user })", "t('greet.positional', [user, localeName(getLocale())])"]}>
             <label class="field">
-                <span>{$t('greet.label')}</span>
+                <span>{t('greet.label')}</span>
                 <input bind:value={user} maxlength="32" autocomplete="off" spellcheck="false" />
             </label>
-            <p class="sample">{$t('greet.named', { user })}</p>
-            <p class="sample">{$t('greet.positional', [user, localeName($locale)])}</p>
+            <p class="sample">{t('greet.named', { user })}</p>
+            <p class="sample">{t('greet.positional', [user, localeName(getLocale())])}</p>
         </Sign>
 
-        <Sign icon="stack" title={$t('plural.title')} span="minor" call={["$t('plural.files', { count })"]}>
+        <Sign icon="stack" title={t('plural.title')} span="minor" call={["t('plural.files', { count })"]}>
             <div class="counter">
                 <button class="button" onclick={() => count--} disabled={count === 0}>
-                    <Pictogram name="minus" /><span>{$t('plural.fewer')}</span>
+                    <Pictogram name="minus" /><span>{t('plural.fewer')}</span>
                 </button>
                 <output aria-live="polite">{formatNumber(count)}</output>
                 <button class="button" onclick={() => count++}>
-                    <Pictogram name="plus" /><span>{$t('plural.more')}</span>
+                    <Pictogram name="plus" /><span>{t('plural.more')}</span>
                 </button>
             </div>
-            <p class="sample">{$t('plural.files', { count })}</p>
-            <p class="detail">{$t('plural.rule')}: <code dir="ltr">files.{pluralKey}</code></p>
+            <p class="sample">{t('plural.files', { count })}</p>
+            <p class="detail">{t('plural.rule')}: <code dir="ltr">files.{pluralKey}</code></p>
         </Sign>
 
-        <Sign icon="percent" title={$t('format.title')} span="wide">
+        <Sign icon="percent" title={t('format.title')} span="wide">
             <dl class="readouts">
                 <div>
-                    <dt>{$t('format.number')}</dt>
+                    <dt>{t('format.number')}</dt>
                     <dd>{formatNumber(1234567.891)}</dd>
                     <code dir="ltr">formatNumber(1234567.891)</code>
                 </div>
                 <div>
-                    <dt>{$t('format.price')}</dt>
-                    <dd>{formatNumber(1499.5, { style: 'currency', currency: $t('format.currency') })}</dd>
+                    <dt>{t('format.price')}</dt>
+                    <dd>{formatNumber(1499.5, { style: 'currency', currency: t('format.currency') })}</dd>
                     <code dir="ltr">formatNumber(1499.5, {'{'} style: 'currency', … {'}'})</code>
                 </div>
                 <div>
-                    <dt>{$t('format.share')}</dt>
-                    <dd>{formatPercent(0.256, 1)}</dd>
-                    <code dir="ltr">formatPercent(0.256, 1)</code>
+                    <dt>{t('format.share')}</dt>
+                    <dd>{formatNumber(0.256, { style: 'percent', maximumFractionDigits: 1 })}</dd>
+                    <code dir="ltr">formatNumber(0.256, {'{'} style: 'percent', … {'}'})</code>
                 </div>
                 <div>
-                    <dt>{$t('format.date')}</dt>
+                    <dt>{t('format.date')}</dt>
                     <dd>{formatDate(today, { dateStyle: 'long' })}</dd>
                     <code dir="ltr">formatDate(today, {'{'} dateStyle: 'long' {'}'})</code>
                 </div>
             </dl>
         </Sign>
 
-        <Sign icon="detour" title={$t('fallback.title')} call={["$t('fallback.only_en')"]}>
+        <Sign icon="detour" title={t('fallback.title')} call={["t('fallback.only_en')"]}>
             <!-- This key exists only in en.json; every other locale borrows it. -->
-            <p class="sample" lang="en" dir="ltr">{$t('fallback.only_en')}</p>
+            <p class="sample" lang="en" dir="ltr">{t('fallback.only_en')}</p>
             <p class="detail">
-                {$locale === getFallbackLocale()
-                    ? $t('fallback.native')
-                    : $t('fallback.falls_back', { language: localeName($locale) })}
+                {getLocale() === 'en'
+                    ? t('fallback.native')
+                    : t('fallback.falls_back', { language: localeName(getLocale()) })}
             </p>
         </Sign>
 
-        <Sign icon="absent" title={$t('missing.title')} call={["$t('missing.coming_soon')"]}>
-            <!-- This key exists in no file, on purpose. Your editor underlines it, too (see whisper.d.ts). -->
-            <p class="absent" dir="ltr">{$t('missing.coming_soon')}</p>
-            <p class="detail">{$t('missing.note')}</p>
+        <Sign icon="absent" title={t('missing.title')} call={["t('missing.coming_soon')"]}>
+            <!-- This key exists in no file, on purpose. Typed keys (see whisper.d.ts) reject it, hence the cast. -->
+            <p class="absent" dir="ltr">{t(/** @type {any} */ ('missing.coming_soon'))}</p>
+            <p class="detail">{t('missing.note')}</p>
         </Sign>
     </div>
 </main>
 
 <footer>
     <a href="https://github.com/Shilo/svelte-whisper/tree/main/example/src">
-        {$t('footer.source')} <Pictogram name="arrow" />
+        {t('footer.source')} <Pictogram name="arrow" />
     </a>
     <a href="https://github.com/Shilo/svelte-whisper">
-        {$t('footer.repo')} <Pictogram name="arrow" />
+        {t('footer.repo')} <Pictogram name="arrow" />
     </a>
 </footer>
 

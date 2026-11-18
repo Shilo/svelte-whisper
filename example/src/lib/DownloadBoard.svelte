@@ -15,28 +15,28 @@
 <section class="board" aria-labelledby="board-title">
     <h2 id="board-title">
         <Pictogram name="download" />
-        <span>{$t('log.title')}</span>
+        <span>{t('log.title')}</span>
         <span class="count">{formatNumber(downloads.length)}</span>
     </h2>
     <table>
         <thead>
             <tr>
-                <th scope="col">{$t('log.file')}</th>
-                <th scope="col">{$t('log.size')}</th>
-                <th scope="col">{$t('log.when')}</th>
+                <th scope="col">{t('log.file')}</th>
+                <th scope="col">{t('log.size')}</th>
+                <th scope="col">{t('log.when')}</th>
             </tr>
         </thead>
         <tbody aria-live="polite">
             {#each downloads as file (file.at)}
                 <tr>
                     <td dir="ltr">{file.file}</td>
-                    <td>{file.cached ? $t('log.cached') : size(file.bytes)}</td>
+                    <td>{file.cached ? t('log.cached') : size(file.bytes)}</td>
                     <td>{formatNumber(file.at / 1000, { style: 'unit', unit: 'second', maximumFractionDigits: 2 })}</td>
                 </tr>
             {/each}
         </tbody>
     </table>
-    <p class="note">{$t('log.note')}</p>
+    <p class="note">{t('log.note')}</p>
 </section>
 
 <style>

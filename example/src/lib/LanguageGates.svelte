@@ -1,5 +1,5 @@
 <script>
-    import { getLocales, localeName, locale } from 'svelte-whisper';
+    import { getLocales, localeName, getLocale } from 'svelte-whisper';
     import { downloads } from './downloads.svelte.js';
 
     let { onchoose } = $props();
@@ -12,7 +12,7 @@
     {#each locales as id (id)}
         {@const loaded = downloads.some(file => file.locale === id)}
         <li>
-            <button aria-pressed={$locale === id} class:loaded onclick={() => onchoose(id)}>
+            <button aria-pressed={getLocale() === id} class:loaded onclick={() => onchoose(id)}>
                 <span class="code" aria-hidden="true">{id}</span>
                 <span class="name" lang={id} dir="auto">{localeName(id)}</span>
             </button>
