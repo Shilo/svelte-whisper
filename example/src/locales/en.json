@@ -1,0 +1,52 @@
+{
+    "meta": { "title": "svelte-whisper · live demo" },
+    "nav": { "languages": "Language", "size": "{size} kB gzip" },
+    "day": { "morning": "Good morning.", "afternoon": "Good afternoon.", "evening": "Good evening." },
+    "hero": {
+        "speaks": "This page now speaks {language}.",
+        "lede": "Each language lives in its own small file. Pick one above: only that file is downloaded, only once, and every line changes in the same moment.",
+        "saved": "Your choice is saved in localStorage.",
+        "unsaved": "Nothing saved yet. The language came from your browser settings or the default.",
+        "forget": "Forget my choice"
+    },
+    "log": {
+        "title": "Downloaded locale files",
+        "file": "File",
+        "size": "Size",
+        "when": "When",
+        "cached": "cache",
+        "note": "Read from the browser’s Resource Timing API. Return to a language you have already used and no new row appears."
+    },
+    "greet": {
+        "title": "Interpolation",
+        "label": "Your name",
+        "named": "Good to see you, {user}.",
+        "positional": "{} is reading this page in {}."
+    },
+    "plural": {
+        "title": "Plurals",
+        "files": { "0": "No files waiting.", "one": "One file waiting.", "other": "{count} files waiting." },
+        "fewer": "Fewer",
+        "more": "More",
+        "rule": "Plural category"
+    },
+    "format": {
+        "title": "Numbers and dates",
+        "number": "Number",
+        "price": "Price",
+        "share": "Share",
+        "date": "Today",
+        "currency": "USD"
+    },
+    "fallback": {
+        "title": "Fallback",
+        "only_en": "This sentence exists only in the English file.",
+        "native": "Pick another language: this sentence has no translation there, so English will stand in.",
+        "falls_back": "This sentence is not translated into {language}, so the English version is shown."
+    },
+    "missing": {
+        "title": "Missing key",
+        "note": "This key is in no file, so the key itself is shown and reported to onMissing, the console and the dev overlay."
+    },
+    "footer": { "source": "Read the source", "repo": "svelte-whisper on GitHub" }
+}

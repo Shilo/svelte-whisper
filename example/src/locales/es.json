@@ -1,0 +1,50 @@
+{
+    "meta": { "title": "svelte-whisper · demostración en vivo" },
+    "nav": { "languages": "Idioma", "size": "{size} kB gzip" },
+    "day": { "morning": "Buenos días.", "afternoon": "Buenas tardes.", "evening": "Buenas noches." },
+    "hero": {
+        "speaks": "Esta página ahora habla {language}.",
+        "lede": "Cada idioma vive en su propio archivo pequeño. Elige uno arriba: solo se descarga ese archivo, una sola vez, y cada línea cambia en el mismo instante.",
+        "saved": "Tu elección está guardada en localStorage.",
+        "unsaved": "Aún no hay nada guardado. El idioma salió de la configuración de tu navegador o del valor predeterminado.",
+        "forget": "Olvidar mi elección"
+    },
+    "log": {
+        "title": "Archivos de idioma descargados",
+        "file": "Archivo",
+        "size": "Tamaño",
+        "when": "Cuándo",
+        "cached": "caché",
+        "note": "Datos de la API Resource Timing del navegador. Vuelve a un idioma que ya usaste y no aparecerá ninguna fila nueva."
+    },
+    "greet": {
+        "title": "Interpolación",
+        "label": "Tu nombre",
+        "named": "Qué bueno verte, {user}.",
+        "positional": "{} está leyendo esta página en {}."
+    },
+    "plural": {
+        "title": "Plurales",
+        "files": { "0": "No hay archivos en espera.", "one": "Un archivo en espera.", "other": "{count} archivos en espera." },
+        "fewer": "Menos",
+        "more": "Más",
+        "rule": "Categoría plural"
+    },
+    "format": {
+        "title": "Números y fechas",
+        "number": "Número",
+        "price": "Precio",
+        "share": "Proporción",
+        "date": "Hoy",
+        "currency": "EUR"
+    },
+    "fallback": {
+        "title": "Idioma de respaldo",
+        "falls_back": "Esta frase no está traducida al {language}, así que se muestra la versión en inglés."
+    },
+    "missing": {
+        "title": "Clave inexistente",
+        "note": "Esta clave no está en ningún archivo: se muestra la propia clave y se notifica a onMissing, a la consola y al panel de desarrollo."
+    },
+    "footer": { "source": "Leer el código fuente", "repo": "svelte-whisper en GitHub" }
+}

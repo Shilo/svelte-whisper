@@ -1,14 +1,13 @@
-import { mount } from 'svelte'
-import './app.css'
-import App from './App.svelte'
-import { init } from 'svelte-whisper';
+import { mount } from 'svelte';
+import { init, registerLoader } from 'svelte-whisper';
+import App from './App.svelte';
+import './app.css';
 
-// Initialize with missing key detection enabled.
-// The dev overlay will appear in Vite dev mode showing any missing keys.
-await init({ fallback: 'en', initial: 'en' });
+// One lazy loader per file: ./locales/es.json becomes locale "es", fetched the first time it is needed.
+registerLoader(import.meta.glob('./locales/*.json'));
 
-const app = mount(App, {
-  target: document.getElementById('app'),
-})
+// Starts with the saved choice, then the browser's language, then English.
+// In `vite dev`, keys that are missing appear in a small overlay in the corner.
+await init({ fallback: 'en', persistKey: 'whisper-demo-locale' });
 
-export default app
+mount(App, { target: document.getElementById('app') });
