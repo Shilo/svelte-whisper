@@ -11,7 +11,7 @@ A small, browser-only editor for the locale files of apps that use [svelte-whisp
 
 ## What it does
 
-- Reads the locale files in a folder (default `src/locales`), one file per language. Only files named like a language tag count (`en.json`, `pt-BR.json`, `zh-Hant.json`), the same rule as the `svelte-whisper` command line tool, so `tsconfig.json` or `notes.json` in the same folder are ignored.
+- Reads the locale files in a folder (default `src/locales`), one file per language. Only files named like a language tag count (`en.json`, `pt-BR.json`, `zh-Hant.json`), the same rule as the `svelte-whisper` command line tool, so `tsconfig.json` or `notes.json` in the same folder are skipped. After loading, the editor names any `.json` file it skipped (`pt_BR.json` is not a language tag; `pt-BR.json` is).
 - Shows one row per key and one column per language. Nested objects appear as dotted keys, the same way svelte-whisper resolves them.
 - Marks untranslated boxes (a missing key, or a `null` value, which svelte-whisper also reads as "not translated yet"), counts what is missing per language, and filters to **Missing** or **Edited** keys. **Next missing** (<kbd>Alt</kbd>+<kbd>N</kbd>) jumps to the next gap.
 - Warns when a translation drops or invents a placeholder that the source language uses: named `{name}` or indexed `{0}`. Empty braces `{}` are plain text, as in svelte-whisper.
@@ -19,17 +19,18 @@ A small, browser-only editor for the locale files of apps that use [svelte-whisp
 - Adds, renames and deletes keys, and adds languages. Values that are not strings (numbers, arrays) are shown read-only and cannot be renamed or deleted here.
 - Shows every change, file by file, before anything is sent. Each change can be undone there, and each file can be downloaded as JSON.
 - Sends a **pull request** (default) or, for people with write access, a **commit** to the branch. Contributors without write access get a fork automatically, and the pull request goes to the original repository.
-- Writes files back in their own format. Kept: indentation, line endings, a byte order mark, the final newline (or its absence), nested or flat dotted keys, and key order. New keys go where the source language has them. A file you did not edit is not sent at all. Normalised, because the file is rewritten with `JSON.stringify`: escapes (`\/` becomes `/`, `\u00e9` becomes `é`), numbers (`1.0` becomes `1`), a minified file is indented with tabs, and numeric keys such as a plural `"0"` move to the top of their object (a JavaScript object rule). Usually the diff is just the changed lines; check the review if a file uses any of these.
+- Writes files back in their own format. Kept: indentation, line endings, a byte order mark, the final newline (or its absence), nested or flat dotted keys, and key order. New keys go where the source language has them. A file you did not edit is not sent at all. A renamed key that is `null` (not translated yet) in a file stays `null` under its new name. Normalised, because the file is rewritten with `JSON.stringify`: escapes (`\/` becomes `/`, `\u00e9` becomes `é`), numbers (`1.0` becomes `1`), a minified file is indented with tabs, and numeric keys such as a plural `"0"` move to the top of their object (a JavaScript object rule). Usually the diff is just the changed lines; check the review if a file uses any of these.
 - Clearing a box removes the key from that file, so svelte-whisper falls back to the fallback language.
 - Keeps unsent edits as a draft in your browser (per repository, branch and folder) and warns before you close a tab with unsent edits.
 - Refuses to overwrite a file that changed on the branch after you loaded it.
+- Refuses to open a file that defines the same key twice, once nested and once as a dotted key (`{"a.b": …, "a": {"b": …}}`), as the command line tool does: only the file's author can say which value is right.
 
 Keyboard: <kbd>/</kbd> search, <kbd>Enter</kbd> next row, <kbd>Shift</kbd>+<kbd>Enter</kbd> new line, <kbd>Esc</kbd> restore the box to what the file says.
 
 ## Using it
 
 1. Open the editor and sign in with GitHub, or paste a personal access token.
-2. Enter the repository (`owner/name` or a GitHub URL) and the locales folder. Leave the branch empty to use the repository's default branch; the branch in use is shown in the top bar.
+2. Enter the repository (`owner/name` or a GitHub URL) and the locales folder. Leave the branch empty to use the repository's default branch; the branch in use is shown in the top bar. Changing the repository clears the branch, since branches belong to one repository.
 3. Fill in the gaps, then choose **Review & send**.
 
 ### Share a link with translators
@@ -127,7 +128,7 @@ cd editor
 npm install
 npm run dev      # http://localhost:5173, demo at /?demo, 3000-key stress test at /?demo=large (dev server only)
 npm run check    # svelte-check, fails on any error or warning
-npm test         # data-layer tests: file round trips, drafts, placeholders, plurals
+npm test         # data-layer tests: file round trips, drafts, placeholders, plurals, the GitHub client
 npm run build    # static site in editor/dist
 ```
 
