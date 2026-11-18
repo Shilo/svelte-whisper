@@ -55,7 +55,7 @@ mount(App, { target: document.getElementById('app') });
 
 ## Locale tools
 
-`npx svelte-whisper check [--usage src]` reports missing, extra, unused and undefined keys and placeholder mismatches, and exits 1 on errors. `diff --since <ref>` lists changed source strings. `apply <locale> <file>` merges translations and rewrites the locale in source order. `sync` drops stale keys. Add `--json` for machine-readable output.
+`npx svelte-whisper check` reports missing and extra keys and placeholder mismatches in every locale, and exits 1 on errors. With `--usage src` it also scans the code as text and reports unused keys and undefined ones (a literal key in `t(` or `$t(` that has no message; these also exit 1). `diff --since <ref>` lists changed source strings. `apply <locale> <file>` merges translations and rewrites the locale in source order. `sync` drops stale keys. Add `--json` for machine-readable output.
 
 When translating or auditing locale files, follow the skills instead of editing whole JSON files by hand:
 

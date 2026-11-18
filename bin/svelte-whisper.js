@@ -274,8 +274,11 @@ function rebuild(node, prefix, valueOf) {
     return out;
 }
 
+// `other` holds text and every member is a plural form. A group that merely has a child named
+// "other" ({ "other": { "label": … } }) is a group.
 function isPlural(value) {
-    return !Array.isArray(value) && 'other' in value && Object.keys(value).every(name => PLURAL.test(name));
+    return !Array.isArray(value) && value.other != null
+        && Object.entries(value).every(([name, form]) => PLURAL.test(name) && (form === null || typeof form !== 'object'));
 }
 
 const text = value => typeof value === 'string' ? value : JSON.stringify(value);
@@ -313,18 +316,21 @@ function usage(project, dir, source) {
     const used = new Set(), prefixes = new Set(), undefinedKeys = [];
     // `t('key')`, or `$t('key')` in components without runes. The last group catches
     // `t('nav.' + section)`: a key that is only the start of one.
-    const call = /(?<![\w$.])\$?t\(\s*(?:'([^'\n]*)'|"([^"\n]*)"|`([^`\n]*)`)(\s*\+)?/g;
+    // A string with a backslash in it is left alone: reading escapes is not worth being wrong about.
+    const call = /(?<![\w$.])\$?t\(\s*(?:'([^'\\\n]*)'|"([^"\\\n]*)"|`([^`\\\n]*)`)(\s*\+)?/g;
     const literal = /'([^'\n]+)'|"([^"\n]+)"|`([^`\n]+)`/g;
 
     // The source keys that `t(key)` returns text from, as the library resolves it. None: users see the key.
-    const message = value => value != null && !(typeof value === 'object' && !Object.keys(value).length);
     const resolved = key => {
-        if (message(source.get(key))) return [key];
+        // A message or a plural. An empty list or group is a value here, but not text.
+        const value = source.get(key);
+        if (value != null && (typeof value !== 'object' || isPlural(value))) return [key];
         // A plural written as flat keys: "items.one", "items.other".
-        if (message(source.get(key + '.other'))) return sourceKeys.filter(k => k.startsWith(key + '.'));
+        const other = source.get(key + '.other');
+        if (other != null && typeof other !== 'object') return sourceKeys.filter(k => k.startsWith(key + '.'));
         // One form of a plural, asked for by name: `t('items.one')`.
         const dot = key.lastIndexOf('.'), group = source.get(key.slice(0, dot));
-        if (dot > 0 && group && typeof group === 'object' && message(group[key.slice(dot + 1)])) return [key.slice(0, dot)];
+        if (dot > 0 && group && typeof group === 'object' && group[key.slice(dot + 1)] != null) return [key.slice(0, dot)];
     };
 
     for (const file of statSync(dir).isDirectory() ? walk(dir) : [dir]) {

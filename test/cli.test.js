@@ -443,6 +443,23 @@ describe('review round 6', () => {
         assert.deepEqual(report.unused, []);
     });
 
+    test('a group with a child named "other" is a group, and a plural needs text in other', t => {
+        const p = project({
+            'src/locales/en.json': {
+                settings: { other: { label: 'More settings' } },
+                menu: { label: 'Menu', other: { one: 'One link', other: 'More links' } },
+                pending: { one: 'One item', other: null },
+            },
+            'src/locales/fr.json': { settings: { other: { label: 'Autres' } }, menu: { label: 'Menu', other: { other: 'Liens' } }, pending: { one: 'Un' } },
+            'src/app.js': "t('settings.other.label'); t('menu.label'); t('menu.other'); t('pending.one');\nt('settings'); t('menu'); t('pending'); t('owner\\'s.title');",
+        }, t);
+        const report = p.json('check', '--usage', 'src');
+        assert.deepEqual(report.undefined.map(entry => `${entry.key}:${entry.line}`), ['settings:2', 'menu:2', 'pending:2']);
+        assert.deepEqual(report.unused, []);
+        assert.deepEqual([report.locales.fr.missing, report.locales.fr.extra], [[], []]);
+        assert.deepEqual([...flatten({ a: { other: { b: 'B' } } }).keys()], ['a.other.b']);
+    });
+
     test('a placeholder written with spaces is the same placeholder', t => {
         const p = project({
             'src/locales/en.json': { hello: 'Hello {name}!' },

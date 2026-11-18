@@ -122,7 +122,7 @@ For each component:
 5. Replace `toLocaleString()`, `toFixed()` and hand-built number, currency, percent or date strings with the formatters.
 6. Use a plural object wherever the text depends on a count.
 
-Then run the `whisper-translate` skill to fill the other locales, and the `whisper-audit` skill to confirm nothing is missing:
+Then run the `whisper-translate` skill to fill the other locales, and the `whisper-audit` skill to check the locales against the source and the code against the keys:
 
 ```bash
 npx svelte-whisper check --usage src
