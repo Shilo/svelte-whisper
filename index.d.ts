@@ -63,10 +63,6 @@ export interface WhisperOptions {
     devOverlay?: boolean;
 }
 
-interface Subscribable<T> {
-    subscribe(run: (value: T) => void): () => void;
-}
-
 /**
  * Choose the starting locale (stored choice → browser language → `initial` → `fallback`)
  * and load its dictionary.
@@ -96,39 +92,29 @@ export function setLocale(locale: string): Promise<boolean>;
 /** Forget the stored choice and choose again as `init` did. */
 export function resetLocale(): Promise<void>;
 
-/** The active locale. Reactive in templates, `$derived` and `$effect`. */
+/** The active locale. Reactive: use it in markup, `$derived` and `$effect`. */
 export function getLocale(): string;
 
 /** Every locale with a loader or a dictionary. */
 export function getLocales(): string[];
 
-export function getFallbackLocale(): string;
-
 /** The known locale that best matches the browser's languages, or `''`. */
 export function detectLocale(mapping?: Record<string, string>): string;
 
-/** Store of the active locale: `$locale` to read, `locale.set('fr')` or `$locale = 'fr'` to switch. */
-export const locale: Subscribable<string> & {
-    set: (locale: string) => Promise<boolean>;
-};
+/**
+ * Translate. Reactive: `{t('key', vars)}` in markup, or inside `$derived` and `$effect`,
+ * updates when the locale or a dictionary changes.
+ */
+export const t: Translate;
 
-/** Store of the translate function: `$t('key', vars)`. */
-export const t: Subscribable<Translate>;
-
-/** Translate outside markup. Reactive in templates, `$derived` and `$effect`. */
-export const tr: Translate;
-
-/** `Intl.NumberFormat` for the active locale (or `locale`). */
+/** `Intl.NumberFormat` for the active locale (or `locale`). Reactive. */
 export function formatNumber(
     value: number | bigint,
     options?: Intl.NumberFormatOptions,
     locale?: string,
 ): string;
 
-/** `0.256` → `26%`. `precision` is the maximum number of fraction digits. */
-export function formatPercent(value: number, precision?: number): string;
-
-/** `Intl.DateTimeFormat` for the active locale (or `locale`). */
+/** `Intl.DateTimeFormat` for the active locale (or `locale`). Reactive. */
 export function formatDate(
     value: Date | number,
     options?: Intl.DateTimeFormatOptions,

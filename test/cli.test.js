@@ -85,10 +85,10 @@ describe('check', () => {
         const p = project({
             'src/locales/en.json': { ...en, skills: { fire: 'Fire', ice: 'Ice' }, orphan: 'Orphan' },
             'src/App.svelte': [
-                `<h1>{$t('hello', { name })}</h1>`,
-                `<p>{$t("nav.typo")}</p>`,
-                `<p>{$t(\`skills.\${id}\`)}</p>`,
-                `<p>{tr('items', { count })} {$t('rules.0')}</p>`,
+                `<h1>{t('hello', { name })}</h1>`,
+                `<p>{t("nav.typo")}</p>`,
+                `<p>{t(\`skills.\${id}\`)}</p>`,
+                `<p>{t('items', { count })} {t('rules.0')} {format('not.a.key')} {obj.t('nor.this')}</p>`,
             ].join('\n'),
             'src/menu.js': `export const menu = [{ label: 'nav.home' }, { label: "nav.about" }, 'brand', 'rules.1'];`,
             'src/node_modules/x/index.js': `t('orphan')`,

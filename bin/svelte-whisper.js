@@ -284,7 +284,7 @@ function usage(project, dir, source) {
     if (!existsSync(dir)) throw new UsageError(`--usage folder not found: ${dir}`);
     const sourceKeys = [...source.keys()];
     const used = new Set(), prefixes = new Set(), undefinedKeys = [];
-    const call = /(?:\$t|\btr|\bt)\(\s*(?:'([^'\n]*)'|"([^"\n]*)"|`([^`\n]*)`)/g;
+    const call = /(?<![\w$.])t\(\s*(?:'([^'\n]*)'|"([^"\n]*)"|`([^`\n]*)`)/g;
     const literal = /'([^'\n]+)'|"([^"\n]+)"|`([^`\n]+)`/g;
 
     for (const file of walk(dir)) {

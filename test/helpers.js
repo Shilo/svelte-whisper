@@ -1,14 +1,50 @@
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { compileModule } from 'svelte/compiler';
+import { flushSync } from 'svelte';
+import { compile } from '../scripts/compile.js';
+
+// Compiled once per test process, next to the tests so `svelte` resolves to this project's copy.
+const dir = join(import.meta.dirname, '.build');
+mkdirSync(dir, { recursive: true });
+const built = name => join(dir, `${name}.${process.pid}.js`);
+writeFileSync(built('whisper'), compile());
+writeFileSync(built('runes'), compileModule(`
+    export function watch(fn) {
+        return $effect.root(() => {
+            $effect(() => { fn(); });
+        });
+    }
+    export function derive(fn) {
+        const value = $derived.by(fn);
+        return () => value;
+    }
+`, { generate: 'client', filename: 'runes.svelte.js' }).js.code);
+process.on('exit', () => {
+    rmSync(built('whisper'), { force: true });
+    rmSync(built('runes'), { force: true });
+});
+
 let instance = 0;
 
 /** A fresh, isolated copy of the library: its state is module-level, so every test gets its own. */
-export const load = () => import(`../index.js?instance=${++instance}`);
+export const load = () => import(`${pathToFileURL(built('whisper')).href}?instance=${++instance}`);
 
-/** Read a store's current value without importing svelte/store. */
-export function read(store) {
-    let value;
-    store.subscribe(v => { value = v; })();
-    return value;
+const runes = await import(pathToFileURL(built('runes')).href);
+
+/**
+ * Run `fn` in a real Svelte effect and record what it returns each time it runs.
+ * Returns `{ seen, flush, stop }`.
+ */
+export function observe(fn) {
+    const seen = [];
+    const stop = runes.watch(() => { seen.push(fn()); });
+    flushSync();
+    return { seen, flush: flushSync, stop };
 }
+
+export const derive = runes.derive;
 
 /**
  * Replace browser globals for the duration of `fn`, then restore them.

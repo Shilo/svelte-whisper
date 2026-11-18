@@ -1,7 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { get } from 'svelte/store';
-import { load, read, withGlobals, browser, storage, deferred, captureConsole } from './helpers.js';
+import { load, observe, withGlobals, browser, storage, deferred, captureConsole } from './helpers.js';
 
 /** A library instance with English active and no browser detection. */
 async function english(dict = {}, options = {}) {
@@ -18,59 +17,59 @@ describe('translation', () => {
             app: { ui: { title: 'Title' } },
             'flat.dotted': 'Flat',
         });
-        assert.equal(w.tr('hello'), 'Hello');
-        assert.equal(w.tr('app.ui.title'), 'Title');
-        assert.equal(w.tr('flat.dotted'), 'Flat');
+        assert.equal(w.t('hello'), 'Hello');
+        assert.equal(w.t('app.ui.title'), 'Title');
+        assert.equal(w.t('flat.dotted'), 'Flat');
     });
 
     test('returns the key itself when nothing matches', async () => {
         const w = await english({ app: { title: 'Title' } });
-        assert.equal(w.tr('nope'), 'nope');
-        assert.equal(w.tr('app.title.deeper'), 'app.title.deeper');
-        assert.equal(w.tr(''), '');
+        assert.equal(w.t('nope'), 'nope');
+        assert.equal(w.t('app.title.deeper'), 'app.title.deeper');
+        assert.equal(w.t(''), '');
     });
 
     test('never resolves keys from Object.prototype', async () => {
         const w = await english({ real: 'yes' });
         for (const key of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
-            assert.equal(w.tr(key), key);
+            assert.equal(w.t(key), key);
         }
     });
 
     test('returns arrays and objects as they are, and indexes into arrays', async () => {
         const w = await english({ rules: ['One', 'Two'] });
-        assert.deepEqual(w.tr('rules'), ['One', 'Two']);
-        assert.equal(w.tr('rules.1'), 'Two');
+        assert.deepEqual(w.t('rules'), ['One', 'Two']);
+        assert.equal(w.t('rules.1'), 'Two');
     });
 
     test('falls back to the fallback locale for missing keys', async () => {
         const w = await english({ hello: 'Hello', shared: 'English' });
         w.addDictionary('es', { shared: 'Español' });
         await w.setLocale('es');
-        assert.equal(w.tr('shared'), 'Español');
-        assert.equal(w.tr('hello'), 'Hello');
+        assert.equal(w.t('shared'), 'Español');
+        assert.equal(w.t('hello'), 'Hello');
     });
 
     test('uses the fallback dictionary before any locale is active', async () => {
         const w = await load();
         w.addDictionary('en', { hello: 'Hello' });
         assert.equal(w.getLocale(), '');
-        assert.equal(w.tr('hello'), 'Hello');
+        assert.equal(w.t('hello'), 'Hello');
     });
 
     test('a null value counts as not translated', async () => {
         const w = await english({ hello: 'Hello', nav: { home: 'Home' } });
         w.addDictionary('fr', { hello: null, nav: { home: null } });
         await w.setLocale('fr');
-        assert.equal(w.tr('hello'), 'Hello');
-        assert.equal(w.tr('nav.home'), 'Home');
+        assert.equal(w.t('hello'), 'Hello');
+        assert.equal(w.t('nav.home'), 'Home');
     });
 
     test('addDictionary merges deeply into an existing locale', async () => {
         const w = await english({ app: { title: 'Title' } });
         w.addDictionary('en', { app: { subtitle: 'Subtitle' } });
-        assert.equal(w.tr('app.title'), 'Title');
-        assert.equal(w.tr('app.subtitle'), 'Subtitle');
+        assert.equal(w.t('app.title'), 'Title');
+        assert.equal(w.t('app.subtitle'), 'Subtitle');
     });
 });
 
@@ -83,29 +82,29 @@ describe('interpolation', () => {
             spaced: 'Hello { user }!',
             repeat: '{x}-{x}',
         });
-        assert.equal(w.tr('named', { user: 'Ada' }), 'Hello Ada!');
-        assert.equal(w.tr('indexed', ['a', 'b']), 'b before a');
-        assert.equal(w.tr('auto', ['a', 'b', 'c']), 'Supports a, b and c');
-        assert.equal(w.tr('spaced', { user: 'Ada' }), 'Hello Ada!');
-        assert.equal(w.tr('repeat', { x: 1 }), '1-1');
+        assert.equal(w.t('named', { user: 'Ada' }), 'Hello Ada!');
+        assert.equal(w.t('indexed', ['a', 'b']), 'b before a');
+        assert.equal(w.t('auto', ['a', 'b', 'c']), 'Supports a, b and c');
+        assert.equal(w.t('spaced', { user: 'Ada' }), 'Hello Ada!');
+        assert.equal(w.t('repeat', { x: 1 }), '1-1');
     });
 
     test('renders falsy values and leaves unknown placeholders visible', async () => {
         const w = await english({ msg: '{a}|{b}|{c}|{d}' });
-        assert.equal(w.tr('msg', { a: 0, b: false, c: '' }), '0|false||{d}');
-        assert.equal(w.tr('msg', { a: null, b: undefined, c: 1, d: 2 }), '{a}|{b}|1|2');
+        assert.equal(w.t('msg', { a: 0, b: false, c: '' }), '0|false||{d}');
+        assert.equal(w.t('msg', { a: null, b: undefined, c: 1, d: 2 }), '{a}|{b}|1|2');
     });
 
     test('leaves text untouched without vars or with unbalanced braces', async () => {
         const w = await english({ raw: 'Hello {user}!', open: 'a { b', close: 'a } b {x}' });
-        assert.equal(w.tr('raw'), 'Hello {user}!');
-        assert.equal(w.tr('open', { b: 1 }), 'a { b');
-        assert.equal(w.tr('close', { x: 1 }), 'a } b 1');
+        assert.equal(w.t('raw'), 'Hello {user}!');
+        assert.equal(w.t('open', { b: 1 }), 'a { b');
+        assert.equal(w.t('close', { x: 1 }), 'a } b 1');
     });
 
     test('does not re-scan substituted values', async () => {
         const w = await english({ msg: '{a} {b}' });
-        assert.equal(w.tr('msg', { a: '{b}', b: 'B' }), '{b} B');
+        assert.equal(w.t('msg', { a: '{b}', b: 'B' }), '{b} B');
     });
 });
 
@@ -114,24 +113,24 @@ describe('plurals', () => {
 
     test('selects by exact count, then plural category, then other', async () => {
         const w = await english(items);
-        assert.equal(w.tr('items', { count: 0 }), 'No items');
-        assert.equal(w.tr('items', { count: 1 }), '1 item');
-        assert.equal(w.tr('items', { count: 5 }), '5 items');
+        assert.equal(w.t('items', { count: 0 }), 'No items');
+        assert.equal(w.t('items', { count: 1 }), '1 item');
+        assert.equal(w.t('items', { count: 5 }), '5 items');
     });
 
     test('follows the plural rules of the active locale', async () => {
         const w = await english();
         w.addDictionary('ru', { files: { one: '{count} файл', few: '{count} файла', many: '{count} файлов', other: '{count} файла' } });
         await w.setLocale('ru');
-        assert.equal(w.tr('files', { count: 1 }), '1 файл');
-        assert.equal(w.tr('files', { count: 3 }), '3 файла');
-        assert.equal(w.tr('files', { count: 5 }), '5 файлов');
-        assert.equal(w.tr('files', { count: 21 }), '21 файл');
+        assert.equal(w.t('files', { count: 1 }), '1 файл');
+        assert.equal(w.t('files', { count: 3 }), '3 файла');
+        assert.equal(w.t('files', { count: 5 }), '5 файлов');
+        assert.equal(w.t('files', { count: 21 }), '21 файл');
     });
 
     test('uses other when the category has no entry', async () => {
         const w = await english({ items: { other: '{count} items' } });
-        assert.equal(w.tr('items', { count: 1 }), '1 items');
+        assert.equal(w.t('items', { count: 1 }), '1 items');
     });
 
     test('text taken from the fallback uses the plural rules of the fallback language', async () => {
@@ -139,14 +138,14 @@ describe('plurals', () => {
         w.addDictionary('fr', {});
         await w.setLocale('fr');
         // French counts 0 as "one"; the English sentence must still read "0 items".
-        assert.equal(w.tr('items', { count: 0 }), '0 items');
+        assert.equal(w.t('items', { count: 0 }), '0 items');
     });
 
     test('does not throw for a locale id that is not a valid language tag', async () => {
         const w = await english();
         w.addDictionary('not_a_tag', items);
         await w.setLocale('not_a_tag');
-        assert.equal(w.tr('items', { count: 5 }), '5 items');
+        assert.equal(w.t('items', { count: 5 }), '5 items');
     });
 });
 
@@ -160,15 +159,15 @@ describe('loading', () => {
         await w.setLocale('en');
         await w.setLocale('fr');
         assert.equal(calls, 1);
-        assert.equal(w.tr('hello'), 'Bonjour');
+        assert.equal(w.t('hello'), 'Bonjour');
     });
 
     test('a dictionary may have a top-level "default" group', async () => {
         const w = await english();
         w.registerLoader('fr', async () => ({ default: { label: 'Défaut' }, other: 'Autre' }));
         await w.setLocale('fr');
-        assert.equal(w.tr('default.label'), 'Défaut');
-        assert.equal(w.tr('other'), 'Autre');
+        assert.equal(w.t('default.label'), 'Défaut');
+        assert.equal(w.t('other'), 'Autre');
     });
 
     test('unwraps an ES module namespace', async () => {
@@ -178,16 +177,16 @@ describe('loading', () => {
         );
         w.registerLoader('fr', async () => namespace);
         await w.setLocale('fr');
-        assert.equal(w.tr('hello'), 'Bonjour');
-        assert.equal(w.tr('default.hello'), 'default.hello');
+        assert.equal(w.t('hello'), 'Bonjour');
+        assert.equal(w.t('default.hello'), 'default.hello');
     });
 
     test('a dictionary may have a top-level "default" string', async () => {
         const w = await english();
         w.registerLoader('fr', async () => ({ default: 'Défaut', other: 'Autre' }));
         await w.setLocale('fr');
-        assert.equal(w.tr('default'), 'Défaut');
-        assert.equal(w.tr('other'), 'Autre');
+        assert.equal(w.t('default'), 'Défaut');
+        assert.equal(w.t('other'), 'Autre');
     });
 
     test('registers a whole glob, naming locales after their files', async () => {
@@ -199,7 +198,7 @@ describe('loading', () => {
         });
         assert.deepEqual(w.getLocales().sort(), ['en', 'fr', 'pt-BR', 'zh-Hant']);
         await w.setLocale('pt-BR');
-        assert.equal(w.tr('hello'), 'Olá');
+        assert.equal(w.t('hello'), 'Olá');
     });
 
     test('concurrent requests for one locale share a single load', async () => {
@@ -230,11 +229,11 @@ describe('loading', () => {
         assert.equal(errors.length, 1);
         assert.match(errors[0][0], /Failed to load locale "fr"/);
         assert.equal(w.getLocale(), 'en');
-        assert.equal(w.tr('hello'), 'Hello');
+        assert.equal(w.t('hello'), 'Hello');
 
         online = true;
         assert.equal(await w.setLocale('fr'), true);
-        assert.equal(w.tr('hello'), 'Bonjour');
+        assert.equal(w.t('hello'), 'Bonjour');
     });
 
     test('the last setLocale call wins, whatever order the loads finish in', async () => {
@@ -249,7 +248,7 @@ describe('loading', () => {
         ja.resolve({ hello: 'こんにちは' });
         assert.equal(await first, false);
         assert.equal(w.getLocale(), 'fr');
-        assert.equal(w.tr('hello'), 'Bonjour');
+        assert.equal(w.t('hello'), 'Bonjour');
     });
 
     test('switching to a locale already in memory is synchronous', async () => {
@@ -259,7 +258,7 @@ describe('loading', () => {
         w.init({ detect: false });
         assert.equal(w.getLocale(), 'en');
         w.setLocale('fr');
-        assert.equal(w.tr('hello'), 'Bonjour');
+        assert.equal(w.t('hello'), 'Bonjour');
     });
 
     test('locale ids named like Object.prototype members are ordinary ids', async () => {
@@ -271,8 +270,8 @@ describe('loading', () => {
         assert.equal(w.getLocale(), 'en');
         w.addDictionary('constructor', { hello: 'Built' });
         assert.equal(await w.setLocale('constructor'), true);
-        assert.equal(w.tr('hello'), 'Built');
-        assert.equal((await captureConsole('warn', () => w.tr('nope'))).length, 0);
+        assert.equal(w.t('hello'), 'Built');
+        assert.equal((await captureConsole('warn', () => w.t('nope'))).length, 0);
     });
 
     test('an unknown locale is refused once loaders are registered', async () => {
@@ -300,7 +299,7 @@ describe('zero-config fetch', () => {
             assert.equal(await w.setLocale('xx'), false);
         });
         assert.deepEqual(requested, ['/locales/en.json', '/locales/xx.json']);
-        assert.equal(w.tr('hello'), 'Hello');
+        assert.equal(w.t('hello'), 'Hello');
         assert.equal(w.getLocale(), 'en');
     });
 
@@ -324,15 +323,14 @@ describe('lazy fallback', () => {
         w.registerLoader('ja', async () => ({ hello: 'こんにちは' }));
         await w.init({ fallback: 'en', initial: 'ja', detect: false, warn: false });
         assert.equal(calls, 0, 'a complete translation never downloads the fallback');
-        assert.equal(w.tr('hello'), 'こんにちは');
+        assert.equal(w.t('hello'), 'こんにちは');
 
-        const emitted = [];
-        w.t.subscribe(fn => emitted.push(fn));
-        assert.equal(w.tr('only'), 'only');
+        const page = observe(() => w.t('only'));
         await w.loadLocale('en');
+        page.flush();
+        page.stop();
         assert.equal(calls, 1);
-        assert.equal(w.tr('only'), 'Only English');
-        assert.equal(emitted.length, 2, 'subscribers are told so the text heals itself');
+        assert.deepEqual(page.seen, ['only', 'Only English'], 'the text heals itself once the fallback arrives');
     });
 
     test('does not retry a fallback that cannot be loaded', async () => {
@@ -342,9 +340,9 @@ describe('lazy fallback', () => {
         w.registerLoader('ja', async () => ({}));
         await captureConsole('error', async () => {
             await w.init({ initial: 'ja', detect: false, warn: false });
-            w.tr('a');
+            w.t('a');
             await Promise.resolve();
-            w.tr('b');
+            w.t('b');
             await new Promise(resolve => setTimeout(resolve));
         });
         assert.equal(calls, 1);
@@ -414,22 +412,26 @@ describe('choosing the starting locale', () => {
         await w.init({ fallback: 'en', detect: false, warn: false });
         assert.equal(w.getLocale(), 'en');
         w.addDictionary('en', { hello: 'Hello' });
-        assert.equal(w.tr('hello'), 'Hello');
+        assert.equal(w.t('hello'), 'Hello');
     });
 
     test('init without a fallback option returns to the default', async () => {
         const w = await app();
-        await w.init({ fallback: 'fr', detect: false });
-        assert.equal(w.getFallbackLocale(), 'fr');
-        await w.init({ detect: false });
-        assert.equal(w.getFallbackLocale(), 'en');
+        await w.init({ fallback: 'fr', initial: 'ja', detect: false, warn: false });
+        assert.equal(w.t('hello'), 'こんにちは');
+        assert.equal(w.t('only_fr'), 'only_fr');
+        w.addDictionary('fr', { only: 'Seulement' });
+        w.addDictionary('en', { only: 'Only' });
+        assert.equal(w.t('only'), 'Seulement');
+        await w.init({ initial: 'ja', detect: false, warn: false });
+        assert.equal(w.t('only'), 'Only');
     });
 
     test('init is synchronous when the chosen dictionary is in memory', async () => {
         const w = await app();
         w.init({ detect: false });
         assert.equal(w.getLocale(), 'en');
-        assert.equal(w.tr('hello'), 'Hello');
+        assert.equal(w.t('hello'), 'Hello');
     });
 
     test('a setLocale call made while init is loading is not overridden', async () => {
@@ -462,7 +464,7 @@ describe('persistence', () => {
 
             await w.setLocale('fr');
             assert.equal(localStorage.data.key, 'fr');
-            await w.locale.set('en');
+            await w.setLocale('en');
             assert.equal(localStorage.data.key, 'en');
         });
     });
@@ -587,47 +589,12 @@ describe('document', () => {
     });
 });
 
-describe('stores', () => {
-    test('locale and t follow the Svelte store contract', async () => {
-        const w = await english({ hello: 'Hello' });
-        w.addDictionary('fr', { hello: 'Bonjour' });
-
-        assert.equal(get(w.locale), 'en');
-        assert.equal(get(w.t)('hello'), 'Hello');
-
-        const locales = [];
-        const texts = [];
-        const stopLocale = w.locale.subscribe(value => locales.push(value));
-        const stopT = w.t.subscribe(translate => texts.push(translate('hello')));
-        await w.setLocale('fr');
-        stopLocale();
-        stopT();
-        await w.setLocale('en');
-
-        assert.deepEqual(locales, ['en', 'fr']);
-        assert.deepEqual(texts, ['Hello', 'Bonjour']);
-    });
-
-    test('t emits a new function whenever its output could change', async () => {
-        const w = await english({ hello: 'Hello' });
-        const seen = new Set();
-        w.t.subscribe(translate => seen.add(translate));
-        w.addDictionary('en', { more: 'More' });
-        w.addDictionary('fr', { hello: 'Bonjour' });
-        assert.equal(seen.size, 2, 'adding to an inactive locale does not notify');
-        await w.setLocale('fr');
-        assert.equal(seen.size, 3);
-        await w.setLocale('fr');
-        assert.equal(seen.size, 3, 'setting the same locale does not notify');
-    });
-
+describe('known locales', () => {
     test('getLocales lists loaders and dictionaries without duplicates', async () => {
         const w = await english();
         w.registerLoader('fr', async () => ({}));
         w.registerLoader('en', async () => ({}));
         assert.deepEqual(w.getLocales().sort(), ['en', 'fr']);
-        assert.equal(w.getFallbackLocale(), 'en');
-        assert.equal(read(w.locale), 'en');
     });
 });
 
@@ -636,10 +603,10 @@ describe('missing keys', () => {
         const seen = [];
         const w = await english({ hello: 'Hello' }, { warn: undefined, onMissing: entry => seen.push(entry) });
         w.addDictionary('ja', {});
-        w.tr('nope');
-        w.tr('nope');
+        w.t('nope');
+        w.t('nope');
         await w.setLocale('ja');
-        w.tr('nope');
+        w.t('nope');
         assert.deepEqual(seen, [{ locale: 'en', key: 'nope' }, { locale: 'ja', key: 'nope' }]);
     });
 
@@ -648,40 +615,40 @@ describe('missing keys', () => {
         const w = await english({ only: 'Only English' }, { onMissing: entry => seen.push(entry) });
         w.addDictionary('ja', {});
         await w.setLocale('ja');
-        assert.equal(w.tr('only'), 'Only English');
+        assert.equal(w.t('only'), 'Only English');
         assert.deepEqual(seen, [{ locale: 'ja', key: 'only' }]);
     });
 
     test('warns by default with a stable message', async () => {
         const w = await english({}, { warn: undefined });
-        const warnings = await captureConsole('warn', () => { w.tr('a.b'); w.tr('a.b'); });
+        const warnings = await captureConsole('warn', () => { w.t('a.b'); w.t('a.b'); });
         assert.deepEqual(warnings, [['svelte-whisper: Missing "a.b" for locale "en"']]);
     });
 
     test('onMissing silences the warning unless warn is true', async () => {
         const quiet = await english({}, { warn: undefined, onMissing() { } });
-        assert.equal((await captureConsole('warn', () => quiet.tr('a'))).length, 0);
+        assert.equal((await captureConsole('warn', () => quiet.t('a'))).length, 0);
         const loud = await english({}, { warn: true, onMissing() { } });
-        assert.equal((await captureConsole('warn', () => loud.tr('a'))).length, 1);
+        assert.equal((await captureConsole('warn', () => loud.t('a'))).length, 1);
     });
 
     test('warn: false is silent', async () => {
         const w = await english({}, { warn: false });
-        assert.equal((await captureConsole('warn', () => w.tr('a'))).length, 0);
+        assert.equal((await captureConsole('warn', () => w.t('a'))).length, 0);
     });
 
     test('nothing is reported before a locale is active', async () => {
         const w = await load();
-        assert.equal((await captureConsole('warn', () => w.tr('a'))).length, 0);
+        assert.equal((await captureConsole('warn', () => w.t('a'))).length, 0);
     });
 
     test('init starts a fresh report', async () => {
         const seen = [];
         const options = { detect: false, onMissing: entry => seen.push(entry) };
         const w = await english({}, options);
-        w.tr('a');
+        w.t('a');
         await w.init(options);
-        w.tr('a');
+        w.t('a');
         assert.equal(seen.length, 2);
     });
 });
@@ -709,17 +676,14 @@ describe('formatting', () => {
         assert.equal(w.formatNumber(1234.5, { minimumFractionDigits: 2 }, 'de'), '1.234,50');
     });
 
-    test('formatPercent rounds to precision and localises the sign', async () => {
+    test('percentages are a formatNumber style', async () => {
         const w = await app();
-        assert.equal(w.formatPercent(0), '0%');
-        assert.equal(w.formatPercent(0.2), '20%');
-        assert.equal(w.formatPercent(0.123), '12%');
-        assert.equal(w.formatPercent(0.123, 1), '12.3%');
-        assert.equal(w.formatPercent(0.5, 2), '50%');
-        assert.equal(w.formatPercent(12.345, 1), '1,234.5%');
+        const percent = (value, digits = 0) => w.formatNumber(value, { style: 'percent', maximumFractionDigits: digits });
+        assert.equal(percent(0.2), '20%');
+        assert.equal(percent(0.123, 1), '12.3%');
         await w.setLocale('fr');
-        // French puts a (non-breaking) space before the sign; its exact code point varies by ICU version.
-        assert.match(w.formatPercent(0.2), /^20\s%$/);
+        // French puts a non-breaking space before the sign; which one depends on the ICU version.
+        assert.match(percent(0.2), /^20\s%$/);
     });
 
     test('formatDate follows the active locale and accepts Intl options', async () => {
@@ -790,7 +754,7 @@ describe('regressions', () => {
         assert.equal(await w.setLocale('text'), false);
         await captureConsole('error', async () => assert.equal(await w.setLocale('loop'), false));
         assert.equal(w.getLocale(), 'en');
-        assert.equal(w.tr('0'), '0');
+        assert.equal(w.t('0'), '0');
     });
 
     test('adding one plural form keeps the others', async () => {
@@ -798,28 +762,15 @@ describe('regressions', () => {
         w.addDictionary('en', { items: { one: 'One', other: 'Many' } });
         await w.init({ detect: false, warn: false });
         w.addDictionary('en', { items: { one: 'Single' } });
-        assert.equal(w.tr('items', { count: 1 }), 'Single');
-        assert.equal(w.tr('items', { count: 2 }), 'Many');
+        assert.equal(w.t('items', { count: 1 }), 'Single');
+        assert.equal(w.t('items', { count: 2 }), 'Many');
     });
 
     test('an array stays an array when vars carry a count', async () => {
         const w = await load();
         w.addDictionary('en', { rules: ['A', 'B'], group: { a: 'A' } });
         await w.init({ detect: false, warn: false });
-        assert.deepEqual(w.tr('rules', { count: 1 }), ['A', 'B']);
-        assert.deepEqual(w.tr('group', { count: 1 }), { a: 'A' });
-    });
-
-    test('a subscriber that switches locale leaves every subscriber on the final locale', async () => {
-        const w = await load();
-        w.addDictionary('en', {});
-        w.addDictionary('fr', {});
-        await w.init({ detect: false });
-        const seen = [];
-        w.locale.subscribe(id => { if (id === 'fr') w.setLocale('en'); });
-        w.locale.subscribe(id => seen.push(id));
-        await w.setLocale('fr');
-        assert.equal(w.getLocale(), 'en');
-        assert.equal(seen.at(-1), 'en');
+        assert.deepEqual(w.t('rules', { count: 1 }), ['A', 'B']);
+        assert.deepEqual(w.t('group', { count: 1 }), { a: 'A' });
     });
 });

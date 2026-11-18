@@ -1,5 +1,4 @@
 // svelte-whisper — tiny runtime i18n for Svelte 5 single-page apps.
-import { createSubscriber } from 'svelte/reactivity';
 
 const RTL = /^(ar|ckb|dv|fa|he|ps|sd|ug|ur|yi)\b/i;
 
@@ -12,8 +11,11 @@ const loaders = blank();
 const pending = blank();
 const formatters = blank();
 const missingListeners = new Set();
-const localeSubscribers = new Set();
-const tSubscribers = new Set();
+
+// The only reactive state. t(), getLocale() and the formatters read it, so markup, $derived and
+// $effect that call them re-run when the locale or a dictionary changes. Everything else is plain data.
+let version = $state(0);
+let stamp = 0;
 
 let current = '';
 let fallback = 'en';
@@ -22,18 +24,11 @@ let warn = true;
 let request = 0;
 let fallbackTried = false;
 let missing = blank();
-let active, backup, tFn;
+let active, backup;
 
 // Vite replaces import.meta.env.* at build time; elsewhere the lookup throws and '/' stays.
 let base = '/';
 try { base = import.meta.env.BASE_URL || base; } catch { }
-
-// Lets plain function calls (tr, formatNumber, …) re-run inside Svelte 5 templates,
-// $derived and $effect when the locale or a dictionary changes. A no-op elsewhere.
-let ping = () => { };
-const track = createSubscriber(update => { ping = update; });
-
-refresh();
 
 // --- Setup ---
 
@@ -116,17 +111,14 @@ export function resetLocale() {
     return pick();
 }
 
+/** The active locale. Reactive. */
 export function getLocale() {
-    track();
+    void version;
     return current;
 }
 
 export function getLocales() {
     return Object.keys({ ...loaders, ...dictionaries });
-}
-
-export function getFallbackLocale() {
-    return fallback;
 }
 
 /** Best match for the browser's preferred languages among known locales, or ''. */
@@ -145,46 +137,11 @@ export function detectLocale(mapping) {
     return '';
 }
 
-/** Store of the active locale: `$locale` to read, `locale.set('fr')` to switch. */
-export const locale = { ...store(localeSubscribers, () => current), set: setLocale };
-
 // --- Translation ---
 
-/** Store of the translate function: `$t('key', vars)` in markup. */
-export const t = store(tSubscribers, () => tFn);
-
-/** Translate anywhere. Reactive when called from a template, $derived or $effect. */
-export function tr(key, vars) {
-    track();
-    return translate(key, vars);
-}
-
-// --- Formatting (Intl, bound to the active locale) ---
-
-export function formatNumber(value, opts, loc) {
-    return intl('NumberFormat', opts, loc).format(value);
-}
-
-export function formatPercent(value, precision = 0) {
-    return formatNumber(value, { style: 'percent', maximumFractionDigits: precision });
-}
-
-export function formatDate(value, opts, loc) {
-    return intl('DateTimeFormat', opts, loc).format(value);
-}
-
-/** Language name for a locale id: its own name by default ('ja' → '日本語'). */
-export function localeName(id, displayLocale = id) {
-    try {
-        return intl('DisplayNames', { type: 'language' }, displayLocale).of(id) || id;
-    } catch {
-        return id;
-    }
-}
-
-// --- Internals ---
-
-function translate(key, vars) {
+/** Translate. Reactive: `{t('key', vars)}` in markup, or inside $derived and $effect. */
+export function t(key, vars) {
+    void version;
     let value = active?.[key], source = current;
     if (value === undefined) {
         if (current) reportMissing(key);
@@ -207,6 +164,27 @@ function translate(key, vars) {
     }
     return typeof value === 'string' ? interpolate(value, vars) : value;
 }
+
+// --- Formatting (Intl, bound to the active locale) ---
+
+export function formatNumber(value, opts, loc) {
+    return intl('NumberFormat', opts, loc).format(value);
+}
+
+export function formatDate(value, opts, loc) {
+    return intl('DateTimeFormat', opts, loc).format(value);
+}
+
+/** Language name for a locale id: its own name by default ('ja' → '日本語'). */
+export function localeName(id, displayLocale = id) {
+    try {
+        return intl('DisplayNames', { type: 'language' }, displayLocale).of(id) || id;
+    } catch {
+        return id;
+    }
+}
+
+// --- Internals ---
 
 function interpolate(text, vars) {
     let open = text.indexOf('{');
@@ -236,11 +214,7 @@ function flatten(node, prefix, out) {
 }
 
 // Intl objects are slow to construct and fast to reuse, so each one is built once.
-function intl(type, opts, loc) {
-    if (loc === undefined) {
-        track();
-        loc = current;
-    }
+function intl(type, opts, loc = getLocale()) {
     const cache = formatters[type] ??= new Map();
     const id = opts ? loc + JSON.stringify(opts) : loc;
     let formatter = cache.get(id);
@@ -255,23 +229,12 @@ function intl(type, opts, loc) {
     return formatter;
 }
 
-// The Svelte store contract, without importing svelte/store.
-function store(subscribers, value) {
-    return {
-        subscribe(fn) {
-            subscribers.add(fn);
-            fn(value());
-            return () => subscribers.delete(fn);
-        },
-    };
-}
-
 function refresh() {
     active = dictionaries[current];
     backup = current === fallback ? undefined : dictionaries[fallback];
-    tFn = (key, vars) => translate(key, vars);
-    for (const fn of tSubscribers) fn(tFn);
-    ping();
+    // Written from a plain counter, never read back, so calling this inside an effect
+    // does not make that effect depend on (and re-run from) its own change.
+    version = ++stamp;
 }
 
 // true: applied · false: could not load · undefined: superseded by a newer call
@@ -291,8 +254,6 @@ function apply(next, persist) {
             root.dir = RTL.test(next) ? 'rtl' : 'ltr';
         }
         refresh();
-        // `current`, not `next`: a subscriber may switch again while this loop runs.
-        for (const fn of localeSubscribers) fn(current);
     }
     return true;
 }
