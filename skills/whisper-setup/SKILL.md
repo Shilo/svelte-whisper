@@ -5,7 +5,7 @@ description: Add svelte-whisper i18n to a Svelte 5 single-page app, or move hard
 
 # Set up svelte-whisper
 
-svelte-whisper is a runtime i18n library for client-side Svelte 5 apps, built on runes. It keeps state in the module, so do not use it for server-side rendering. In components that use runes, call its functions (`t('key')`, `getLocale()`). In components that do not (`export let`, `$:`), Svelte only follows stores, so use `$t('key')` and `$locale` there, and pass the locale to formatters: `formatNumber(n, options, $locale)`. Match whichever kind the component already is; do not convert components as part of adding translations.
+svelte-whisper is a runtime i18n library for client-side Svelte 5 apps, built on runes. It keeps state in the module, so do not use it for server-side rendering. Call its functions (`t('key')`, `getLocale()`), except in legacy components: one that still uses `export let` or `$:` only follows stores, so use `$t('key')` and `$locale` there, and pass the locale to formatters: `formatNumber(n, options, $locale)`. Match whichever kind the component already is; do not convert components as part of adding translations.
 
 ## 1. Install
 
@@ -81,7 +81,7 @@ export function setupI18n() {
 <p>{t('cart.items', { count })}</p>
 <p>{formatNumber(total, { style: 'currency', currency: 'EUR' })} · {formatDate(Date.now(), { dateStyle: 'medium' })}</p>
 
-<select bind:value={getLocale, setLocale}>
+<select value={getLocale()} onchange={async e => { const s = e.currentTarget; if (!await setLocale(s.value)) s.value = getLocale(); }}>
     {#each getLocales() as id}
         <option value={id}>{localeName(id)}</option>
     {/each}

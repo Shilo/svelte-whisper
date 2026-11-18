@@ -15,7 +15,7 @@ Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on
 
 - **Small.** 1.8 kB gzipped for a typical app, 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
-- **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. Components that do not use runes write `$t()` instead, and get the same thing.
+- **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. Components still written with `export let` or `$:` write `$t()` instead, and get the same thing.
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
 - **Fast.** A lookup is one signal read and one property read, about 11 ns. See [Size and speed](#size-and-speed).
 
@@ -30,7 +30,7 @@ It is built for client-side apps: a Vite single-page app or a PWA. See [How it c
 - [Install](#install)
 - [Quick start](#quick-start)
 - [Translating](#translating)
-- [Components without runes](#components-without-runes)
+- [Legacy components](#legacy-components)
 - [Formatting](#formatting)
 - [Locales](#locales)
 - [Missing keys](#missing-keys)
@@ -141,9 +141,9 @@ An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules`
 
 **Always a string.** `t()` returns text and nothing else. A number or boolean in the JSON comes back as text, and items of a list are addressed by index: `t('rules.0')`. A key that points at a group or a list is not a message, so it comes back as the key, like any other missing key.
 
-## Components without runes
+## Legacy components
 
-Svelte 5 still compiles components that use no runes (`export let`, `$:`) in its legacy mode, and in those components Svelte follows **stores only**: a plain function call such as `{t('key')}` is evaluated once and never again. So `t` is also a store, and so is `locale`. Prefix them with a dollar sign:
+Svelte 5 compiles a component that still uses `export let` or `$:` in its legacy mode, and there it follows **stores only**: a plain function call such as `{t('key')}` is evaluated once and never again. So `t` is also a store, and so is `locale`. Prefix them with a dollar sign:
 
 ```svelte
 <script>
@@ -154,17 +154,20 @@ Svelte 5 still compiles components that use no runes (`export let`, `$:`) in its
 <h1>{$t('greeting', { name: 'Ada' })}</h1>
 <p>{formatNumber(total, { style: 'currency', currency: 'EUR' }, $locale)}</p>
 
-<select bind:value={$locale}>…</select>
+<select bind:value={$locale}>
+    <option value="en">English</option>
+    <option value="fr">Français</option>
+</select>
 ```
 
-| | With runes | Without runes |
+| | Runes component, or any component without `export let` and `$:` | Legacy component |
 |---|---|---|
 | Translate | `t('key')` | `$t('key')` |
 | Read the locale | `getLocale()` | `$locale` |
 | Switch | `setLocale(id)` | `setLocale(id)`, `$locale = id` or `bind:value={$locale}` |
 | Format | `formatNumber(n)`, `formatPercent(x)` | `formatNumber(n, options, $locale)`, `formatPercent(x, 0, $locale)` |
 
-The dollar forms work in runes components too, so an app that mixes both kinds can use `$t` everywhere and convert at its own pace. Plain `.js` and `.ts` modules always use the functions.
+The dollar forms work in every component, so an app that mixes both kinds can use `$t` everywhere and convert at its own pace. Plain `.js` and `.ts` modules always use the functions.
 
 ## Formatting
 
@@ -192,7 +195,14 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
     import { getLocale, setLocale, getLocales, localeName, resetLocale } from 'svelte-whisper';
 </script>
 
-<select bind:value={getLocale, setLocale}>
+<select
+    value={getLocale()}
+    onchange={async event => {
+        const select = event.currentTarget;
+        // false: the download failed, so the language did not change. Put the control back.
+        if (!await setLocale(select.value)) select.value = getLocale();
+    }}
+>
     {#each getLocales() as id}
         <option value={id}>{localeName(id)}</option>
     {/each}
@@ -201,8 +211,10 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
 <button onclick={resetLocale}>Use my browser's language</button>
 ```
 
+When every language is bundled, or a failed download is handled elsewhere, the picker is one line: `<select bind:value={getLocale, setLocale}>`.
+
 - `getLocale()` is the active locale, and is reactive. `setLocale(id)` switches.
-- Switching downloads the dictionary if needed and only then changes the text, so users never see a flash of raw keys. The promise resolves `true` once active, or `false` if the download failed, in which case the locale stays as it was. A `<select>` keeps showing what the user picked, so when a download can fail, set it back: `if (!await setLocale(id)) select.value = getLocale()`.
+- Switching downloads the dictionary if needed and only then changes the text, so users never see a flash of raw keys. The promise resolves `true` once active, or `false` if the download failed, in which case the locale stays as it was.
 - `localeName('ja')` returns `日本語`: every language is listed under its own name, with no translation keys to maintain. `localeName('ja', 'en')` returns `Japanese`.
 - `loadLocale(id)` downloads a locale without switching, for example on hover.
 - `<html lang>` and `dir` are kept in step. Direction comes from the script the browser associates with the locale, so Arabic, Hebrew, Persian, Urdu and the rest are `rtl` without a list of languages.
@@ -225,7 +237,7 @@ A key that is missing from the active locale is reported once per locale, even w
 ```js
 await init({
     fallback: 'en',
-    onMissing: ({ locale, key }) => report(`Missing ${key} in ${locale}`),
+    onMissing: ({ locale, key }) => fetch('/missing', { method: 'POST', body: `${locale}:${key}` }),
 });
 ```
 
@@ -290,10 +302,9 @@ getLocales();                                           // ['en', 'fr', 'ja']
 detectLocale();                                         // best match for the browser, or ''
 localeName('ja');                                       // '日本語'
 
-// Components without runes: the same two things as stores
-$t('greeting', { name: 'Ada' });                        // t is a store of itself
-$locale;                                                // 'en'
 ```
+
+In [legacy components](#legacy-components) the same two reactive things are stores: `$t('greeting', { name: 'Ada' })` and `$locale`.
 
 ### Setup
 
@@ -321,7 +332,7 @@ $locale;                                                // 'en'
 | | |
 |---|---|
 | `getLocale()` | The active locale id. Reactive. |
-| `locale` | The same as a store, for [components without runes](#components-without-runes): `$locale`, `bind:value={$locale}`. |
+| `locale` | The same as a store, for [legacy components](#legacy-components): `$locale`, `bind:value={$locale}`. |
 | `setLocale(id)` | Switch, loading first if needed. Resolves `true`, or `false` if the load failed or a newer call replaced this one. |
 | `loadLocale(id)` | Load without switching. Resolves `true` or `false`. |
 | `resetLocale()` | Forget the stored choice and choose again. |
@@ -333,12 +344,12 @@ $locale;                                                // 'en'
 
 | | |
 |---|---|
-| `t(key, vars?)` | Translate. Reactive. Also a store of itself: `$t(key, vars?)` in components without runes. |
+| `t(key, vars?)` | Translate. Reactive. Also a store of itself: `$t(key, vars?)` in legacy components. |
 | `formatNumber(value, options?, locale?)` | `Intl.NumberFormat`. Reactive unless `locale` is given. |
 | `formatPercent(value, precision?, locale?)` | `0.256` → `26%`. `precision` is the maximum number of decimals. Reactive unless `locale` is given. |
 | `formatDate(value, options?, locale?)` | `Intl.DateTimeFormat`. Takes a `Date` or a timestamp. Reactive unless `locale` is given. |
 
-"Reactive" means that markup, `$derived` and `$effect` calling the function run again after a locale or dictionary change. That is how runes work, so it applies to components in runes mode; elsewhere use the two stores.
+"Reactive" means that markup, `$derived` and `$effect` calling the function run again after a locale or dictionary change. A component that uses `export let` or `$:` does not track function calls, so there use the two stores.
 
 ## Recipes
 
@@ -472,7 +483,7 @@ Choose something else when you need:
 
 ## Changes from 1.x
 
-Version 2 is a rewrite on runes with a smaller API. `$t` and `$locale` still work, because components without runes need them; the rest of the 1.x API was replaced. The [changelog](CHANGELOG.md) lists what was replaced and by what.
+Version 2 is a rewrite on runes with a smaller API. `$t` and `$locale` still work, because legacy components need them; the rest of the 1.x API was replaced. The [changelog](CHANGELOG.md) lists what was replaced and by what.
 
 ## License
 

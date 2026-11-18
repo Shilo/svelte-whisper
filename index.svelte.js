@@ -10,7 +10,7 @@ const loaded = blank();
 const pending = blank();
 const formatters = blank();
 const missingListeners = new Set();
-// Components that do not use runes cannot follow a signal, only a store. `$t` and `$locale` serve them.
+// Legacy components (`export let`, `$:`) cannot follow a signal, only a store. `$t` and `$locale` serve them.
 const subscribers = new Set();
 
 // The only reactive state. t(), getLocale() and the formatters read it, so markup, $derived and
@@ -148,7 +148,7 @@ export function detectLocale() {
 
 /**
  * Translate. Always returns a string. Reactive: `{t('key', vars)}` in markup, or inside $derived and $effect.
- * In a component without runes, write `{$t('key', vars)}`: `t` is also a store of itself.
+ * In a legacy component (`export let`, `$:`), write `{$t('key', vars)}`: `t` is also a store of itself.
  */
 export function t(key, vars) {
     void version;
@@ -171,7 +171,7 @@ export function t(key, vars) {
 
 t.subscribe = store(() => t);
 
-/** The active locale as a store, for components without runes: `$locale`, `bind:value={$locale}`. */
+/** The active locale as a store, for legacy components: `$locale`, `bind:value={$locale}`. */
 export const locale = { subscribe: /* @__PURE__ */ store(() => current), set: setLocale };
 
 // --- Formatting (Intl, bound to the active locale) ---

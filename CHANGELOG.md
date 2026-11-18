@@ -2,15 +2,15 @@
 
 ## 2.0.0
 
-A rewrite on Svelte 5 runes with a smaller API. Runes code calls plain functions; components that do not use runes keep `$t` and `$locale`, because stores are the only thing Svelte follows there.
+A rewrite on Svelte 5 runes with a smaller API. Runes code calls plain functions; legacy components (`export let`, `$:`) keep `$t` and `$locale`, because stores are the only thing Svelte follows there.
 
 ### Replaced
 
 | 1.x | 2.0 |
 |---|---|
 | `tr('key')` | `t('key')`: one reactive function for markup, `$derived`, `$effect` and plain modules |
-| `$t('key')` | Unchanged in components without runes (`t` is also a store). In runes components, `t('key')`. |
-| `$locale` | Unchanged in components without runes. In runes code, `getLocale()`. |
+| `$t('key')` | Unchanged in legacy components (`t` is also a store). Elsewhere, `t('key')`. |
+| `$locale` | Unchanged in legacy components. Elsewhere, `getLocale()`. |
 | `locale.set('fr')` | Still there; `setLocale('fr')` is the usual call. In a runes form control, `bind:value={getLocale, setLocale}`. |
 | `formatPercent(0.2, 1)` | Unchanged call, now locale-aware (`20 %` in French) and with an optional third argument for the locale |
 | `getFallbackLocale()` | Removed. You passed the fallback to `init`. |
@@ -26,7 +26,7 @@ Requires `svelte@^5.9.0`.
 
 - **Plurals.** A dictionary value that is an object with an `other` form (`one`, `few`, `many`, `other`, or an exact number such as `"0"`) is selected by a numeric `count`, using the browser's `Intl.PluralRules`.
 - **Formatting.** `formatNumber(value, options?, locale?)` accepts every `Intl.NumberFormat` option (currency, percent, compact, units). New `formatDate(value, options?, locale?)` and `localeName(id, displayLocale?)`.
-- **Everything is reactive in runes code.** `t()`, `getLocale()` and the formatters re-run inside markup, `$derived` and `$effect` when the locale or a dictionary changes. In 1.x, `{formatNumber(n)}` kept the old locale's format after a switch. In a component without runes, pass the locale: `formatNumber(n, options, $locale)`.
+- **Everything is reactive in runes code.** `t()`, `getLocale()` and the formatters re-run inside markup, `$derived` and `$effect` when the locale or a dictionary changes. In 1.x, `{formatNumber(n)}` kept the old locale's format after a switch. In a legacy component, pass the locale: `formatNumber(n, options, $locale)`.
 - **Glob registration.** `registerLoader(import.meta.glob('./locales/*.json'))` registers every file, using the file name as the locale id.
 - **Lazy fallback.** A fallback locale that is registered with a loader is downloaded the first time a key is missing, then the text updates. In 1.x it was never loaded, so users saw raw keys.
 - `loadLocale(id)` to preload a locale, `getLocale()`, and `detectLocale()`.
