@@ -109,25 +109,26 @@ Locally, put them in `editor/.env.local` (git-ignored). For GitHub Pages, add th
 
 ## Development
 
-Requires Node.js 22.17 or newer.
+Requires Node.js 22.12 or newer (CI and the Pages build use Node 24).
 
 ```bash
 cd editor
 npm install
 npm run dev      # http://localhost:5173, demo at /?demo, 3000-key stress test at /?demo=large
-npm run check    # svelte-check
-npm run build    # static site in editor/build
+npm run check    # svelte-check, fails on any error or warning
+npm run build    # static site in editor/dist
 ```
 
-The production build is a static site (`@sveltejs/adapter-static`) with a prerendered `index.html` and a `404.html` fallback. The Pages workflow builds with `BASE_PATH=/<repository name>`; to preview that locally, run `BASE_PATH=/svelte-whisper npm run build && BASE_PATH=/svelte-whisper npm run preview` and open `/svelte-whisper/`.
+The editor is a plain Vite single-page app: `index.html` loads `src/main.js`, which mounts `src/App.svelte`. There is no router; the screens are driven by state and query parameters (`?demo`, `?repo=…`), so the build is one `index.html` plus hashed assets, with no fallback page. The Content-Security-Policy is added to the built `index.html` as a `<meta>` tag by a small plugin in `vite.config.js`; the dev server runs without it, because hot reload needs inline styles and a websocket. The Pages workflow builds with `BASE_PATH=/<repository name>`; to preview that locally, run `BASE_PATH=/svelte-whisper npm run build && BASE_PATH=/svelte-whisper npm run preview` and open `/svelte-whisper/`.
 
-Built with SvelteKit 3, Svelte 5 and Vite 8. There are no runtime dependencies, no CSS framework and no web fonts. About 52 KB of gzipped JavaScript loads on first visit; the grid and dialogs (about 12 KB) load once a document is open.
+Built with Svelte 5 and Vite 8, without SvelteKit. `svelte.config.js` turns on runes mode for every component, so legacy syntax (`export let`, `$:`, `on:` and so on) does not compile. There are no runtime dependencies, no CSS framework and no web fonts. About 31 KB of gzipped JavaScript and 4 KB of CSS load on first visit; the grid and dialogs (about 9 KB of JavaScript and 3 KB of CSS) load once a document is open, and the demo's sample files (2 KB) only for the demo.
 
 ### Layout
 
 | Path | Purpose |
 | --- | --- |
-| `src/routes/+page.svelte` | Screen flow: sign-in, connect, loading, editor; drafts and sending |
+| `index.html`, `src/main.js` | Page shell and the entry that mounts the app |
+| `src/App.svelte` | Screen flow: sign-in, connect, loading, editor; drafts and sending |
 | `src/lib/doc.svelte.js` | The document model: values, edits, keys, languages, drafts |
 | `src/lib/json.js` | Locale file parsing, format-preserving writes, placeholder checks |
 | `src/lib/github.js` | GitHub REST calls: read files, commit, fork, pull request |
