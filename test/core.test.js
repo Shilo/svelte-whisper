@@ -839,20 +839,39 @@ describe('review round 2', () => {
         assert.equal(w.t('default'), 'Défaut');
     });
 
-    test('a failed switch re-runs readers, so a bound control snaps back', async () => {
+    test('a failed switch does not re-run readers, so an effect that keeps the locale in step cannot loop', async () => {
         const w = await english({ hello: 'Hello' });
-        w.registerLoader('it', async () => null);
-        const page = observe(() => w.getLocale());
-        assert.equal(await w.setLocale('it'), false);
-        page.flush();
+        let loads = 0;
+        w.registerLoader('it', async () => { loads++; return null; });
+        const page = observe(() => {
+            if (w.getLocale() !== 'it') w.setLocale('it'); // what a route-driven app does
+            return w.getLocale();
+        });
+        for (let i = 0; i < 5; i++) {
+            await new Promise(resolve => setTimeout(resolve));
+            page.flush();
+        }
         page.stop();
-        assert.deepEqual(page.seen, ['en', 'en']);
+        assert.equal(loads, 1);
+        assert.deepEqual(page.seen, ['en']);
     });
 
     test('the formatter cache is bounded', async () => {
         const w = await english();
-        for (let i = 0; i < 2000; i++) w.formatNumber(1, { minimumIntegerDigits: (i % 20) + 1, maximumFractionDigits: i % 100 });
-        assert.equal(w.formatNumber(1234.5), '1,234.5');
+        const Real = Intl.NumberFormat;
+        let built = 0;
+        Intl.NumberFormat = class extends Real { constructor(...args) { super(...args); built++; } };
+        try {
+            const price = i => w.formatNumber(1, { minimumIntegerDigits: 1 + i % 21, maximumFractionDigits: Math.floor(i / 21) });
+            for (let i = 0; i < 420; i++) price(i);
+            assert.equal(built, 420, 'each distinct set of options is built once');
+            price(419);
+            assert.equal(built, 420, 'and then reused');
+            price(0);
+            assert.equal(built, 421, 'the oldest ones were dropped when the cache filled up');
+        } finally {
+            Intl.NumberFormat = Real;
+        }
     });
 
     test('text direction follows the script, not a list of languages', async () => {
@@ -868,5 +887,69 @@ describe('review round 2', () => {
             }
             assert.deepEqual(seen, { ar: 'rtl', he: 'rtl', fa: 'rtl', ur: 'rtl', 'az-Arab': 'rtl', 'ar-Latn': 'ltr', not_a_tag: 'ltr', en: 'ltr' });
         });
+    });
+});
+
+describe('review round 3', () => {
+    test('a locale with a loader is not ready until the loader has delivered', async () => {
+        const w = await english({ hello: 'Hello' });
+        let attempts = 0;
+        w.registerLoader('fr', async () => {
+            if (++attempts === 1) throw new Error('offline');
+            return { hello: 'Bonjour', bye: 'Au revoir' };
+        });
+        w.addDictionary('fr', { hello: 'Salut' }); // an override, added before the file is in
+        await captureConsole('error', async () => assert.equal(await w.setLocale('fr'), false));
+        assert.equal(w.getLocale(), 'en', 'the override alone does not make the locale usable');
+        assert.equal(await w.setLocale('fr'), true, 'and the failed load is retried');
+        assert.equal(attempts, 2);
+        assert.equal(w.t('hello'), 'Salut');
+        assert.equal(w.t('bye'), 'Au revoir');
+    });
+
+    test('a switch made while the same locale is loading waits for it', async () => {
+        const w = await english({ hello: 'Hello' });
+        const slow = deferred();
+        w.registerLoader('fr', () => slow.promise);
+        const first = w.setLocale('fr');
+        w.addDictionary('fr', { extra: 'Extra' });
+        const second = w.setLocale('fr');
+        assert.equal(w.getLocale(), 'en');
+        slow.resolve({ hello: 'Bonjour' });
+        assert.deepEqual(await Promise.all([first, second]), [false, true]);
+        assert.equal(w.t('hello'), 'Bonjour');
+    });
+
+    test('without a loader, having a dictionary is enough', async () => {
+        const w = await english();
+        w.addDictionary('fr', { hello: 'Bonjour' });
+        w.registerLoader('ja', async () => ({}));
+        assert.equal(await w.setLocale('fr'), true);
+    });
+
+    test('a locale without a region beats one from another region', async () => {
+        const detect = async (known, languages) => {
+            const lib = await load();
+            for (const id of known) lib.addDictionary(id, {});
+            return withGlobals({ navigator: browser(...languages) }, () => lib.detectLocale());
+        };
+        assert.equal(await detect(['en-US', 'en'], ['en-GB']), 'en');
+        assert.equal(await detect(['en', 'en-US'], ['en-GB']), 'en');
+        assert.equal(await detect(['es-ES', 'es'], ['es-MX']), 'es');
+        assert.equal(await detect(['en-US', 'en-GB'], ['en-AU']), 'en-US', 'with only regions on offer, the first one');
+        assert.equal(await detect(['zh-Hant-TW', 'zh-Hant'], ['zh-HK']), 'zh-Hant');
+    });
+
+    test('placeholders only read the values that were passed', async () => {
+        const w = await english({ a: '{constructor} {toString} {name}', b: 'Tag {tag}' });
+        assert.equal(w.t('a', { name: 'Ada' }), '{constructor} {toString} Ada');
+        assert.equal(w.t('b', { tag: Symbol('x') }), 'Tag Symbol(x)');
+        assert.equal(w.t('a', ['zero']), '{constructor} {toString} {name}');
+    });
+
+    test('the overlay hears about a missing key even when the app\'s own hook throws', async () => {
+        const w = await english({}, { onMissing() { throw new Error('boom'); } });
+        assert.throws(() => w.t('nope'), /boom/);
+        assert.equal(w.t('nope'), 'nope', 'and it is reported once');
     });
 });

@@ -14,16 +14,16 @@
  */
 export interface Register {}
 
-// Every path that holds a message: leaves, plural groups ({ one, other, … }), arrays and their items.
-// A plain group such as `nav` is not a message, so it is not a key.
+// Every path that holds a message: leaves, plural groups ({ one, other, … }) and the items of lists.
+// A plain group such as `nav`, or a list itself, is not a message, so it is not a key.
 type Paths<T, P extends string = ''> = {
     [K in keyof T & string]: Message<NonNullable<T[K]>, `${P}${K}`>;
 }[keyof T & string];
 
 type Message<V, P extends string> = V extends readonly (infer U)[]
-    ? P | (U extends object ? Paths<U, `${P}.${number}.`> : `${P}.${number}`)
+    ? Message<NonNullable<U>, `${P}.${number}`>
     : V extends object
-      ? (V extends { other: unknown } ? P : never) | Paths<V, `${P}.`>
+      ? (V extends { other: string | number | boolean } ? P : never) | Paths<V, `${P}.`>
       : P;
 
 /** A translation key: any string, or the message paths of the registered dictionary. */

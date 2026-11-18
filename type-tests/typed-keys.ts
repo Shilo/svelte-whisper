@@ -9,6 +9,9 @@ import type en from './en.json';
 // Optional groups and readonly arrays must still expose their paths.
 interface Extra {
     optional?: { label: string; list?: readonly string[] };
+    grid: string[][];
+    rows: { cells: string[] }[];
+    pending: { other: null };
 }
 
 declare module 'svelte-whisper' {
@@ -18,6 +21,12 @@ declare module 'svelte-whisper' {
 }
 
 t('optional.label');
+t('grid.0.0');
+t('rows.0.cells.1');
+// @ts-expect-error a list is not a message; its items are
+t('rows');
+// @ts-expect-error a plural group whose forms are all untranslated is not a message yet
+t('pending');
 t('optional.list.0');
 // @ts-expect-error an optional group is still not a message
 t('optional');
@@ -28,6 +37,7 @@ t('nav.settings.title');
 t('items', { count: 3 });
 t('rules.0');
 t('greeting', ['Ada']);
+// @ts-expect-error a list is not a message; its items are
 t('rules');
 t('items.one');
 // @ts-expect-error a mistyped key is rejected

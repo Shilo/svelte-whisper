@@ -6,6 +6,7 @@ const blank = () => Object.create(null);
 // Dictionaries are stored flattened to their messages, so `a.b.c` is a single property lookup.
 const dictionaries = blank();
 const loaders = blank();
+const loaded = blank();
 const pending = blank();
 const formatters = blank();
 const missingListeners = new Set();
@@ -68,9 +69,8 @@ export function registerLoader(locale, loader) {
     }
 }
 
-/** A locale that already has a dictionary counts as loaded; its loader is not called. */
 export function loadLocale(locale) {
-    if (dictionaries[locale]) return Promise.resolve(true);
+    if (ready(locale)) return Promise.resolve(true);
     return pending[locale] ??= (async () => {
         try {
             let dict;
@@ -88,8 +88,9 @@ export function loadLocale(locale) {
                 if (response.ok) dict = await response.json();
             }
             if (dict && typeof dict === 'object') {
-                // Anything added with addDictionary() while this was loading stays on top.
+                // Anything added with addDictionary() stays on top of the loaded file.
                 dictionaries[locale] = Object.assign(flatten(dict, '', blank()), dictionaries[locale]);
+                loaded[locale] = true;
                 if (locale === current || locale === fallback) refresh();
                 return true;
             }
@@ -133,7 +134,8 @@ export function detectLocale() {
             const have = expand(id);
             // Same language in the same script: zh-TW is Hant, so it matches zh-Hant and never zh-Hans.
             if (want && have?.language === want.language && have.script === want.script) {
-                const score = id.toLowerCase() === tag.toLowerCase() ? 3 : have.region === want.region ? 2 : 1;
+                // Then: the very id, the same region, a locale without a region, any other region.
+                const score = id.toLowerCase() === tag.toLowerCase() ? 4 : have.region === want.region ? 3 : /-\w\w\w?$/.test(id) ? 1 : 2;
                 if (score > rank) rank = score, best = id;
             }
         }
@@ -153,7 +155,7 @@ export function t(key, vars) {
         value = find(backup, key, vars, fallback);
         if (value === undefined) {
             // A lazily registered fallback is fetched on the first miss, then the text heals itself.
-            if (current && !fallbackTried && !dictionaries[fallback]) {
+            if (current && !fallbackTried && !ready(fallback)) {
                 fallbackTried = true;
                 loadLocale(fallback);
             }
@@ -204,9 +206,10 @@ function interpolate(text, vars) {
     if (open < 0) return text;
     let out = '', last = 0, close;
     while (open >= 0 && (close = text.indexOf('}', open)) >= 0) {
-        const value = vars[text.slice(open + 1, close).trim()];
+        const name = text.slice(open + 1, close).trim();
+        const value = Object.hasOwn(vars, name) ? vars[name] : null; // never something inherited, like {constructor}
         if (value != null) {
-            out += text.slice(last, open) + value;
+            out += text.slice(last, open) + String(value);
             last = close + 1;
         }
         open = text.indexOf('{', close);
@@ -222,6 +225,12 @@ function flatten(node, prefix, out) {
         else out[prefix + key] = value;
     }
     return out;
+}
+
+// A locale with a loader is ready once the loader has delivered: translations added with
+// addDictionary() sit on top of it and never stand in for it. Without a loader, having a dictionary is enough.
+function ready(locale) {
+    return loaders[locale] ? loaded[locale] : dictionaries[locale];
 }
 
 // Intl objects are slow to construct and fast to reuse, so each one is built once.
@@ -252,9 +261,8 @@ function refresh() {
 // true: applied · false: could not load · undefined: superseded by a newer call
 function change(next, persist) {
     const id = ++request;
-    if (dictionaries[next]) return Promise.resolve(apply(next, persist));
-    // On failure readers still re-run, so a <select> bound to the locale snaps back to it.
-    return loadLocale(next).then(ok => id !== request ? undefined : ok ? apply(next, persist) : (refresh(), false));
+    if (ready(next)) return Promise.resolve(apply(next, persist));
+    return loadLocale(next).then(ok => id === request ? ok && apply(next, persist) : undefined);
 }
 
 function apply(next, persist) {
@@ -264,7 +272,7 @@ function apply(next, persist) {
         if (typeof document !== 'undefined') {
             const root = document.documentElement;
             root.lang = next;
-            root.dir = /^(Arab|Hebr|Thaa|Syrc|Nkoo|Adlm)$/.test(expand(next)?.script) ? 'rtl' : 'ltr';
+            root.dir = /^(Arab|Hebr|Thaa|Syrc|Nkoo|Adlm|Rohg)$/.test(expand(next)?.script) ? 'rtl' : 'ltr';
         }
         refresh();
     }
@@ -306,6 +314,6 @@ function reportMissing(key) {
     seen.add(key);
     const entry = { locale: current, key };
     if (warn) console.warn(`svelte-whisper: Missing "${key}" for locale "${current}"`);
-    if (onMissing) onMissing(entry);
     for (const fn of missingListeners) fn(entry);
+    if (onMissing) onMissing(entry);
 }

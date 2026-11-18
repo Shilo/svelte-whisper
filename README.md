@@ -1,6 +1,6 @@
 # Svelte Whisper 🤫
 
-Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.6 kB** to your bundle.
+Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.7 kB** to your bundle.
 
 ```svelte
 <script>
@@ -13,11 +13,11 @@ Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on
 <button onclick={() => setLocale('fr')}>Français</button>
 ```
 
-- **Small.** 1.6 kB gzipped for a typical app, 1.8 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
+- **Small.** 1.7 kB gzipped for a typical app, 1.9 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
 - **Runes.** `t()` is one plain function. Call it in markup, in `$derived`, in `$effect` or in a `.js` module, and whatever called it updates when the language changes. There are no stores.
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
-- **Fast.** A lookup is one signal read and one property read, about 10 ns. See [Size and speed](#size-and-speed).
+- **Fast.** A lookup is one signal read and one property read, about 11 ns. See [Size and speed](#size-and-speed).
 
 [![The demo app: a language switcher, a list of the locale files downloaded so far, and live examples of interpolation, plurals, formatting, fallback and missing keys](docs/assets/demo-light.png)](https://shilo.github.io/svelte-whisper/demo/)
 
@@ -80,7 +80,7 @@ await init({ fallback: 'en', persistKey: 'my-app-locale' });
 mount(App, { target: document.getElementById('app') });
 ```
 
-`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and downloads only that one, so the first paint is already translated.
+`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and downloads only that one, so the first paint is already in that language. (If your build target has no top-level `await`, write `init({ … }).then(() => mount(…))`.)
 
 ### Without any setup
 
@@ -175,17 +175,17 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
 ```
 
 - `getLocale()` is the active locale, and is reactive. `setLocale(id)` switches.
-- Switching downloads the dictionary if needed and only then changes the text, so users never see a flash of raw keys. The promise resolves `true` once active, or `false` if the download failed, in which case the locale stays as it was and a bound `<select>` returns to it.
+- Switching downloads the dictionary if needed and only then changes the text, so users never see a flash of raw keys. The promise resolves `true` once active, or `false` if the download failed, in which case the locale stays as it was. A `<select>` keeps showing what the user picked, so when a download can fail, set it back: `if (!await setLocale(id)) select.value = getLocale()`.
 - `localeName('ja')` returns `日本語`: every language is listed under its own name, with no translation keys to maintain. `localeName('ja', 'en')` returns `Japanese`.
 - `loadLocale(id)` downloads a locale without switching, for example on hover.
-- `<html lang>` and `dir` are kept in step. Direction comes from the script the browser associates with the locale, so Arabic, Hebrew, Persian, Urdu and the rest are `rtl` with no list to maintain.
+- `<html lang>` and `dir` are kept in step. Direction comes from the script the browser associates with the locale, so Arabic, Hebrew, Persian, Urdu and the rest are `rtl` without a list of languages.
 
 ### How the starting locale is chosen
 
 `init()` tries these in order and uses the first that loads:
 
 1. The choice stored under `persistKey`.
-2. The browser's languages (`navigator.languages`), matched against your locales by language and script: an exact id first (`pt-BR`), then the same region, then any region (`en-GB` → `en-US`). The browser fills in what a tag implies, so `zh-TW` finds `zh-Hant` and never `zh-Hans`, with nothing to configure.
+2. The browser's languages (`navigator.languages`), matched against your locales by language and script: an exact id first (`pt-BR`), then the same region, then a locale without a region (`en-GB` → `en`), then any region (`en-GB` → `en-US`). The browser fills in what a tag implies, so `zh-TW` finds `zh-Hant` and never `zh-Hans`, with nothing to configure.
 3. `initial`.
 4. `fallback`.
 
@@ -244,7 +244,7 @@ Thirteen functions, all named exports of `svelte-whisper`:
 // Setup, once, before mounting
 registerLoader(import.meta.glob('./locales/*.json'));   // lazy: one chunk per file
 registerLoader('fr', () => import('./fr.json'));        // or one locale at a time
-addDictionary('en', en);                                // or already in memory (then 'en' needs no loader)
+addDictionary('en', en);                                // or already in memory, with no loader for 'en'
 await init({ fallback: 'en', persistKey: 'locale' });
 
 // Translate and format: reactive wherever they are called
@@ -271,7 +271,7 @@ localeName('ja');                                       // '日本語'
 | `init(options?)` | Choose the starting locale and load it. Returns a promise. |
 | `registerLoader(id, loader)` | Register a function that returns a dictionary, or a module whose default export is one. It runs once, on first use. |
 | `registerLoader(globRecord)` | Register every entry of an `import.meta.glob` result. The file name is the locale id. |
-| `addDictionary(id, dict)` | Add translations that are already in memory. Merges with what is there. A locale that has a dictionary counts as loaded, so its loader is not called. |
+| `addDictionary(id, dict)` | Add translations that are already in memory. Merges with what is there, and stays on top of whatever the locale's loader delivers. Without a loader, this alone makes the locale usable. |
 
 `init` options:
 
@@ -398,8 +398,8 @@ Measured with `npm run size` (compiled as an app's Svelte plugin would, minified
 
 | Imports | Minified | Gzip | Brotli |
 |---|---|---|---|
-| Typical app: `init`, `t`, `getLocale`, `setLocale`, `registerLoader` | 3.2 kB | 1.6 kB | 1.5 kB |
-| Every export | 3.6 kB | 1.8 kB | 1.6 kB |
+| Typical app: `init`, `t`, `getLocale`, `setLocale`, `registerLoader` | 3.3 kB | 1.7 kB | 1.6 kB |
+| Every export | 3.7 kB | 1.9 kB | 1.7 kB |
 
 The module has no dependencies: its only import is its own dev overlay, in dev mode. A size budget is enforced in CI.
 
@@ -407,11 +407,11 @@ Measured with `npm run bench` (Node 25, one core of a desktop CPU, a 600-message
 
 | Operation | Time |
 |---|---|
-| Key lookup | 10–16 ns |
-| Missing key | 27 ns |
-| Interpolation, two placeholders | 150 ns |
-| Plural | 390 ns |
-| `formatNumber` | 370 ns |
+| Key lookup | 11–15 ns |
+| Missing key | 31 ns |
+| Interpolation, two placeholders | 165 ns |
+| Plural | 415 ns |
+| `formatNumber` | 380 ns |
 
 Dictionaries are flattened once when they are added, which is why nesting depth does not matter.
 
@@ -421,7 +421,7 @@ Svelte Whisper is deliberately small: a runtime library with no compiler, no mes
 
 | | Approach | Library size, gzip | Build step |
 |---|---|---|---|
-| **svelte-whisper 2.0** | Runtime on runes, lazy JSON per locale | 1.6 kB | None |
+| **svelte-whisper 2.0** | Runtime on runes, lazy JSON per locale | 1.7 kB | None |
 | [typesafe-i18n](https://github.com/codingcommons/typesafe-i18n) 5.27 | Generated typed functions plus a small runtime | 1.3 kB plus generated code | Generator |
 | [svelte-i18n](https://github.com/kaisermann/svelte-i18n) 4.0 | Runtime with ICU MessageFormat | 14.6 kB | None |
 | [i18next](https://www.i18next.com) 27.1 | Runtime with plugins | 15.5 kB before plugins | None |
