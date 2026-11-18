@@ -56,7 +56,7 @@
 		</fieldset>
 
 		<button class="btn" onclick={onnext} aria-label="Next missing" title="Jump to the next untranslated box (Alt+N)">
-			<Icon name="next" size={16} /> <span>Next<span class="label"> missing</span></span>
+			<Icon name="next" size={16} /> <span>Next<span class="label">&nbsp;missing</span></span>
 		</button>
 
 		<span class="spacer"></span>

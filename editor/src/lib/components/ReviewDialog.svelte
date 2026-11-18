@@ -165,24 +165,24 @@
 				</div>
 			{/if}
 		</fieldset>
-
-		<section class="declaration" aria-labelledby="decl-title">
-			<h3 id="decl-title" class="caption">Declaration</h3>
-			<p>
-				{changeTotal}
-				{changeTotal === 1 ? 'change' : 'changes'} to {langList} in <code>{repo}</code>,
-				{mode === 'pr' ? 'sent as a pull request into' : 'committed directly to'} <code>{branch}</code>{#if totals.warnings}, with
-					<strong class="alert-text">{totals.warnings} placeholder {totals.warnings === 1 ? 'issue' : 'issues'}</strong>{/if}.
-			</p>
-			<p class="sign">
-				<span class="signature">{demo ? 'demo visitor' : auth.user?.login || 'you'}</span>
-				<span class="caption">Sender</span>
-			</p>
-		</section>
 	{/if}
 
 	{#snippet footer()}
-		{#if demo}<p class="hint demo-note">Demo: nothing leaves this tab.</p>{/if}
+		{#if files.length}
+			<section class="declaration" aria-labelledby="decl-title">
+				<p>
+					<span id="decl-title" class="caption">Declaration</span>
+					{changeTotal}
+					{changeTotal === 1 ? 'change' : 'changes'} to {langList} in <code>{repo}</code>,
+					{mode === 'pr' ? 'as a pull request into' : 'committed straight to'} <code>{branch}</code>{#if totals.warnings}, with
+						<strong class="alert-text">{totals.warnings} placeholder {totals.warnings === 1 ? 'issue' : 'issues'}</strong>{/if}.{#if demo}{' '}Demo: nothing leaves this tab.{/if}
+				</p>
+				<p class="sign">
+					<span class="signature">{demo ? 'demo visitor' : auth.user?.login || 'you'}</span>
+					<span class="caption">Sender</span>
+				</p>
+			</section>
+		{/if}
 		<button class="btn" type="button" onclick={() => (open = false)}>Keep editing</button>
 		<button class="btn primary" type="button" disabled={!files.length || sending} onclick={send}>
 			<Icon name="send" size={16} />
@@ -342,19 +342,24 @@
 		text-transform: none;
 		color: var(--ink-2);
 	}
-	.demo-note {
-		margin-right: auto;
-		align-self: center;
-	}
 	.declaration {
-		display: grid;
-		gap: 0.5rem;
-		padding: 0.875rem 1rem;
-		border: 1px solid var(--rule-strong);
-		background: var(--paper);
+		flex: 1 1 100%;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 0.5rem 1.5rem;
+		padding-bottom: 0.75rem;
+		margin-bottom: 0.25rem;
+		border-bottom: 1px dashed var(--rule-strong);
+		font-size: var(--t-sm);
 	}
 	.declaration p {
+		flex: 1 1 22rem;
 		max-width: 65ch;
+	}
+	.declaration .caption {
+		margin-right: 0.375rem;
 	}
 	.declaration code {
 		font-size: var(--t-sm);
@@ -363,13 +368,13 @@
 	.alert-text {
 		color: var(--alert);
 	}
-	.sign {
+	.declaration .sign {
+		flex: 0 1 12rem;
 		display: grid;
 		justify-items: start;
-		margin-top: 0.25rem;
 	}
 	.signature {
-		min-width: min(16rem, 100%);
+		min-width: min(12rem, 100%);
 		padding: 0 0.25rem 0.125rem;
 		border-bottom: 1px solid var(--ink);
 		font-family: var(--mono);
