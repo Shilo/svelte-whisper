@@ -5,7 +5,7 @@ import { isLocaleFile } from './lang.js';
 
 const API = 'https://api.github.com';
 
-export class GitHubError extends Error {
+class GitHubError extends Error {
 	/** @param {string} message @param {number} status */
 	constructor(message, status) {
 		super(message);
@@ -73,15 +73,18 @@ export async function getRepo(token, repo) {
 
 /**
  * List the locale files (named like a language tag) in a folder with their blob SHAs.
+ * `skipped` names the other `.json` files, such as notes.json or pt_BR.json.
  * @param {string} token @param {string} repo @param {string} branch @param {string} dir
- * @returns {Promise<{ name: string, path: string, sha: string }[]>}
+ * @returns {Promise<{ files: { name: string, path: string, sha: string }[], skipped: string[] }>}
  */
 export async function listLocaleFiles(token, repo, branch, dir) {
 	const items = await api(token, `/repos/${repo}/contents/${encodePath(dir)}?ref=${encodeURIComponent(branch)}`);
 	if (!Array.isArray(items)) throw new GitHubError(`${dir} is a file, not a folder.`, 400);
-	return items
-		.filter((i) => i.type === 'file' && isLocaleFile(i.name))
-		.map((i) => ({ name: i.name, path: i.path, sha: i.sha }));
+	const json = items.filter((i) => i.type === 'file' && i.name.endsWith('.json'));
+	return {
+		files: json.filter((i) => isLocaleFile(i.name)).map((i) => ({ name: i.name, path: i.path, sha: i.sha })),
+		skipped: json.filter((i) => !isLocaleFile(i.name)).map((i) => i.name)
+	};
 }
 
 /** @param {string} token @param {string} repo @param {string} branch @param {string} path */
@@ -141,7 +144,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
  * @returns {Promise<{ mode: 'pr', url: string, number: number } | { mode: 'commit', sha: string }>}
  */
 export async function submit(o) {
-	const current = await listLocaleFiles(o.token, o.repo, o.branch, o.dir);
+	const { files: current } = await listLocaleFiles(o.token, o.repo, o.branch, o.dir);
 	const shaByPath = new Map(current.map((f) => [f.path, f.sha]));
 	const stale = o.files.filter((f) => (shaByPath.get(f.path) ?? null) !== f.sha);
 	if (stale.length) {

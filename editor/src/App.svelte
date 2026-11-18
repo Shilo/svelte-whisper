@@ -1,7 +1,6 @@
 <script>
 	import { onMount, untrack, tick } from 'svelte';
-	import { auth, config, saveConfig } from './lib/session.svelte.js';
-	import { signOut } from './lib/auth.js';
+	import { auth, config, saveConfig, clearSession } from './lib/session.svelte.js';
 	import { getRepo, listLocaleFiles, readFile, submit } from './lib/github.js';
 	import { LocaleDoc } from './lib/doc.svelte.js';
 	import { notify } from './lib/toast.svelte.js';
@@ -81,16 +80,22 @@
 	});
 
 	// ── Loading ───────────────────────────────────────────────────────
-	/** @param {import('./lib/doc.svelte.js').SourceFile[]} files */
-	async function open(files) {
+	/**
+	 * @param {import('./lib/doc.svelte.js').SourceFile[]} files
+	 * @param {string[]} [skipped]  .json files in the folder that are not named like a language
+	 */
+	async function open(files, skipped = []) {
 		await loadUI();
 		const d = new LocaleDoc(files, config.dir, config.source);
 		const raw = readDraft();
-		if (raw) {
-			d.applyDraft(raw);
-			const n = d.changeCount();
-			if (n) notify(`Restored ${n} unsent ${n === 1 ? 'edit' : 'edits'} from your last visit.`, 'info', { label: 'Discard', run: () => (discardOpen = true) });
+		if (raw) d.applyDraft(raw);
+		const n = d.changeCount();
+		const notes = [];
+		if (n) notes.push(`Restored ${n} unsent ${n === 1 ? 'edit' : 'edits'} from your last visit.`);
+		if (skipped.length) {
+			notes.push(`Skipped ${skipped.join(', ')}: a locale file is named like a language, such as fr.json or pt-BR.json.`);
 		}
+		if (notes.length) notify(notes.join(' '), 'info', n ? { label: 'Discard', run: () => (discardOpen = true) } : undefined);
 		const langs = d.langs;
 		hidden = focusLang && langs.includes(focusLang) ? langs.filter((l) => l !== d.source && l !== focusLang) : [];
 		query = '';
@@ -112,16 +117,19 @@
 				config.branch ? listLocaleFiles(t, config.repo, config.branch, config.dir) : null
 			]);
 			const b = config.branch || repo.defaultBranch;
-			const list = listed ?? (await listLocaleFiles(t, config.repo, b, config.dir));
+			const { files: list, skipped } = listed ?? (await listLocaleFiles(t, config.repo, b, config.dir));
 			if (!list.length) throw new Error(`No locale files (such as en.json or pt-BR.json) in ${config.dir} on ${b}.`);
 			branch = b;
 			canPush = repo.canPush;
 			mode = canPush ? config.mode : 'pr';
 			const texts = await Promise.all(list.map((f) => readFile(t, config.repo, b, f.path)));
-			await open(list.map((f, i) => ({ ...f, text: texts[i] })));
+			await open(
+				list.map((f, i) => ({ ...f, text: texts[i] })),
+				skipped
+			);
 		} catch (e) {
 			if (e.status === 401) {
-				signOut();
+				clearSession();
 				view = 'start';
 				notify('Your GitHub session expired. Sign in again.', 'error');
 				return;
@@ -159,7 +167,7 @@
 	}
 
 	function handleSignOut() {
-		signOut();
+		clearSession();
 		doc = null;
 		view = 'start';
 	}

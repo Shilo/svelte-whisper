@@ -3,7 +3,7 @@
 // is ever shipped in the bundle.
 
 import { getUser } from './github.js';
-import { setSession, clearSession } from './session.svelte.js';
+import { setSession } from './session.svelte.js';
 
 const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || '';
 const PROXY = (import.meta.env.VITE_CORS_PROXY_URL || '').replace(/\/$/, '');
@@ -93,8 +93,4 @@ export async function finishSignIn(token) {
 	const user = await getUser(t);
 	setSession(t, user);
 	return user;
-}
-
-export function signOut() {
-	clearSession();
 }
