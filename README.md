@@ -718,7 +718,7 @@ Measured with `npm run size` (compiled as an app's Svelte plugin would, minified
 | Imports | Minified | Gzip | Brotli |
 |---|---|---|---|
 | Typical app: `init`, `t`, `getLocale`, `setLocale`, `registerLoader` | 3.4 kB | 1.8 kB | 1.6 kB |
-| Every export | 3.9 kB | 2.0 kB | 1.8 kB |
+| Every export | 4.0 kB | 2.0 kB | 1.8 kB |
 
 The module has no dependencies: its only import is its own dev overlay, in dev mode. A size budget is enforced in CI.
 
