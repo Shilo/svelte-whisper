@@ -1,6 +1,6 @@
 {
   "name": "svelte-whisper",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Tiny runtime i18n for Svelte 5 single-page apps, with or without runes: lazy-loaded locales, plurals and Intl formatting in about 2 kB.",
   "keywords": [
     "svelte",
