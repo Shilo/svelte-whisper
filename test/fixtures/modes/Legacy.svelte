@@ -17,7 +17,7 @@
 </script>
 
 <p id="legacy" use:title={$t('hello')}>{$t('hello')}|{$t('late')}|{$locale}|{$formatNumber(1234.5)}|{$formatPercent(0.5)}|{$formatDate(date, month)}|{greeting}|{shout($t)}|{label}</p>
-<!-- Plain t() in legacy markup is read once and does not update. -->
+<!-- Plain t() in legacy markup is not followed reliably: which Svelte versions update it is in modes.test.js. -->
 <p id="legacy-plain">{t('hello')}</p>
 <!-- A text field rather than a <select>: happy-dom does not match :checked, which Svelte reads from a select. -->
 <input bind:value={$locale} />

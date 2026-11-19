@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { transformSync } from 'esbuild';
 import { load, observe, derive, flushSync } from './helpers.js';
+import { compile } from '../scripts/compile.js';
 
 async function app() {
     const w = await load();
@@ -118,13 +119,23 @@ test('effects that stop are released', async () => {
 test('reactivity survives a minifier that runs before the Svelte plugin', async () => {
     // Vite 5 and 6.0 pass the module through esbuild before Svelte compiles it, and esbuild drops
     // a statement that only reads a value. The signal must be read where the result depends on it.
-    const w = await load({ prepare: source => transformSync(source, { minifySyntax: true }).code });
+    const prepare = source => transformSync(source, { minifySyntax: true }).code;
+    const w = await load({ prepare });
     w.addDictionary('en', { hello: 'Hello' });
     w.addDictionary('fr', { hello: 'Bonjour' });
     await w.init({ detect: false, warn: false });
-    const page = observe(() => plain(`${w.getLocale()} ${w.t('hello')} ${w.formatNumber(1234.5)}`));
+    // One effect each: together, one that still reads the signal would keep the others updating.
+    const pages = [
+        observe(() => w.getLocale()),
+        observe(() => w.t('hello')),
+        observe(() => plain(w.formatNumber(1234.5))),
+    ];
     await w.setLocale('fr');
-    page.flush();
-    page.stop();
-    assert.deepEqual(page.seen, ['en Hello 1,234.5', 'fr Bonjour 1 234,5']);
+    for (const page of pages) page.flush(), page.stop();
+    assert.deepEqual(pages.map(page => page.seen), [['en', 'fr'], ['Hello', 'Bonjour'], ['1,234.5', '1 234,5']]);
+
+    // And for any export added later: the minifier must not remove a single read of the signal.
+    const reads = code => code.match(/\$\.get\(version\)/g)?.length;
+    assert.ok(reads(compile()) > 0);
+    assert.equal(reads(compile({ prepare })), reads(compile()), 'a read of the signal was dropped');
 });

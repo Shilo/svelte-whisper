@@ -55,7 +55,7 @@ function shows(locale, late, label = true) {
 // Plain t() in legacy markup: since Svelte 5.34.4 the compiler reads a call there untracked, as
 // Svelte 4 did, so it keeps its first value; before, it followed the locale. Neither is promised,
 // which is why legacy components use $t. This notices if Svelte changes it again.
-const [major, minor, patch] = VERSION.split('.').map(Number);
+const [major, minor, patch] = VERSION.split('.').map(part => parseInt(part, 10));
 const plainFollows = major === 5 && (minor < 34 || (minor === 34 && patch < 4));
 
 for (const runes of [false, undefined, true]) {
@@ -65,7 +65,8 @@ for (const runes of [false, undefined, true]) {
         const fallback = deferred();
         w.addDictionary('fr', { hello: 'Bonjour' });
         // English is the fallback, and it only arrives later.
-        w.registerLoader('en', () => fallback.promise);
+        let asked = 0;
+        w.registerLoader('en', () => (asked++, fallback.promise));
         await w.init({ initial: 'fr', detect: false, warn: false });
         const target = document.body.appendChild(document.createElement('main'));
         const roots = (await components(runes, library)).map(component => mount(component, { target }));
@@ -82,6 +83,7 @@ for (const runes of [false, undefined, true]) {
             check('fr', 'late', 'at start');
 
             // The first missing key asked for the fallback; the text heals when it arrives.
+            assert.equal(asked, 1, 'a missing key asks for the fallback, once');
             fallback.resolve({ hello: 'Hello', late: 'Late' });
             await w.loadLocale('en');
             flushSync();
