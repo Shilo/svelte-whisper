@@ -91,7 +91,7 @@ export function setupI18n() {
 - `t('key', vars)` everywhere: markup, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive: markup, `$derived` and `$effect` that call it, directly or through a function, run again when the locale changes. A value computed once at the top level of a module does not.
 - Placeholders: named `{name}` with an object, indexed `{0}` with an array.
 - Plurals: an object value keyed by plural category, selected by a numeric `count`.
-- `formatNumber` and `formatDate` follow the active locale and update on a switch. A percentage is `formatPercent(value, precision?)`.
+- `formatNumber` and `formatDate` follow the active locale and update on a switch. A percentage is `formatPercent(value, precision?)`. Each takes a locale as an optional last argument, to format in a language other than the active one.
 - In a legacy component (`export let`, `$:`), write the same calls with `$` in front: `{$t('greeting', { name })}`, `{$formatNumber(total)}`, `{$locale}`, `bind:value={$locale}`.
 - `localeName(id)` gives each language its own name, so language names need no translation keys.
 - The library sets `<html lang>` and `dir` itself.

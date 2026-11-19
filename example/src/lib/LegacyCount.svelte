@@ -2,6 +2,8 @@
 
 <script>
     // Legacy syntax on purpose: Svelte follows only stores in this mode, so each call gets a `$` in front.
+    // The option above is needed only because this demo switches runes on for the whole project.
+    // In an app that has not, `export let` alone makes a component legacy.
     import { t, locale, formatNumber } from 'svelte-whisper';
 
     export let count;

@@ -19,7 +19,7 @@ In a component, write `{t('key')}`. If the component still uses `export let` or 
 |---|---|---|
 | Runes | `t('key')`, `getLocale()`, `formatNumber(n)` | Nothing |
 | Legacy (`export let`, `$:`) | `$t('key')`, `$locale`, `$formatNumber(n)` | Nothing: runes can stay off |
-| Mixed | The `$` forms in legacy components, either form elsewhere | Nothing |
+| Mixed | The `$` forms in legacy components, either form in runes components | Nothing |
 
 Only `t`, `locale` and the formatters have a `$` form; a helper of your own stays a plain call, so hand it `$t` or `$locale`. See [Legacy components](#legacy-components).
 
@@ -141,7 +141,7 @@ An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules`
 
 ## Legacy components
 
-Svelte 5 compiles a component in its legacy mode when it still uses `export let`, `$:`, `$$props` or `$$restProps`, or when runes are switched off for it (`runes: false`). There it follows **stores only**, so the rule is one sentence: in a legacy component, put `$` in front. `t`, `locale`, `formatNumber`, `formatPercent` and `formatDate` are stores of themselves.
+Svelte 5 compiles a component in its legacy mode when it still uses `export let`, `$:`, `$$props` or `$$restProps`, or when runes are switched off for it (`runes: false`). There it follows **stores only**, so the rule is one sentence: in a legacy component, put `$` in front of `t`, `locale` and the formatters. `t`, `formatNumber`, `formatPercent` and `formatDate` are stores of themselves, and `locale` is a store of the active locale.
 
 ```svelte
 <script>
@@ -277,7 +277,7 @@ This needs `"resolveJsonModule": true`. Valid keys are the paths that hold a mes
 
 ## API
 
-Fourteen functions and one store, all named exports of `svelte-whisper`:
+Fourteen functions and the `locale` store, all named exports of `svelte-whisper` (`t` and the three formatters are also stores of themselves):
 
 ```js
 // Setup, once, before mounting
