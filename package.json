@@ -59,6 +59,7 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
+    "happy-dom": "^21.0.4",
     "svelte": "^5.58.0",
     "typescript": "^7.0.2"
   }

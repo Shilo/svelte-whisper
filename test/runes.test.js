@@ -2,9 +2,8 @@
 // These tests run them inside real Svelte effects and deriveds.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { flushSync } from 'svelte';
 import { transformSync } from 'esbuild';
-import { load, observe, derive } from './helpers.js';
+import { load, observe, derive, flushSync } from './helpers.js';
 
 async function app() {
     const w = await load();

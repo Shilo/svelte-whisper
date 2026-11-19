@@ -2,15 +2,19 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { compileModule } from 'svelte/compiler';
-import { flushSync } from 'svelte';
 import { compile } from '../scripts/compile.js';
+
+// Svelte 5.0 reads requestAnimationFrame as it loads, and Node has none, so svelte is imported after this.
+globalThis.requestAnimationFrame ??= fn => setTimeout(fn, 16);
+export const { flushSync } = await import('svelte');
 
 // Compiled once per test process, next to the tests so `svelte` resolves to this project's copy.
 const dir = join(import.meta.dirname, '.build');
 mkdirSync(dir, { recursive: true });
 const built = name => join(dir, `${name}.${process.pid}.js`);
 const files = [];
-const emit = (name, code) => {
+/** Write compiled code next to the tests and return its URL; it is deleted when the process exits. */
+export const emit = (name, code) => {
     const file = built(name);
     writeFileSync(file, code);
     files.push(file);
@@ -33,13 +37,16 @@ process.on('exit', () => { for (const file of files) rmSync(file, { force: true 
 let instance = 0;
 
 /**
- * A fresh, isolated copy of the library: its state is module-level, so every test gets its own.
+ * The URL of a fresh, isolated copy of the library: its state is module-level, so every test gets its own.
  * With `options`, the copy is compiled with them (see scripts/compile.js) instead.
  */
-export function load(options) {
+export function fresh(options) {
     const url = options ? emit(`whisper-${instance + 1}`, compile(options)) : whisper;
-    return import(`${url}?instance=${++instance}`);
+    return `${url}?instance=${++instance}`;
 }
+
+/** Import a fresh copy of the library. */
+export const load = options => import(fresh(options));
 
 /**
  * Run `fn` in a real Svelte effect and record what it returns each time it runs.
