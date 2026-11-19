@@ -5,7 +5,7 @@ description: Add svelte-whisper i18n to a Svelte 5 single-page app, or move hard
 
 # Set up svelte-whisper
 
-svelte-whisper is a runtime i18n library for client-side Svelte 5 apps, built on runes. It keeps state in the module, so do not use it for server-side rendering. Call its functions (`t('key')`, `getLocale()`), except in legacy components: one that still uses `export let`, `$:`, `$$props` or `$$restProps`, or has runes switched off (`runes: false`), only follows stores, so use `$t('key')` and `$locale` there, and pass the locale to formatters: `formatNumber(n, options, $locale)`. Match whichever kind the component already is; do not convert components as part of adding translations.
+svelte-whisper is a runtime i18n library for client-side Svelte 5 apps. The app does not need runes switched on. It keeps state in the module, so do not use it for server-side rendering. Call its functions (`t('key')`, `getLocale()`), except in legacy components: one that still uses `export let`, `$:`, `$$props` or `$$restProps`, or has runes switched off (`runes: false`), only follows stores, so use `$t('key')` and `$locale` there, and pass the locale to formatters: `formatNumber(n, options, $locale)`. Match whichever kind the component already is; do not convert components as part of adding translations.
 
 ## 1. Install
 

@@ -1,8 +1,8 @@
 # svelte-whisper
 
-> Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locale files load on demand. About 1.8 kB gzipped, no dependencies beyond Svelte, no extra build plugin. Client-side only: it keeps state in the module, so do not use it for server-side rendering.
+> Tiny runtime i18n for Svelte 5 single-page apps, whether their components use runes or not. Locale files load on demand. About 1.8 kB gzipped, no dependencies beyond Svelte, no extra build plugin. Client-side only: it keeps state in the module, so do not use it for server-side rendering.
 
-Requires `svelte@^5.9.0`. Install with `npm install github:Shilo/svelte-whisper`. The package is a runes module (`index.svelte.js`) that the app's Svelte plugin compiles.
+Requires `svelte@^5.9.0`. Install with `npm install github:Shilo/svelte-whisper`. The package is a runes module (`index.svelte.js`) that the app's Svelte plugin compiles, whatever the app's own `runes` setting is: the app does not have to switch runes on.
 
 ## Recommended setup
 

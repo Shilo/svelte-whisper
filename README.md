@@ -1,6 +1,6 @@
 # Svelte Whisper 🤫
 
-Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.8 kB** to your bundle.
+Tiny runtime i18n for Svelte 5 single-page apps, whether their components use runes or not. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.8 kB** to your bundle.
 
 ```svelte
 <script>
@@ -15,7 +15,7 @@ Tiny runtime i18n for Svelte 5 single-page apps, built on runes. Locales load on
 
 - **Small.** 1.8 kB gzipped for a typical app, 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
-- **Runes, and not only runes.** `t()` is one plain function. Call it in markup, in `$derived` or in `$effect`, directly or through a function in a `.js` module, and the result updates when the language changes. Components still written with `export let` or `$:` write `$t()` instead, and get the same thing.
+- **Runes not required.** `t()` is one plain function. Call it in markup, in `$derived` or in `$effect`, directly or through a function in a `.js` module, and the result updates when the language changes. Components still written with `export let` or `$:` write `$t()` instead, and get the same thing: nothing to switch on, nothing to convert. See [Legacy components](#legacy-components).
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
 - **Fast.** A lookup is one signal read and one property read, about 11 ns. See [Size and speed](#size-and-speed).
 
@@ -51,7 +51,7 @@ npm install github:Shilo/svelte-whisper
 
 Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.0.0`. Requires `svelte@^5.9.0`.
 
-The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other. There is nothing else to configure. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
+The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other, whatever your own `runes` setting is. There is nothing else to configure. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
 
 ## Quick start
 
@@ -143,7 +143,7 @@ An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules`
 
 ## Legacy components
 
-Svelte 5 compiles a component in its legacy mode when it still uses `export let`, `$:`, `$$props` or `$$restProps`, or when runes are switched off for it (`runes: false`). There it follows **stores only**: a plain function call such as `{t('key')}` is not followed, and current Svelte evaluates it once and never again. So `t` is also a store, and so is `locale`. Prefix them with a dollar sign:
+Svelte 5 compiles a component in its legacy mode when it still uses `export let`, `$:`, `$$props` or `$$restProps`, or when runes are switched off for it (`runes: false`). There it follows **stores only**: a plain function call such as `{t('key')}` is not followed, and current Svelte evaluates it again only when one of its own arguments changes, so the text stays in the old language. So `t` is also a store, and so is `locale`. Prefix them with a dollar sign:
 
 ```svelte
 <script>
