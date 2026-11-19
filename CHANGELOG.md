@@ -6,7 +6,7 @@ Runes, legacy and mixed apps all work without a change to the app. Legacy compon
 
 ### Added
 
-- **`$formatNumber`, `$formatPercent`, `$formatDate`.** The formatters are stores of themselves, like `t`, so a legacy component writes `{$formatNumber(n)}` where it wrote `formatNumber(n, undefined, $locale)`. The third `locale` argument stays, for formatting in an explicit locale. An app that does not import a formatter does not ship it.
+- **`$formatNumber`, `$formatPercent`, `$formatDate`.** The formatters are stores of themselves, like `t`, so a legacy component writes `{$formatNumber(n)}` where it wrote `formatNumber(n, undefined, $locale)`. The third `locale` argument stays, for formatting in an explicit locale. An app that imports no formatter ships none of them.
 
 ### Fixed
 

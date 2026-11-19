@@ -90,7 +90,7 @@ await init({ fallback: 'en', persistKey: 'my-app-locale' });
 mount(App, { target: document.getElementById('app') });
 ```
 
-`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and waits for its dictionary, so the first paint is already in that language. (If your build target has no top-level `await`, write `init({ … }).then(() => mount(…))`.)
+`import.meta.glob` makes every locale a separate chunk. `init` picks the starting locale and waits for its dictionary, so the first paint is already in that language. If your build target has no top-level `await`, as with the default target of Vite 5 and 6, write `init({ … }).then(() => mount(…))`.
 
 ### Without any setup
 
@@ -249,7 +249,7 @@ In Vite's dev server a small badge appears when keys are missing. Open it to see
 
 ![The dev overlay listing missing keys](docs/assets/dev-overlay.png)
 
-The overlay is a separate chunk that is requested only in dev mode. It is removed from production builds, and it stays out of the way of browser automation. Turn it off with `devOverlay: false`.
+The overlay is a separate chunk that is requested only in Vite's dev mode, and it stays out of the way of browser automation. Vite leaves it out of production builds; another bundler may emit the chunk, which is then never requested. Turn it off with `devOverlay: false`.
 
 To check every key without clicking through the app, use [`svelte-whisper check`](#locale-tools-and-agent-skills).
 

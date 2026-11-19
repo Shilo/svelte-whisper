@@ -17,6 +17,8 @@ await init({ fallback: 'en', persistKey: 'my-app-locale' });
 mount(App, { target: document.getElementById('app') });
 ```
 
+Where the build target has no top-level `await` (the default in Vite 5 and 6), write `init({ … }).then(() => mount(…))`.
+
 ```svelte
 <script>
     import { t, getLocale, setLocale, getLocales, localeName, formatNumber } from 'svelte-whisper';
@@ -46,7 +48,7 @@ mount(App, { target: document.getElementById('app') });
 - The library sets `<html lang>` and `dir`; do not do it by hand.
 - `addDictionary(id, dict)` adds translations already in memory (bundled main language, tests).
 - With no loaders registered, a locale is fetched from `{base}locales/{id}.json`.
-- A key missing from the active locale falls back to the fallback locale and is reported once: `init({ onMissing({ locale, key }) {} })`, else `console.warn`. In Vite dev mode a dev overlay lists them; it is never in production builds.
+- A key missing from the active locale falls back to the fallback locale and is reported once: `init({ onMissing({ locale, key }) {} })`, else `console.warn`. In Vite dev mode a dev overlay lists them; it is never requested in production.
 - Typed keys: augment `Register` with `dictionary: typeof en` in a `.d.ts` file (`declare module 'svelte-whisper'`).
 
 ## Exports
