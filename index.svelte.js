@@ -165,7 +165,7 @@ export function t(key, vars) {
             return key;
         }
     }
-    if (typeof value !== 'string') value = '' + value; // a number or boolean in the JSON
+    value = '' + value; // a number or boolean in the JSON becomes text
     return vars == null ? value : interpolate(value, vars);
 }
 
