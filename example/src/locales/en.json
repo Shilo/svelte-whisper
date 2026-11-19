@@ -46,5 +46,10 @@
         "title": "Missing key",
         "note": "This key is in no file, so the key itself is shown and reported to onMissing, the console and the dev overlay."
     },
+    "legacy": {
+        "title": "Legacy component",
+        "note": "This card is a component written the old way, with export let and runes switched off. It puts $ in front of each call, and follows the same language switch and the same counter.",
+        "locale": "Active locale: {locale}"
+    },
     "footer": { "source": "Read the source", "repo": "svelte-whisper on GitHub" }
 }

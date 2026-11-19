@@ -21,6 +21,8 @@ Read `src/` as documentation: it is the recommended setup, kept small on purpose
 - **Formatting.** `formatNumber` for numbers, currency and percentages, and `formatDate`, bound to the active locale.
 - **Fallback and missing keys.** One sentence exists only in English and falls back everywhere
   else. One key exists nowhere, which makes the dev overlay appear in `npm run dev`.
+- **A legacy component.** `src/lib/LegacyCount.svelte` switches runes off for itself and uses `export let`,
+  `$t`, `$formatNumber` and `$locale`. It follows the same language switch and counter as the rest of the page.
 - **`t()` outside components.** `src/greeting.js` translates from a plain module and stays reactive.
 - **Typed keys.** `src/whisper.d.ts` registers `en.json`, so keys autocomplete and typos are
   underlined. The deliberately missing key is cast so the project type-checks cleanly.
@@ -44,6 +46,7 @@ To deploy under a sub-path, set `BASE_PATH`: `BASE_PATH=/svelte-whisper/demo/ np
 | `src/main.js` | The setup: `registerLoader(import.meta.glob(...))` and `init({ fallback, persistKey })`. |
 | `src/locales/*.json` | One dictionary per locale; the file name is the locale id. |
 | `src/App.svelte` | The page: every feature above, each next to the call that produces it. |
+| `src/lib/LegacyCount.svelte` | A legacy component inside the runes app: the same calls with `$` in front. |
 | `src/greeting.js` | `t()` in a plain JavaScript module. |
 | `src/whisper.d.ts` | Typed keys through the `Register` interface. Types only. |
 | `src/lib/LanguageGates.svelte` | The language switcher. |

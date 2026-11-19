@@ -44,5 +44,10 @@
         "title": "Clave inexistente",
         "note": "Esta clave no está en ningún archivo: se muestra la propia clave y se notifica a onMissing, a la consola y al panel de desarrollo."
     },
+    "legacy": {
+        "title": "Componente heredado",
+        "note": "Esta tarjeta es un componente escrito a la antigua, con export let y sin runes. Pone $ delante de cada llamada y sigue el mismo selector de idioma y el mismo contador.",
+        "locale": "Idioma activo: {locale}"
+    },
     "footer": { "source": "Leer el código fuente", "repo": "svelte-whisper en GitHub" }
 }

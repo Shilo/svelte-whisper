@@ -44,5 +44,10 @@
         "title": "Clé manquante",
         "note": "Cette clé n’existe dans aucun fichier : la clé elle-même s’affiche et elle est signalée à onMissing, à la console et au panneau de développement."
     },
+    "legacy": {
+        "title": "Composant à l’ancienne",
+        "note": "Cette carte est un composant écrit à l’ancienne, avec export let et sans runes. Il met $ devant chaque appel et suit le même choix de langue et le même compteur.",
+        "locale": "Langue active : {locale}"
+    },
     "footer": { "source": "Lire le code source", "repo": "svelte-whisper sur GitHub" }
 }

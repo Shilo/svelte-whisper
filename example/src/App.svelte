@@ -8,6 +8,7 @@
     import DownloadBoard from './lib/DownloadBoard.svelte';
     import Sign from './lib/Sign.svelte';
     import Pictogram from './lib/Pictogram.svelte';
+    import LegacyCount from './lib/LegacyCount.svelte';
 
     const today = new Date();
 
@@ -111,6 +112,13 @@
             <!-- This key exists in no file, on purpose. Typed keys (see whisper.d.ts) reject it, hence the cast. -->
             <p class="absent" dir="ltr">{t(/** @type {any} */ ('missing.coming_soon'))}</p>
             <p class="detail">{t('missing.note')}</p>
+        </Sign>
+
+        <Sign icon="dollar" title={t('legacy.title')} span="wide"
+            call={["$t('plural.files', { count })", "$formatNumber(count / 3, { maximumFractionDigits: 2 })", "$t('legacy.locale', { locale: $locale })"]}>
+            <!-- A legacy component (export let, runes off) inside this runes app, following the same switch. -->
+            <LegacyCount {count} />
+            <p class="detail">{t('legacy.note')}</p>
         </Sign>
     </div>
 </main>
