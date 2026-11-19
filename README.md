@@ -56,7 +56,7 @@ Only `t`, `locale` and the formatters have a `$` form; a helper of your own stay
 npm install github:Shilo/svelte-whisper
 ```
 
-Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.1.0`. Requires Svelte 5, any 5.x release; Svelte 4 is not supported. The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other, whatever your own `runes` setting is. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
+Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.1.1`. Requires Svelte 5, any 5.x release; Svelte 4 is not supported. The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other, whatever your own `runes` setting is. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
 
 - Vite (5 to 8) with `@sveltejs/vite-plugin-svelte`, Rollup with `rollup-plugin-svelte` and esbuild with `esbuild-svelte` need nothing else.
 - webpack: the `svelte-loader` rule must also match `.svelte.js` files, as for any runes module: `test: /\.svelte(\.js)?$/`.
@@ -384,7 +384,9 @@ Do not assemble a sentence from translated pieces. `t('your') + ' ' + t('cart')`
 
 ### Apps with a service worker
 
-PWA plugins precache every build chunk by default, which downloads all your languages on install. Exclude the locale chunks from the precache and cache them on first use. The [`whisper-setup` skill](skills/whisper-setup/SKILL.md#7-apps-with-a-service-worker) has the configuration for `vite-plugin-pwa`.
+PWA plugins precache every build chunk by default, locale chunks included. That is the right setup for most apps, and it needs no configuration: the page still requests only the language in use, the worker fetches the others in the background on install, and every language works offline.
+
+An app with many languages can keep them out of the precache and cache each one on first use instead. That saves the downloads and costs offline coverage: a first visit is not cached at all, because its language loads before the worker controls the page. Bundle the fallback language if you do this. The [`whisper-setup` skill](skills/whisper-setup/SKILL.md#7-apps-with-a-service-worker) has the `vite-plugin-pwa` configuration and the trade-offs.
 
 ### Tests
 

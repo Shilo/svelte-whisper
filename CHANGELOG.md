@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1
+
+Documentation only; the library code is the same as 2.1.0.
+
+### Fixed
+
+- **Service worker advice.** The README and the `whisper-setup` skill told every PWA to keep locale chunks out of the precache and cache them on first use. A first visit loads its language before the worker controls the page, so nothing was cached, and a user who then went offline saw keys instead of text. The default precache is now the recommendation; leaving the locale chunks out is described as an option for apps with many languages, with what it costs offline and the advice to bundle the fallback language.
+
 ## 2.1.0
 
 Runes, legacy and mixed apps all work without a change to the app. Legacy components get one rule: put `$` in front.

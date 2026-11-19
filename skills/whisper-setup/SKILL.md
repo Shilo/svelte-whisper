@@ -10,7 +10,7 @@ svelte-whisper is a runtime i18n library for client-side Svelte 5 apps. The app 
 ## 1. Install
 
 ```bash
-npm install github:Shilo/svelte-whisper#v2.1.0
+npm install github:Shilo/svelte-whisper#v2.1.1
 ```
 
 The package is distributed from GitHub, not the npm registry. Pin a release tag as above rather than the default branch. Requires Svelte 5 (any 5.x; Svelte 4 is not supported). The package is a runes module that the app's Svelte plugin compiles. Vite, Rollup and esbuild need nothing else. With webpack, make the `svelte-loader` rule also match `.svelte.js` files (`test: /\.svelte(\.js)?$/`). For Vitest component tests, set `resolve: { conditions: ['browser'] }`.
@@ -131,9 +131,16 @@ npx svelte-whisper check --usage src
 
 ## 7. Apps with a service worker
 
-A PWA plugin's default precache list includes every locale chunk, so installing the app downloads all languages. Give the locale chunks a folder of their own, keep that folder out of the precache, and cache each file the first time it is used.
+A PWA plugin's default precache list includes every locale chunk. **Leave it that way unless the app has a reason not to.** The page still requests only the language in use; the worker fetches the others in the background when the app is installed, and every language then works offline. Nothing needs configuring.
 
-In `vite.config.js`, name the chunks (Vite 8; on Vite 7 the option is `rollupOptions`):
+Keep the locale chunks out of the precache only when the app ships many languages and the size of the install matters. Know what that costs offline first:
+
+- A file is cached only when it is requested while the worker controls the page. On a first visit the language loads before that, so it is not cached until the next online visit: a user who goes offline after one visit gets no language file, and sees keys instead of text.
+- A language the user has not opened, and a lazily loaded fallback, are not available offline.
+
+So bundle the fallback language (section 3, the `addDictionary` variant): the app then always has text, in the fallback language when the user's own is not cached yet.
+
+To do it, give the locale chunks a folder of their own, keep that folder out of the precache, and cache each file the first time it is used. In `vite.config.js`, name the chunks (Vite 8; on Vite 7 the option is `rollupOptions`):
 
 ```js
 build: {
@@ -157,4 +164,4 @@ VitePWA({
 })
 ```
 
-Build, then confirm that `dist/assets/locales/` holds one file per language and that the generated service worker's precache list contains none of them.
+Build, then confirm that `dist/assets/locales/` holds one file per lazy language and that the generated service worker's precache list contains none of them. Then test it the way a new user meets it: a fresh browser profile, one visit, offline, reload.
