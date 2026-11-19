@@ -151,7 +151,7 @@ export function detectLocale() {
  * Translate. Always returns a string. Reactive: `{t('key', vars)}` in markup, or inside $derived and $effect.
  * In a legacy component (`export let`, `$:`), write `{$t('key', vars)}`: `t` is also a store of itself.
  */
-export function t(key, vars) {
+export const t = /* @__PURE__ */ storeOf(function t(key, vars) {
     let value = find(active, key, vars, getLocale()); // getLocale() makes t() reactive
     if (value === undefined) {
         if (current) reportMissing(key);
@@ -167,12 +167,10 @@ export function t(key, vars) {
     }
     value = '' + value; // a number or boolean in the JSON becomes text
     return vars == null ? value : interpolate(value, vars);
-}
-
-t.subscribe = store(() => t);
+});
 
 /** The active locale as a store, for legacy components: `$locale`, `bind:value={$locale}`. */
-export const locale = { subscribe: /* @__PURE__ */ store(() => current), set: setLocale };
+export const locale = /* @__PURE__ */ storeOf({ set: setLocale }, () => current);
 
 // --- Formatting (Intl, bound to the active locale) ---
 // Like `t`, each formatter is also a store of itself: `{$formatNumber(n)}` in a legacy component.
@@ -265,20 +263,16 @@ function intl(type, opts, loc = getLocale()) {
     return formatter;
 }
 
-// The Svelte store contract: call back now and on every change, return an unsubscribe function.
-function store(read) {
-    return fn => {
+// Makes `value` a Svelte store: `subscribe` calls back now and on every change, and returns an
+// unsubscribe function. A function becomes a store of itself, so `$fn(…)` re-runs on a change.
+function storeOf(value, read = () => value) {
+    value.subscribe = fn => {
         const run = () => fn(read());
         subscribers.add(run);
         run();
         return () => subscribers.delete(run);
     };
-}
-
-// A function that is also a store whose value is the function itself, so `$fn(…)` re-runs on a change.
-function storeOf(fn) {
-    fn.subscribe = store(() => fn);
-    return fn;
+    return value;
 }
 
 function refresh() {

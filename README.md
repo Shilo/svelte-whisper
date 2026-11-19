@@ -452,11 +452,11 @@ Measured with `npm run bench` (Node 25, one core of a desktop CPU, a 600-message
 
 | Operation | Time |
 |---|---|
-| Key lookup | 11–16 ns |
-| Missing key | 37 ns |
-| Interpolation, two placeholders | 178 ns |
-| Plural | 440 ns |
-| `formatNumber` | 385 ns |
+| Key lookup | 11–15 ns |
+| Missing key | 31 ns |
+| Interpolation, two placeholders | 165 ns |
+| Plural | 410 ns |
+| `formatNumber` | 350 ns |
 
 Dictionaries are flattened once when they are added, which is why nesting depth does not matter.
 

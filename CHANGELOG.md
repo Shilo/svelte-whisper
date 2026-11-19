@@ -15,7 +15,7 @@ Runes, legacy and mixed apps all work without a change to the app. Legacy compon
 ### Changed
 
 - **Any Svelte 5.** `peerDependencies.svelte` is `^5.0.0` (was `^5.9.0`), and CI runs the tests at 5.0.0 and at the newest release. Svelte 4 is not supported. The README's `bind:value={getLocale, setLocale}` recipe still needs 5.9, for function bindings.
-- **Size.** 1,763 B gzip for a typical app, 2,010 B with every export (the budget for the latter goes from 2,000 to 2,010 B for the formatter stores).
+- **Size.** Unchanged: 1,770 B gzip for a typical app, 1,999 B with every export.
 
 ## 2.0.0
 
