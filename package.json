@@ -55,7 +55,7 @@
     "check": "npm test && npm run check:types && npm run size"
   },
   "peerDependencies": {
-    "svelte": "^5.9.0"
+    "svelte": "^5.0.0"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

@@ -29,6 +29,26 @@ jobs:
       # Tests, type declarations and the bundle size budget.
       - run: npm run check
 
+  svelte:
+    name: Library tests (Svelte ${{ matrix.svelte }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor of the peer range, and the newest release.
+        svelte: ['5.0.0', latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Swap in that Svelte for this run only. The size budget and type checks stay on the locked toolchain.
+      - run: npm install --no-save --package-lock=false svelte@${{ matrix.svelte }}
+      - run: node -p "'svelte ' + require('svelte/package.json').version"
+      - run: npm test
+
   editor:
     name: Editor checks and builds
     runs-on: ubuntu-latest
