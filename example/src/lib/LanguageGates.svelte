@@ -79,9 +79,11 @@
         white-space: nowrap;
     }
 
+    /* On a phone the row fills the width, and wraps instead of cutting a language's name short. */
     @media (max-width: 30rem) {
-        .gates { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.375rem; }
-        button { min-width: 0; padding: 0.4rem 0.45rem; }
-        .name { font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; }
+        .gates { gap: 0.25rem; }
+        li { flex: 1 1 auto; }
+        button { width: 100%; min-width: 0; padding: 0.4rem; }
+        .name { font-size: 0.8125rem; }
     }
 </style>

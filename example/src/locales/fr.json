@@ -42,7 +42,7 @@
     },
     "missing": {
         "title": "Clé manquante",
-        "note": "Cette clé n’existe dans aucun fichier : la clé elle-même s’affiche et elle est signalée à onMissing, à la console et au panneau de développement."
+        "note": "Cette clé n’existe dans aucun fichier : la clé elle-même s’affiche et un avertissement apparaît dans la console. Une application peut les traiter avec onMissing, et en développement un panneau les répertorie."
     },
     "legacy": {
         "title": "Composant à l’ancienne",

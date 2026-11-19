@@ -44,7 +44,7 @@
     },
     "missing": {
         "title": "Missing key",
-        "note": "This key is in no file, so the key itself is shown and reported to onMissing, the console and the dev overlay."
+        "note": "This key is in no file, so the key itself is shown and the console gets a warning. An app can handle these with onMissing instead, and in development an overlay lists them."
     },
     "legacy": {
         "title": "Legacy component",

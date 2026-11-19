@@ -108,6 +108,13 @@
         font-size: 0.8125rem;
         line-height: 1.5;
     }
+    /* On a phone the file name gives way first, so long units ("12.7 كيلوبايت") stay inside the board. */
+    @media (max-width: 30rem) {
+        .board { padding-inline: 1rem; }
+        table { font-size: 0.8125rem; }
+        th + th, td + td { padding-inline-start: 0.5rem; }
+        td:first-child { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    }
     @media (prefers-reduced-motion: reduce) {
         tbody tr { animation-duration: 1ms; }
     }

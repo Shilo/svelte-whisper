@@ -42,7 +42,7 @@
     },
     "missing": {
         "title": "Clave inexistente",
-        "note": "Esta clave no está en ningún archivo: se muestra la propia clave y se notifica a onMissing, a la consola y al panel de desarrollo."
+        "note": "Esta clave no está en ningún archivo: se muestra la propia clave y la consola recibe un aviso. Una aplicación puede gestionarlas con onMissing, y en desarrollo un panel las enumera."
     },
     "legacy": {
         "title": "Componente heredado",
