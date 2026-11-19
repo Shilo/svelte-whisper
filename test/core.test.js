@@ -971,6 +971,38 @@ describe('stores, for components without runes', () => {
         w.t.subscribe(value => { seen = value; })();
         assert.equal(seen, w.t);
     });
+
+    test('each formatter is a store of itself, so $formatNumber(n) follows the locale', async () => {
+        const w = await english();
+        w.addDictionary('fr', {});
+        const seen = [];
+        const stops = [w.formatNumber, w.formatPercent, w.formatDate].map(format => format.subscribe(value => {
+            assert.equal(value, format);
+            seen.push(value === w.formatDate
+                ? value(Date.UTC(2026, 2, 5, 12), { month: 'long', timeZone: 'UTC' })
+                : value === w.formatPercent ? value(0.5) : value(1234.5));
+        }));
+        await w.setLocale('fr');
+        for (const stop of stops) stop();
+        await w.setLocale('en');
+        assert.deepEqual(seen.map(text => text.replace(/\s/g, ' ')), [
+            '1,234.5', '50%', 'March',
+            '1 234,5', '50 %', 'mars',
+        ], 'called at once, then on every change, never after unsubscribing');
+        assert.deepEqual([w.formatNumber.name, w.formatPercent.name, w.formatDate.name],
+            ['formatNumber', 'formatPercent', 'formatDate'], 'named, for stack traces');
+    });
+
+    test('the module runs when compiled for the server', async () => {
+        const w = await load({ generate: 'server' });
+        w.addDictionary('en', { hello: 'Hello {name}' });
+        await w.init({ detect: false, warn: false });
+        assert.equal(w.t('hello', { name: 'Ada' }), 'Hello Ada');
+        assert.equal(w.getLocale(), 'en');
+        let format;
+        w.formatNumber.subscribe(value => { format = value; })();
+        assert.equal(format(1234.5), '1,234.5');
+    });
 });
 
 describe('formatPercent', () => {

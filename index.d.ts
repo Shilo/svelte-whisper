@@ -117,30 +117,38 @@ export const t: Translate & Subscribable<Translate>;
 
 /**
  * The active locale as a store, for legacy components (`export let`, `$:`): `{$locale}`,
- * `bind:value={$locale}`, `formatNumber(n, undefined, $locale)`. In runes code use
+ * `bind:value={$locale}`, or `helper($locale)` for a function of your own. In runes code use
  * `getLocale()` and `setLocale()`.
  */
 export const locale: Subscribable<string> & { set: (locale: string) => Promise<boolean> };
 
-/** `Intl.NumberFormat` for the active locale (or `locale`). Reactive unless `locale` is given. */
-export function formatNumber(
-    value: number | bigint,
-    options?: Intl.NumberFormatOptions,
-    locale?: string,
-): string;
+type FormatNumber = (value: number | bigint, options?: Intl.NumberFormatOptions, locale?: string) => string;
+type FormatPercent = (value: number, precision?: number, locale?: string) => string;
+type FormatDate = (value: Date | number, options?: Intl.DateTimeFormatOptions, locale?: string) => string;
+
+/**
+ * `Intl.NumberFormat` for the active locale (or `locale`). Reactive unless `locale` is given:
+ * `{formatNumber(n)}` in markup, or inside `$derived` and `$effect`.
+ *
+ * In a legacy component (`export let`, `$:`), write `{$formatNumber(n)}`: it is also a store of itself.
+ */
+export const formatNumber: FormatNumber & Subscribable<FormatNumber>;
 
 /**
  * A fraction as a percentage: `formatPercent(0.256)` → `26%`, `formatPercent(0.256, 1)` → `25.6%`.
  * `precision` is the maximum number of decimals. Reactive unless `locale` is given.
+ *
+ * In a legacy component (`export let`, `$:`), write `{$formatPercent(n)}`: it is also a store of itself.
  */
-export function formatPercent(value: number, precision?: number, locale?: string): string;
+export const formatPercent: FormatPercent & Subscribable<FormatPercent>;
 
-/** `Intl.DateTimeFormat` for the active locale (or `locale`). Reactive unless `locale` is given. */
-export function formatDate(
-    value: Date | number,
-    options?: Intl.DateTimeFormatOptions,
-    locale?: string,
-): string;
+/**
+ * `Intl.DateTimeFormat` for the active locale (or `locale`). Reactive unless `locale` is given:
+ * `{formatDate(date)}` in markup, or inside `$derived` and `$effect`.
+ *
+ * In a legacy component (`export let`, `$:`), write `{$formatDate(date)}`: it is also a store of itself.
+ */
+export const formatDate: FormatDate & Subscribable<FormatDate>;
 
 /**
  * The language name of a locale id, in its own language by default

@@ -175,19 +175,21 @@ t.subscribe = store(() => t);
 export const locale = { subscribe: /* @__PURE__ */ store(() => current), set: setLocale };
 
 // --- Formatting (Intl, bound to the active locale) ---
+// Like `t`, each formatter is also a store of itself: `{$formatNumber(n)}` in a legacy component.
+// The annotations let an app that imports none of them drop all three.
 
-export function formatNumber(value, opts, loc) {
+export const formatNumber = /* @__PURE__ */ storeOf(function formatNumber(value, opts, loc) {
     return intl('NumberFormat', opts, loc).format(value);
-}
+});
 
 /** 0.256 → '26%'. `precision` is the maximum number of decimals. */
-export function formatPercent(value, precision = 0, loc) {
+export const formatPercent = /* @__PURE__ */ storeOf(function formatPercent(value, precision = 0, loc) {
     return formatNumber(value, { style: 'percent', maximumFractionDigits: precision }, loc);
-}
+});
 
-export function formatDate(value, opts, loc) {
+export const formatDate = /* @__PURE__ */ storeOf(function formatDate(value, opts, loc) {
     return intl('DateTimeFormat', opts, loc).format(value);
-}
+});
 
 /** Language name for a locale id: its own name by default ('ja' → '日本語'). */
 export function localeName(id, displayLocale = id) {
@@ -271,6 +273,12 @@ function store(read) {
         run();
         return () => subscribers.delete(run);
     };
+}
+
+// A function that is also a store whose value is the function itself, so `$fn(…)` re-runs on a change.
+function storeOf(fn) {
+    fn.subscribe = store(() => fn);
+    return fn;
 }
 
 function refresh() {

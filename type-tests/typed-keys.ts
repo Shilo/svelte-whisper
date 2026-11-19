@@ -96,3 +96,25 @@ formatDate(new Date(), { dateStyle: 'long' }) satisfies string;
 formatDate(0) satisfies string;
 // @ts-expect-error not a number
 formatNumber('1');
+
+// The `$` forms, typed the way svelte-check types `$store` in a component.
+declare function storeGet<T>(store: { subscribe: (run: (value: T) => any, invalidate?: any) => any }): T;
+const $t = storeGet(t);
+const $locale = storeGet(locale);
+const $formatNumber = storeGet(formatNumber);
+const $formatPercent = storeGet(formatPercent);
+const $formatDate = storeGet(formatDate);
+$t('greeting', { name: 'Ada' }) satisfies string;
+// @ts-expect-error typed keys still apply through $t
+$t('nav.hmoe');
+$locale satisfies string;
+$formatNumber(1234.5) satisfies string;
+$formatNumber(10n, { style: 'currency', currency: 'EUR' }, 'de') satisfies string;
+$formatPercent(0.5, 1) satisfies string;
+$formatDate(new Date(), { dateStyle: 'long' }) satisfies string;
+// @ts-expect-error not a number
+$formatNumber('1');
+// @ts-expect-error not a date
+$formatDate('2026-01-01');
+const stopFormat: () => void = formatDate.subscribe(format => { format(0) satisfies string; });
+stopFormat();
