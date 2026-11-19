@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.1.0
+
+Runes, legacy and mixed apps all work without a change to the app. Legacy components get one rule: put `$` in front.
+
+### Added
+
+- **`$formatNumber`, `$formatPercent`, `$formatDate`.** The formatters are stores of themselves, like `t`, so a legacy component writes `{$formatNumber(n)}` where it wrote `formatNumber(n, undefined, $locale)`. The third `locale` argument stays, for formatting in an explicit locale. An app that does not import a formatter does not ship it.
+
+### Fixed
+
+- **Production builds on Vite 5 and Vite 6.0.** These pass the module through esbuild before the Svelte plugin sees it, and that dropped the read of the locale signal: plain `t()` and `getLocale()` in runes components stopped updating after a switch, in production only.
+
+### Changed
+
+- **Any Svelte 5.** `peerDependencies.svelte` is `^5.0.0` (was `^5.9.0`), and CI runs the tests at 5.0.0 and at the newest release. Svelte 4 is not supported. The README's `bind:value={getLocale, setLocale}` recipe still needs 5.9, for function bindings.
+- **Size.** 1,763 B gzip for a typical app, 2,010 B with every export (the budget for the latter goes from 2,000 to 2,010 B for the formatter stores).
+
 ## 2.0.0
 
 A rewrite on Svelte 5 runes with a smaller API. Runes code calls plain functions; legacy components (`export let`, `$:`) keep `$t` and `$locale`, because stores are the only thing Svelte follows there.
