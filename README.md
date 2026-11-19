@@ -56,7 +56,7 @@ Only `t`, `locale` and the formatters have a `$` form; a helper of your own stay
 npm install github:Shilo/svelte-whisper
 ```
 
-Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.1.1`. Requires Svelte 5, any 5.x release; Svelte 4 is not supported. The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other, whatever your own `runes` setting is. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
+Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.2.0`. Requires Svelte 5, any 5.x release; Svelte 4 is not supported. The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other, whatever your own `runes` setting is. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
 
 - Vite (5 to 8) with `@sveltejs/vite-plugin-svelte`, Rollup with `rollup-plugin-svelte` and esbuild with `esbuild-svelte` need nothing else.
 - webpack: the `svelte-loader` rule must also match `.svelte.js` files, as for any runes module: `test: /\.svelte(\.js)?$/`.
@@ -307,7 +307,7 @@ localeName('ja');                                       // '日本語'
 
 | | |
 |---|---|
-| `init(options?)` | Choose the starting locale and load it. Returns a promise. |
+| `init(options?)` | Choose the starting locale and load it. Returns a promise. Until the file arrives, a fallback that is already in memory is the active locale. |
 | `registerLoader(id, loader)` | Register an async function that returns a dictionary, or the module of one (`() => import('./fr.json')`). It runs once, on first use, and again only if it failed. |
 | `registerLoader(globRecord)` | Register every entry of an `import.meta.glob` result. The file name is the locale id. |
 | `addDictionary(id, dict)` | Add translations that are already in memory. Merges with what is there, and stays on top of whatever the locale's loader delivers. Without a loader, this alone makes the locale usable. |
@@ -363,6 +363,17 @@ await init({ fallback: 'en' });
 ```
 
 The trade is download size: every user now receives the main language, including those who read another one.
+
+### Do not wait for a slow language file
+
+While the chosen language downloads, a main language that is in the bundle is already the active locale: `getLocale()` returns it and `t()` reads it. So the app does not have to wait for the file. Give it a moment, then open in the main language; the text switches when the file arrives:
+
+```js
+await Promise.race([init({ fallback: 'en' }), new Promise(done => setTimeout(done, 1500))]);
+mount(App, { target: document.getElementById('app') });
+```
+
+On a normal connection the file wins the race and the first paint is in the user's language, as before.
 
 ### Rich text
 
@@ -466,7 +477,7 @@ Svelte Whisper is deliberately small: a runtime library with no compiler, no mes
 
 | | Approach | Library size, gzip | Build step |
 |---|---|---|---|
-| **svelte-whisper 2.1** | Runtime on runes, lazy JSON per locale | 1.8 kB | None |
+| **svelte-whisper 2.2** | Runtime on runes, lazy JSON per locale | 1.8 kB | None |
 | [typesafe-i18n](https://github.com/codingcommons/typesafe-i18n) 5.27 | Generated typed functions plus a small runtime | 1.3 kB plus generated code | Generator |
 | [svelte-i18n](https://github.com/kaisermann/svelte-i18n) 4.0 | Runtime with ICU MessageFormat | 14.6 kB | None |
 | [i18next](https://www.i18next.com) 27.1 | Runtime with plugins | 15.5 kB before plugins | None |

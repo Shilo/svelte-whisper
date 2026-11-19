@@ -44,7 +44,7 @@ Where the build target has no top-level `await` (the default in Vite 5 and 6), w
 - Format with `formatNumber(value, intlOptions?, locale?)` and `formatDate(value, intlOptions?, locale?)`; never bare `toLocaleString()` or `toFixed()`. Percentages are `formatPercent(value, precision?, locale?)`. They follow the active locale and are reactive.
 - `localeName(id)` returns a language's own name (`ja` → `日本語`); do not add translation keys for language names.
 - `getLocale()` reads the active locale (reactive). `setLocale(id)` switches: resolves `true` when active, `false` if the load failed or a newer switch won. `loadLocale(id)` preloads. `resetLocale()` forgets the stored choice.
-- `init` chooses the starting locale: stored choice (`persistKey`) → browser language (`detect`, default on) → `initial` → `fallback`. Only explicit `setLocale` calls are stored.
+- `init` chooses the starting locale: stored choice (`persistKey`) → browser language (`detect`, default on) → `initial` → `fallback`. Only explicit `setLocale` calls are stored. While that locale downloads, a fallback added with `addDictionary` is the active one, so an app may mount after a short wait (`Promise.race` of `init` and a timer) and the text switches when the file arrives.
 - The library sets `<html lang>` and `dir`; do not do it by hand.
 - `addDictionary(id, dict)` adds translations already in memory (bundled main language, tests).
 - With no loaders registered, a locale is fetched from `{base}locales/{id}.json`.

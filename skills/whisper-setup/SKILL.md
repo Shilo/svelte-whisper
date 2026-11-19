@@ -10,7 +10,7 @@ svelte-whisper is a runtime i18n library for client-side Svelte 5 apps. The app 
 ## 1. Install
 
 ```bash
-npm install github:Shilo/svelte-whisper#v2.1.1
+npm install github:Shilo/svelte-whisper#v2.2.0
 ```
 
 The package is distributed from GitHub, not the npm registry. Pin a release tag as above rather than the default branch. Requires Svelte 5 (any 5.x; Svelte 4 is not supported). The package is a runes module that the app's Svelte plugin compiles. Vite, Rollup and esbuild need nothing else. With webpack, make the `svelte-loader` rule also match `.svelte.js` files (`test: /\.svelte(\.js)?$/`). For Vitest component tests, set `resolve: { conditions: ['browser'] }`.
@@ -68,6 +68,8 @@ export function setupI18n() {
     return init({ fallback: 'en', persistKey: 'my-app-locale' });
 }
 ```
+
+With the main language bundled, it is the active locale while the user's own file downloads. An app that must open on a slow or stalled network can then wait a limited time: `await Promise.race([setupI18n(), new Promise(done => setTimeout(done, 1500))])` before `mount`. It opens in the main language and switches when the file arrives.
 
 ## 4. Translate in components and modules
 

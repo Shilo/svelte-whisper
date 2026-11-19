@@ -62,7 +62,7 @@ export interface WhisperOptions {
 
 /**
  * Choose the starting locale (stored choice → browser language → `initial` → `fallback`)
- * and load its dictionary.
+ * and load its dictionary. Until it arrives, a fallback that is already in memory is the active locale.
  */
 export function init(options?: WhisperOptions): Promise<void>;
 

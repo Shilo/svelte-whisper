@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.0
+
+### Changed
+
+- **A bundled fallback is active while the chosen language downloads.** When the fallback language is already in memory (`addDictionary`) and `init` has to download the user's language, the fallback is the active locale until the file arrives: `getLocale()` returns it instead of `''`, and `<html lang>` is set. An app that mounts before `init` resolves, for example after a short wait on a slow network, now has a real locale to pass to `Intl` and to compare against, and switches when the file arrives. Nothing changes for an app that awaits `init`, when the fallback is lazy, or when the chosen language is already in memory. The README has the recipe: "Do not wait for a slow language file".
+- **Size.** 1,779 B gzip for a typical app (was 1,770), 2,011 B with every export (was 1,999).
+
 ## 2.1.1
 
 Documentation only; the library code is the same as 2.1.0.

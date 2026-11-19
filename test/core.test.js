@@ -441,6 +441,40 @@ describe('choosing the starting locale', () => {
         assert.equal(w.t('hello'), 'Hello');
     });
 
+    test('a fallback in memory is the active locale while the chosen language downloads', async () => {
+        const w = await load();
+        w.addDictionary('en', { hello: 'Hello' });
+        const slow = deferred();
+        w.registerLoader('de', () => slow.promise);
+        const documentElement = {};
+        const localStorage = storage({ lang: 'de' });
+        await withGlobals({ document: { documentElement }, localStorage }, async () => {
+            const page = observe(() => `${w.getLocale()}: ${w.t('hello')}`);
+            const ready = w.init({ persistKey: 'lang', detect: false, warn: false });
+            assert.equal(w.getLocale(), 'en', 'an app that mounts now has a real locale');
+            assert.equal(documentElement.lang, 'en');
+            slow.resolve({ hello: 'Hallo' });
+            await ready;
+            page.flush();
+            page.stop();
+            assert.deepEqual(page.seen, [': Hello', 'en: Hello', 'de: Hallo']);
+            assert.equal(documentElement.lang, 'de');
+            assert.equal(localStorage.data.lang, 'de', 'the stored choice is untouched');
+        });
+    });
+
+    test('a fallback that is still lazy is not made active early', async () => {
+        const w = await load();
+        const slow = deferred();
+        w.registerLoader('en', async () => ({ hello: 'Hello' }));
+        w.registerLoader('de', () => slow.promise);
+        const ready = w.init({ initial: 'de', detect: false, warn: false });
+        assert.equal(w.getLocale(), '');
+        slow.resolve({ hello: 'Hallo' });
+        await ready;
+        assert.equal(w.getLocale(), 'de');
+    });
+
     test('a setLocale call made while init is loading is not overridden', async () => {
         const w = await app();
         const slow = deferred();

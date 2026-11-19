@@ -288,6 +288,9 @@ function refresh() {
 function change(next, persist) {
     const id = ++request;
     if (ready(next)) return Promise.resolve(apply(next, persist));
+    // While the first language downloads, a fallback already in memory is the active locale,
+    // so an app that mounts before the file arrives has a real locale and switches when it comes.
+    if (!current && ready(fallback)) apply(fallback);
     return loadLocale(next).then(ok => id === request ? ok && apply(next, persist) : undefined);
 }
 
