@@ -13,7 +13,7 @@ Tiny runtime i18n for Svelte 5 single-page apps. Locales load on demand, the API
 <button onclick={() => setLocale('fr')}>Français</button>
 ```
 
-In a component, write `{t('key')}`. If the component still uses `export let` or `$:` (Svelte's legacy mode), put a `$` in front: `{$t('key')}`, `{$formatNumber(n)}`, `{$locale}`. The `$` forms work in every component, so when in doubt, use them. In `.js` and `.ts` files, call the plain functions.
+In a component, write `{t('key')}`. If the component is in Svelte's legacy mode (it still uses `export let` or `$:`, or runes are switched off for it), put a `$` in front: `{$t('key')}`, `{$formatNumber(n)}`, `{$locale}`. The `$` forms work in every component, so when in doubt, use them. In `.js` and `.ts` files, call the plain functions.
 
 | Your app | You write | You change |
 |---|---|---|
@@ -302,8 +302,6 @@ getLocales();                                           // ['en', 'fr', 'ja']
 detectLocale();                                         // best match for the browser, or ''
 localeName('ja');                                       // '日本語'
 ```
-
-In [legacy components](#legacy-components), put `$` in front of `t`, `locale` and the formatters: `$t('greeting', { name: 'Ada' })`, `$locale`, `$formatNumber(1234.5)`.
 
 ### Setup
 

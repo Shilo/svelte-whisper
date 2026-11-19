@@ -10,7 +10,7 @@ const loaded = blank();
 const pending = blank();
 const formatters = blank();
 const missingListeners = new Set();
-// Legacy components (`export let`, `$:`) cannot follow a signal, only a store. `$t` and `$locale` serve them.
+// Legacy components (`export let`, `$:`) cannot follow a signal, only a store: `t`, `locale` and the formatters are stores too.
 const subscribers = new Set();
 
 // The only reactive state. t(), getLocale() and the formatters read it, so markup, $derived and

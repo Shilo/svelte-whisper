@@ -130,7 +130,7 @@ type FormatDate = (value: Date | number, options?: Intl.DateTimeFormatOptions, l
  * `Intl.NumberFormat` for the active locale (or `locale`). Reactive unless `locale` is given:
  * `{formatNumber(n)}` in markup, or inside `$derived` and `$effect`.
  *
- * In a legacy component (`export let`, `$:`), write `{$formatNumber(n)}`: it is also a store of itself.
+ * In a legacy component (see `t`), write `{$formatNumber(n)}`: it is also a store of itself.
  */
 export const formatNumber: FormatNumber & Subscribable<FormatNumber>;
 
@@ -138,7 +138,7 @@ export const formatNumber: FormatNumber & Subscribable<FormatNumber>;
  * A fraction as a percentage: `formatPercent(0.256)` → `26%`, `formatPercent(0.256, 1)` → `25.6%`.
  * `precision` is the maximum number of decimals. Reactive unless `locale` is given.
  *
- * In a legacy component (`export let`, `$:`), write `{$formatPercent(n)}`: it is also a store of itself.
+ * In a legacy component (see `t`), write `{$formatPercent(n)}`: it is also a store of itself.
  */
 export const formatPercent: FormatPercent & Subscribable<FormatPercent>;
 
@@ -146,7 +146,7 @@ export const formatPercent: FormatPercent & Subscribable<FormatPercent>;
  * `Intl.DateTimeFormat` for the active locale (or `locale`). Reactive unless `locale` is given:
  * `{formatDate(date)}` in markup, or inside `$derived` and `$effect`.
  *
- * In a legacy component (`export let`, `$:`), write `{$formatDate(date)}`: it is also a store of itself.
+ * In a legacy component (see `t`), write `{$formatDate(date)}`: it is also a store of itself.
  */
 export const formatDate: FormatDate & Subscribable<FormatDate>;
 
