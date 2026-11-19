@@ -189,10 +189,24 @@ export const formatDate = /* @__PURE__ */ storeOf(function formatDate(value, opt
     return intl('DateTimeFormat', opts, loc).format(value);
 });
 
-/** Language name for a locale id: its own name by default ('ja' → '日本語'). */
-export function localeName(id, displayLocale = id) {
+/**
+ * Language name for a locale id, cased as a label: its own name by default ('ja' → '日本語', 'es' → 'Español').
+ * `inSentence` returns the platform's name as it is, which many languages write in lowercase.
+ */
+export function localeName(id, displayLocale = id, inSentence) {
     try {
-        return intl('DisplayNames', { type: 'language' }, displayLocale).of(id) || id;
+        const names = intl('DisplayNames', { type: 'language' }, displayLocale);
+        const name = names.of(id);
+        // Cased only when the platform has a name for the id's own language: asked with `fallback: 'none'` it answers with
+        // a name or with nothing, never with the id. Without one, `name` is a code and stays as it is.
+        return inSentence || !intl('DisplayNames', { type: 'language', fallback: 'none' }, displayLocale).of(new Intl.Locale(id).language)
+            ? name
+            // A name that starts in lowercase gets a capital, by the rules of the language it is written in
+            // (Turkish i → İ). Left alone: a first word that carries its own capital ('isiZulu', 'i-Afrikaans') and
+            // Georgian, whose capitals are never a first letter. The palochka Ӏ is an uppercase letter that Chechen
+            // and its neighbours write inside lowercase words.
+            : name.replace(/^(?!\p{sc=Geor})\p{Ll}(?!\S*(?!Ӏ)\p{Lu})/u,
+                letter => letter.toLocaleUpperCase(names.resolvedOptions().locale));
     } catch {
         return id;
     }

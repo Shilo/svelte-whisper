@@ -42,7 +42,7 @@ Where the build target has no top-level `await` (the default in Vite 5 and 6), w
 - Plurals: the dictionary value is an object keyed by `Intl.PluralRules` category (`one`, `few`, `many`, `other`, …) or an exact number (`"0"`); pass a numeric `count`. Always include `other`.
 - Never build a sentence by joining translated fragments. One sentence, one key.
 - Format with `formatNumber(value, intlOptions?, locale?)` and `formatDate(value, intlOptions?, locale?)`; never bare `toLocaleString()` or `toFixed()`. Percentages are `formatPercent(value, precision?, locale?)`. They follow the active locale and are reactive.
-- `localeName(id)` returns a language's own name (`ja` → `日本語`); do not add translation keys for language names.
+- `localeName(id)` returns a language's own name, cased as a label (`ja` → `日本語`, `es` → `Español`; Georgian and names with their own capital such as `isiZulu` are left alone); do not add translation keys or a table for language names. For a name inside a sentence pass `true` third to get the platform's name unchanged: `localeName(id, getLocale(), true)`.
 - `getLocale()` reads the active locale (reactive). `setLocale(id)` switches: resolves `true` when active, `false` if the load failed or a newer switch won. `loadLocale(id)` preloads. `resetLocale()` forgets the stored choice.
 - `init` chooses the starting locale: stored choice (`persistKey`) → browser language (`detect`, default on) → `initial` → `fallback`. Only explicit `setLocale` calls are stored. While that locale downloads, a fallback added with `addDictionary` is the active one, so an app may mount after a short wait (`Promise.race` of `init` and a timer) and the text switches when the file arrives.
 - The library sets `<html lang>` and `dir`; do not do it by hand.

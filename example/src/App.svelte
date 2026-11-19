@@ -21,6 +21,9 @@
 
     // The dictionary entry a count lands on: an exact "0", else the Intl plural category.
     const pluralKey = $derived(count === 0 ? '0' : new Intl.PluralRules(getLocale()).select(count));
+
+    // Inside a sentence the name is used as the platform gives it: 'habla español', not 'habla Español'.
+    const languageInSentence = () => localeName(getLocale(), undefined, true);
 </script>
 
 <header class="band">
@@ -37,7 +40,7 @@
         <section class="welcome" aria-labelledby="welcome-title">
             <h1 id="welcome-title">
                 <span class="hello">{greeting()}</span>
-                <span class="speaks">{t('hero.speaks', { language: localeName(getLocale()) })}</span>
+                <span class="speaks">{t('hero.speaks', { language: languageInSentence() })}</span>
             </h1>
             <p class="lede">{t('hero.lede')}</p>
             <div class="reset">
@@ -50,13 +53,13 @@
 
     <div class="signs">
         <Sign icon="braces" title={t('greet.title')} span="major"
-            call={["t('greet.named', { user })", "t('greet.positional', [user, localeName(getLocale())])"]}>
+            call={["t('greet.named', { user })", "t('greet.positional', [user, localeName(getLocale(), undefined, true)])"]}>
             <label class="field">
                 <span>{t('greet.label')}</span>
                 <input bind:value={user} maxlength="32" autocomplete="off" spellcheck="false" />
             </label>
             <p class="sample">{t('greet.named', { user })}</p>
-            <p class="sample">{t('greet.positional', [user, localeName(getLocale())])}</p>
+            <p class="sample">{t('greet.positional', [user, languageInSentence()])}</p>
         </Sign>
 
         <Sign icon="stack" title={t('plural.title')} span="minor" call={["t('plural.files', { count })"]}>
@@ -104,7 +107,7 @@
             <p class="detail">
                 {getLocale() === 'en'
                     ? t('fallback.native')
-                    : t('fallback.falls_back', { language: localeName(getLocale()) })}
+                    : t('fallback.falls_back', { language: languageInSentence() })}
             </p>
         </Sign>
 

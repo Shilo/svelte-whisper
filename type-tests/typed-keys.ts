@@ -86,6 +86,7 @@ getLocales() satisfies string[];
 detectLocale() satisfies string;
 localeName('ja') satisfies string;
 localeName('ja', 'en') satisfies string;
+localeName('ja', undefined, true) satisfies string;
 
 formatNumber(1) satisfies string;
 formatNumber(10n, { style: 'currency', currency: 'EUR' }, 'de') satisfies string;

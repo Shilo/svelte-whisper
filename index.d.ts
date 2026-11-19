@@ -153,5 +153,11 @@ export const formatDate: FormatDate & Subscribable<FormatDate>;
 /**
  * The language name of a locale id, in its own language by default
  * (`localeName('ja')` → `日本語`) or in `displayLocale`.
+ *
+ * The name is cased as a label: one that starts in lowercase gets a capital
+ * (`localeName('es')` → `Español`), unless its first word has a capital of its own
+ * (`isiZulu`) or it is Georgian, which has no capital first letters. Pass `inSentence`
+ * to get the platform's name as it is, for running text
+ * (`localeName('es', 'es', true)` → `español`).
  */
-export function localeName(locale: string, displayLocale?: string): string;
+export function localeName(locale: string, displayLocale?: string, inSentence?: boolean): string;

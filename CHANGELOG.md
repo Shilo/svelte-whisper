@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.3.0
+
+### Changed
+
+- **`localeName` cases a name as a label.** The platform usually names languages in the form for running text, which Spanish, French, Russian and many others write in lowercase, so a language menu built as the README shows listed "español" and "français". A name that starts in lowercase now gets a capital: `localeName('es')` is `Español` and `localeName('de', 'fr')` is `Allemand`. The letter is raised by the rules of the language the name is written in (Turkish and Azerbaijani "i" becomes "İ"). Names without case, Georgian, and names whose first word carries its own capital, such as `isiZulu`, are left as they are, and so is the code the platform returns for a language it cannot name. This is one rule for every language, similar in intent to the sentence casing of Android's language picker; it does not follow the per-language list rules in Unicode's data, which leave a few languages such as Polish and Catalan in lowercase.
+
+  If you put `localeName()` inside a sentence, pass the new third argument to keep the old result.
+
+### Added
+
+- **`localeName(id, displayLocale, true)`** returns the platform's name unchanged, for a name that goes into a sentence: `localeName('es', 'es', true)` is `español`.
+
+### Size
+
+- 1,779 B gzip for a typical app, unchanged. With every export: 2,106 B (was 2,011); the budget for that bundle goes from 2,050 to 2,150.
+
 ## 2.2.0
 
 ### Changed

@@ -750,12 +750,89 @@ describe('formatting', () => {
         assert.equal(w.formatDate(date, options), '5. März 2026');
     });
 
+    // Language names come from the platform's data and change with it, so these tests name the languages
+    // themselves: `names` is the name the platform has for an id, in the display locale it was asked for.
+    // Like the platform, the stand-in answers an id it has no name for with nothing when it was built with
+    // `fallback: 'none'`, and otherwise with the language's name and the rest in brackets, or with the id in its
+    // canonical spelling when the language has no name either.
+    const withNames = (names, fn) => {
+        class DisplayNames {
+            constructor(locale, { fallback } = {}) {
+                if (locale === 'not_a_tag') throw new RangeError('Incorrect locale information provided');
+                this.locale = locale ?? 'es';
+                this.fallback = fallback;
+            }
+            of(id) {
+                const lookup = tag => typeof names === 'function' ? names(tag, this.locale) : names[tag];
+                const name = lookup(id);
+                if (name || this.fallback === 'none') return name;
+                const [language, ...rest] = id.split('-');
+                return rest.length && lookup(language) ? `${lookup(language)} (${rest.join(', ')})` : id.toLowerCase();
+            }
+            resolvedOptions() { return { locale: this.locale }; }
+        }
+        return withGlobals({ Intl: Object.create(Intl, { DisplayNames: { value: DisplayNames } }) }, fn);
+    };
+
     test('localeName gives a language its own name, or names it in another language', async () => {
-        const w = await app();
-        assert.equal(w.localeName('ja'), '日本語');
-        assert.equal(w.localeName('fr'), 'français');
-        assert.equal(w.localeName('ja', 'en'), 'Japanese');
-        assert.equal(w.localeName('not_a_tag'), 'not_a_tag');
+        const w = await load();
+        const names = (id, locale) => id === 'ja' ? (locale === 'en' ? 'Japanese' : '日本語') : undefined;
+        await withNames(names, () => {
+            assert.equal(w.localeName('ja'), '日本語');
+            assert.equal(w.localeName('ja', 'en'), 'Japanese');
+            assert.equal(w.localeName('xx'), 'xx', 'an id the platform has no name for comes back as it is');
+            assert.equal(w.localeName('QAA', 'en'), 'qaa', 'in the spelling the platform gives it, never cased');
+            assert.equal(w.localeName('QAA', 'en', true), 'qaa');
+        });
+        const real = await load();
+        assert.equal(real.localeName('not_a_tag'), 'not_a_tag');
+    });
+
+    test('localeName cases a name as a label', async () => {
+        const w = await load();
+        await withNames({
+            es: 'español', pt: 'português', 'pt-BR': 'português (Brasil)', nb: 'norsk bokmål', ru: 'русский', uz: 'o‘zbek',
+            ca: 'katalánština',
+            kwk: 'kwakʼwala', inh: 'гӀалгӀайн', de: 'Deutsch', zu: 'isiZulu', af: 'i-Afrikaans', ka: 'ქართული',
+            ja: '日本語', it: 'italyan', fon: 'fon',
+        }, () => {
+            assert.equal(w.localeName('es'), 'Español');
+            assert.equal(w.localeName('pt-BR'), 'Português (Brasil)');
+            assert.equal(w.localeName('nb'), 'Norsk bokmål', 'only the first letter changes');
+            assert.equal(w.localeName('ru'), 'Русский');
+            assert.equal(w.localeName('uz'), 'O‘zbek');
+            assert.equal(w.localeName('kwk'), 'Kwakʼwala');
+            assert.equal(w.localeName('fon', 'fr'), 'Fon', 'a name spelled like its id is still a name');
+            assert.equal(w.localeName('ca-ES-valencia', 'cs'), 'Katalánština (ES, valencia)',
+                'a named language with a part the platform cannot name');
+            assert.equal(w.localeName('ca-ES-valencia', 'cs', true), 'katalánština (ES, valencia)');
+            assert.equal(w.localeName('qaa-US', 'es'), 'qaa-us', 'a language without a name is a code, and stays one');
+            assert.equal(w.localeName('inh', 'ce'), 'ГӀалгӀайн', 'the palochka inside a word is not a capital');
+            assert.equal(w.localeName('de'), 'Deutsch');
+            assert.equal(w.localeName('ja'), '日本語');
+            assert.equal(w.localeName('zu'), 'isiZulu', 'a first word with its own capital is left as it is');
+            assert.equal(w.localeName('af', 'zu'), 'i-Afrikaans', 'also when a hyphen comes before the capital');
+            assert.equal(w.localeName('ka'), 'ქართული', 'Georgian has no capital first letter');
+            assert.equal(w.localeName('it', 'az'), 'İtalyan', 'by the rules of the language the name is written in');
+            assert.equal(w.localeName('it', 'en'), 'Italyan');
+        });
+    });
+
+    test('localeName returns the platform\'s own form when the name goes into a sentence', async () => {
+        const w = await load();
+        await withNames({ es: 'español', de: 'Deutsch' }, () => {
+            assert.equal(w.localeName('es', 'es', true), 'español');
+            assert.equal(w.localeName('de', undefined, true), 'Deutsch');
+        });
+        const real = await load();
+        assert.equal(real.localeName('fr', 'fr', true), new Intl.DisplayNames('fr', { type: 'language' }).of('fr'));
+    });
+
+    test('localeName survives a display locale that is not a language tag', async () => {
+        const w = await load();
+        await withNames({ ja: 'japonés' }, () => {
+            assert.equal(w.localeName('ja', 'not_a_tag'), 'Japonés', 'named and cased in the default locale');
+        });
     });
 
     test('a locale id that is not a valid language tag formats with the default locale', async () => {

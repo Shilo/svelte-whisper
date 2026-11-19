@@ -23,7 +23,7 @@ In a component, write `{t('key')}`. If the component is in Svelte's legacy mode 
 
 Only `t`, `locale` and the formatters have a `$` form; a helper of your own stays a plain call, so hand it `$t` or `$locale`. See [Legacy components](#legacy-components).
 
-- **Small.** 1.8 kB gzipped for a typical app, 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
+- **Small.** 1.8 kB gzipped for a typical app, 2.1 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
 - **Fast.** A lookup is one signal read and one property read, about 11 ns. See [Size and speed](#size-and-speed).
@@ -56,7 +56,7 @@ Only `t`, `locale` and the formatters have a `$` form; a helper of your own stay
 npm install github:Shilo/svelte-whisper
 ```
 
-Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.2.0`. Requires Svelte 5, any 5.x release; Svelte 4 is not supported. The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other, whatever your own `runes` setting is. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
+Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.3.0`. Requires Svelte 5, any 5.x release; Svelte 4 is not supported. The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other, whatever your own `runes` setting is. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
 
 - Vite (5 to 8) with `@sveltejs/vite-plugin-svelte`, Rollup with `rollup-plugin-svelte` and esbuild with `esbuild-svelte` need nothing else.
 - webpack: the `svelte-loader` rule must also match `.svelte.js` files, as for any runes module: `test: /\.svelte(\.js)?$/`.
@@ -215,7 +215,7 @@ When every language is bundled, or a failed download is handled elsewhere, the p
 
 - `getLocale()` is the active locale, and is reactive. `setLocale(id)` switches.
 - Switching downloads the dictionary if needed and only then changes the text. The promise resolves `true` once active, or `false` if the download failed or a newer switch won.
-- `localeName('ja')` returns `日本語`: every language is listed under its own name, with no translation keys to maintain. `localeName('ja', 'en')` returns `Japanese`.
+- `localeName('ja')` returns `日本語`: every language is listed under its own name, with no translation keys to maintain. `localeName('ja', 'en')` returns `Japanese`. Names are cased as labels: `localeName('es')` is `Español`, where the platform gives `español`. Names without case, such as `日本語`, Georgian names, and names whose first word carries its own capital, such as `isiZulu`, are left as they are. For a name inside a sentence, pass `true` as the third argument to get the platform's name unchanged: `localeName('es', 'es', true)` is `español`.
 - `loadLocale(id)` downloads a locale without switching, for example on hover.
 - `<html lang>` and `dir` are kept in step. Direction comes from the script the browser associates with the locale, so Arabic, Hebrew, Persian, Urdu and the rest are `rtl` without a list of languages.
 
@@ -301,6 +301,8 @@ await resetLocale();                                    // forget the stored cho
 getLocales();                                           // ['en', 'fr', 'ja']
 detectLocale();                                         // best match for the browser, or ''
 localeName('ja');                                       // '日本語'
+localeName('es');                                       // 'Español', cased as a label
+localeName('es', 'es', true);                           // 'español', as the platform names it
 ```
 
 ### Setup
@@ -335,7 +337,7 @@ localeName('ja');                                       // '日本語'
 | `resetLocale()` | Forget the stored choice and choose again. |
 | `getLocales()` | Every id that has a loader or a dictionary. |
 | `detectLocale()` | The locale that best matches the browser's languages, or `''`. |
-| `localeName(id, displayLocale?)` | A language's name, in its own language by default. |
+| `localeName(id, displayLocale?, inSentence?)` | A language's name, in its own language by default. A name that starts in lowercase gets a capital, as a label, except Georgian and a first word with its own capital (`isiZulu`); `inSentence` returns the platform's name unchanged. |
 
 ### Translation and formatting
 
@@ -455,7 +457,7 @@ Measured with `npm run size` (compiled as an app's Svelte plugin would, minified
 | Imports | Minified | Gzip | Brotli |
 |---|---|---|---|
 | Typical app: `init`, `t`, `getLocale`, `setLocale`, `registerLoader` | 3.4 kB | 1.8 kB | 1.6 kB |
-| Every export | 4.0 kB | 2.0 kB | 1.8 kB |
+| Every export | 4.2 kB | 2.1 kB | 1.9 kB |
 
 The module has no dependencies: its only import is its own dev overlay, in dev mode. A size budget is enforced in CI.
 
@@ -477,7 +479,7 @@ Svelte Whisper is deliberately small: a runtime library with no compiler, no mes
 
 | | Approach | Library size, gzip | Build step |
 |---|---|---|---|
-| **svelte-whisper 2.2** | Runtime on runes, lazy JSON per locale | 1.8 kB | None |
+| **svelte-whisper 2.3** | Runtime on runes, lazy JSON per locale | 1.8 kB | None |
 | [typesafe-i18n](https://github.com/codingcommons/typesafe-i18n) 5.27 | Generated typed functions plus a small runtime | 1.3 kB plus generated code | Generator |
 | [svelte-i18n](https://github.com/kaisermann/svelte-i18n) 4.0 | Runtime with ICU MessageFormat | 14.6 kB | None |
 | [i18next](https://www.i18next.com) 27.1 | Runtime with plugins | 15.5 kB before plugins | None |

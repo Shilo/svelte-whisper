@@ -5,7 +5,7 @@ import { gzipSync, brotliCompressSync } from 'node:zlib';
 import { compile } from './compile.js';
 
 // Gzipped bytes. Raise deliberately, never by accident.
-const BUDGET = { typical: 1800, everything: 2050 };
+const BUDGET = { typical: 1800, everything: 2150 };
 
 const entries = {
     // What a typical app imports. Everything else is tree-shaken away.

@@ -10,7 +10,7 @@ svelte-whisper is a runtime i18n library for client-side Svelte 5 apps. The app 
 ## 1. Install
 
 ```bash
-npm install github:Shilo/svelte-whisper#v2.2.0
+npm install github:Shilo/svelte-whisper#v2.3.0
 ```
 
 The package is distributed from GitHub, not the npm registry. Pin a release tag as above rather than the default branch. Requires Svelte 5 (any 5.x; Svelte 4 is not supported). The package is a runes module that the app's Svelte plugin compiles. Vite, Rollup and esbuild need nothing else. With webpack, make the `svelte-loader` rule also match `.svelte.js` files (`test: /\.svelte(\.js)?$/`). For Vitest component tests, set `resolve: { conditions: ['browser'] }`.
@@ -95,7 +95,7 @@ With the main language bundled, it is the active locale while the user's own fil
 - Plurals: an object value keyed by plural category, selected by a numeric `count`.
 - `formatNumber` and `formatDate` follow the active locale and update on a switch. A percentage is `formatPercent(value, precision?)`. Each takes a locale as an optional last argument, to format in a language other than the active one.
 - In a legacy component (`export let`, `$:`), write the same calls with `$` in front: `{$t('greeting', { name })}`, `{$formatNumber(total)}`, `{$locale}`, `bind:value={$locale}`.
-- `localeName(id)` gives each language its own name, so language names need no translation keys.
+- `localeName(id)` gives each language its own name, cased as a label (`Español`, `Français`; Georgian and names with their own capital such as `isiZulu` are left alone), so language names need no translation keys and no table of your own. For a name inside a sentence use `localeName(id, getLocale(), true)`, which returns the platform's name unchanged.
 - The library sets `<html lang>` and `dir` itself.
 
 ## 5. Typed keys (TypeScript or checked JS)
