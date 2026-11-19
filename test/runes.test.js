@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { flushSync } from 'svelte';
+import { transformSync } from 'esbuild';
 import { load, observe, derive } from './helpers.js';
 
 async function app() {
@@ -113,4 +114,18 @@ test('effects that stop are released', async () => {
     page.flush();
     page.stop();
     assert.deepEqual(page.seen, ['Hello', 'Bonjour']);
+});
+
+test('reactivity survives a minifier that runs before the Svelte plugin', async () => {
+    // Vite 5 and 6.0 pass the module through esbuild before Svelte compiles it, and esbuild drops
+    // a statement that only reads a value. The signal must be read where the result depends on it.
+    const w = await load({ prepare: source => transformSync(source, { minifySyntax: true }).code });
+    w.addDictionary('en', { hello: 'Hello' });
+    w.addDictionary('fr', { hello: 'Bonjour' });
+    await w.init({ detect: false, warn: false });
+    const page = observe(() => plain(`${w.getLocale()} ${w.t('hello')} ${w.formatNumber(1234.5)}`));
+    await w.setLocale('fr');
+    page.flush();
+    page.stop();
+    assert.deepEqual(page.seen, ['en Hello 1,234.5', 'fr Bonjour 1 234,5']);
 });

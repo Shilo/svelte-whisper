@@ -9,8 +9,15 @@ import { compile } from '../scripts/compile.js';
 const dir = join(import.meta.dirname, '.build');
 mkdirSync(dir, { recursive: true });
 const built = name => join(dir, `${name}.${process.pid}.js`);
-writeFileSync(built('whisper'), compile());
-writeFileSync(built('runes'), compileModule(`
+const files = [];
+const emit = (name, code) => {
+    const file = built(name);
+    writeFileSync(file, code);
+    files.push(file);
+    return pathToFileURL(file).href;
+};
+const whisper = emit('whisper', compile());
+const runes = await import(emit('runes', compileModule(`
     export function watch(fn) {
         return $effect.root(() => {
             $effect(() => { fn(); });
@@ -20,18 +27,19 @@ writeFileSync(built('runes'), compileModule(`
         const value = $derived.by(fn);
         return () => value;
     }
-`, { generate: 'client', filename: 'runes.svelte.js' }).js.code);
-process.on('exit', () => {
-    rmSync(built('whisper'), { force: true });
-    rmSync(built('runes'), { force: true });
-});
+`, { generate: 'client', filename: 'runes.svelte.js' }).js.code));
+process.on('exit', () => { for (const file of files) rmSync(file, { force: true }); });
 
 let instance = 0;
 
-/** A fresh, isolated copy of the library: its state is module-level, so every test gets its own. */
-export const load = () => import(`${pathToFileURL(built('whisper')).href}?instance=${++instance}`);
-
-const runes = await import(pathToFileURL(built('runes')).href);
+/**
+ * A fresh, isolated copy of the library: its state is module-level, so every test gets its own.
+ * With `options`, the copy is compiled with them (see scripts/compile.js) instead.
+ */
+export function load(options) {
+    const url = options ? emit(`whisper-${instance + 1}`, compile(options)) : whisper;
+    return import(`${url}?instance=${++instance}`);
+}
 
 /**
  * Run `fn` in a real Svelte effect and record what it returns each time it runs.

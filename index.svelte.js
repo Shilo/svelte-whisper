@@ -115,8 +115,9 @@ export function resetLocale() {
 
 /** The active locale. Reactive. */
 export function getLocale() {
-    void version;
-    return current;
+    // The result depends on the signal on purpose: a minifier that runs before the Svelte plugin
+    // (as in Vite 5 and 6.0) removes a read whose value is unused, and with it the reactivity.
+    return version < 0 ? '' : current;
 }
 
 export function getLocales() {
@@ -151,8 +152,7 @@ export function detectLocale() {
  * In a legacy component (`export let`, `$:`), write `{$t('key', vars)}`: `t` is also a store of itself.
  */
 export function t(key, vars) {
-    void version;
-    let value = find(active, key, vars, current);
+    let value = find(active, key, vars, getLocale()); // getLocale() makes t() reactive
     if (value === undefined) {
         if (current) reportMissing(key);
         value = find(backup, key, vars, fallback);
