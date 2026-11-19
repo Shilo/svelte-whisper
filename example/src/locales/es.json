@@ -1,7 +1,7 @@
 {
     "meta": { "title": "svelte-whisper · demostración en vivo" },
     "nav": { "languages": "Idioma", "size": "{size} kB gzip" },
-    "day": { "morning": "Buenos días.", "afternoon": "Buenas tardes.", "evening": "Buenas tardes." },
+    "day": { "morning": "Buenos días.", "afternoon": "Buenas tardes.", "evening": "Buenas noches." },
     "hero": {
         "speaks": "Esta página ahora habla {language}.",
         "lede": "Cada idioma vive en su propio archivo pequeño. Elige uno arriba: solo se descarga ese archivo, una sola vez, y cada línea cambia en el mismo instante.",
@@ -46,7 +46,7 @@
     },
     "legacy": {
         "title": "Componente heredado",
-        "note": "Esta tarjeta es un componente escrito a la antigua, con export let y sin runes. Pone $ delante de cada llamada y sigue el mismo selector de idioma y el mismo contador.",
+        "note": "Esta tarjeta usa un componente en modo heredado, con export let y runes desactivadas. El componente antepone $ a cada llamada y responde al mismo selector de idioma y al mismo contador.",
         "locale": "Idioma activo: {locale}"
     },
     "footer": { "source": "Leer el código fuente", "repo": "svelte-whisper en GitHub" }

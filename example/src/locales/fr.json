@@ -4,7 +4,7 @@
     "day": { "morning": "Bonjour.", "afternoon": "Bonjour.", "evening": "Bonsoir." },
     "hero": {
         "speaks": "Cette page parle maintenant {language}.",
-        "lede": "Chaque langue vit dans son propre petit fichier. Choisissez-en une ci-dessus : seul ce fichier est téléchargé, une seule fois, et chaque ligne change au même instant.",
+        "lede": "Chaque langue vit dans son propre petit fichier. Choisissez-en une ci-dessus : seul ce fichier est téléchargé, une seule fois, et chaque ligne change au même instant.",
         "forget": "Oublier mon choix"
     },
     "log": {
@@ -13,7 +13,7 @@
         "size": "Taille",
         "when": "Quand",
         "cached": "en cache",
-        "note": "Données de l’API Resource Timing du navigateur. Revenez à une langue déjà utilisée : aucune nouvelle ligne n’apparaît."
+        "note": "Données de l’API Resource Timing du navigateur. Revenez à une langue déjà utilisée : aucune nouvelle ligne n’apparaît."
     },
     "greet": {
         "title": "Interpolation",
@@ -38,16 +38,16 @@
     },
     "fallback": {
         "title": "Langue de repli",
-        "falls_back": "Cette phrase n’est pas traduite en {language} : la version anglaise s’affiche."
+        "falls_back": "Cette phrase n’est pas traduite en {language} : la version anglaise s’affiche."
     },
     "missing": {
         "title": "Clé manquante",
-        "note": "Cette clé n’existe dans aucun fichier : la clé elle-même s’affiche et elle est signalée à onMissing, à la console et au panneau de développement."
+        "note": "Cette clé n’existe dans aucun fichier : la clé elle-même s’affiche et elle est signalée à onMissing, à la console et au panneau de développement."
     },
     "legacy": {
         "title": "Composant à l’ancienne",
-        "note": "Cette carte est un composant écrit à l’ancienne, avec export let et sans runes. Il met $ devant chaque appel et suit le même choix de langue et le même compteur.",
-        "locale": "Langue active : {locale}"
+        "note": "Cette carte utilise un composant en mode historique, avec export let et les runes désactivées. Le composant place $ devant chaque appel et réagit au même sélecteur de langue et au même compteur.",
+        "locale": "Langue active : {locale}"
     },
     "footer": { "source": "Lire le code source", "repo": "svelte-whisper sur GitHub" }
 }
