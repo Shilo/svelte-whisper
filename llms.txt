@@ -2,7 +2,7 @@
 
 > Tiny runtime i18n for Svelte 5 single-page apps, whether their components use runes or not. Locale files load on demand. About 1.8 kB gzipped, no dependencies beyond Svelte, no extra build plugin. Client-side only: it keeps state in the module, so do not use it for server-side rendering.
 
-Requires `svelte@^5.9.0`. Install with `npm install github:Shilo/svelte-whisper`. The package is a runes module (`index.svelte.js`) that the app's Svelte plugin compiles, whatever the app's own `runes` setting is: the app does not have to switch runes on.
+Requires Svelte 5 (any 5.x; Svelte 4 is not supported). Install with `npm install github:Shilo/svelte-whisper`. The package is a runes module (`index.svelte.js`) that the app's Svelte plugin compiles, whatever the app's own `runes` setting is: the app does not have to switch runes on. Vite, Rollup and esbuild need no configuration; webpack's `svelte-loader` rule must also match `.svelte.js` files (`test: /\.svelte(\.js)?$/`), and Vitest component tests need `resolve: { conditions: ['browser'] }`, as for any runes module and Svelte 5 component test.
 
 ## Recommended setup
 
@@ -33,13 +33,13 @@ mount(App, { target: document.getElementById('app') });
 
 ## Rules for writing code with it
 
-- First check whether the component is a legacy one, meaning it uses `export let`, `$:`, `$$props` or `$$restProps`, or runes are switched off for it (`<svelte:options runes={false} />`, or `runes: false` in the compiler options). If not, call the functions: `t('key')`, `getLocale()`. In a legacy component Svelte only follows stores, so write `$t('key')` and `$locale` (both are exported as stores too) and pass the locale to formatters: `formatNumber(n, options, $locale)`. `$t` and `$locale` also work in every other component. `tr()` was 1.x and does not exist.
+- First check whether the component is a legacy one, meaning it uses `export let`, `$:`, `$$props` or `$$restProps`, or runes are switched off for it (`<svelte:options runes={false} />`, or `runes: false` in the compiler options). If not, call the functions: `t('key')`, `getLocale()`, `formatNumber(n)`. In a legacy component Svelte only follows stores, so put `$` in front: `$t('key')`, `$locale`, `$formatNumber(n)`, `$formatPercent(x)`, `$formatDate(d)`; a plain `t()` there is not followed reliably. The `$` forms also work in every other component. Only `t`, `locale` and the formatters have a `$` form; a helper of your own stays a plain call, so hand it `$t` or `$locale`. In `.js`/`.ts` files call the plain functions. Match whichever kind the component already is; do not convert it. `tr()` was 1.x and does not exist.
 - `t('key', vars)` is the only translate function. Use it in markup, `<script>`, `$derived`, `$effect`, event handlers and plain `.js`/`.ts` modules. It is reactive: callers inside markup, `$derived` or `$effect` re-run when the locale or a dictionary changes. It always returns a string: the key itself when the key is missing everywhere. List items are addressed by index (`rules.0`).
 - Keys are dotted paths into nested JSON: `nav.settings.title`.
 - Placeholders: `{name}` with an object, `{0}` with an array. Unmatched placeholders stay visible.
 - Plurals: the dictionary value is an object keyed by `Intl.PluralRules` category (`one`, `few`, `many`, `other`, …) or an exact number (`"0"`); pass a numeric `count`. Always include `other`.
 - Never build a sentence by joining translated fragments. One sentence, one key.
-- Format with `formatNumber(value, intlOptions?, locale?)` and `formatDate(value, intlOptions?, locale?)`; never bare `toLocaleString()` or `toFixed()`. Percentages are `formatPercent(value, precision?, locale?)`. Both follow the active locale and are reactive.
+- Format with `formatNumber(value, intlOptions?, locale?)` and `formatDate(value, intlOptions?, locale?)`; never bare `toLocaleString()` or `toFixed()`. Percentages are `formatPercent(value, precision?, locale?)`. They follow the active locale and are reactive.
 - `localeName(id)` returns a language's own name (`ja` → `日本語`); do not add translation keys for language names.
 - `getLocale()` reads the active locale (reactive). `setLocale(id)` switches: resolves `true` when active, `false` if the load failed or a newer switch won. `loadLocale(id)` preloads. `resetLocale()` forgets the stored choice.
 - `init` chooses the starting locale: stored choice (`persistKey`) → browser language (`detect`, default on) → `initial` → `fallback`. Only explicit `setLocale` calls are stored.
@@ -66,6 +66,6 @@ When translating or auditing locale files, follow the skills instead of editing 
 ## Docs
 
 - [README](README.md): full guide, API tables, recipes
-- [CHANGELOG](CHANGELOG.md): what 2.0 replaced from 1.x
+- [CHANGELOG](CHANGELOG.md): what changed in each release, and what 2.0 replaced from 1.x
 - [Type declarations](index.d.ts)
 - [Editor](editor/README.md): browser-based grid editor for locale files that submits pull requests

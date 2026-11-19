@@ -1,6 +1,6 @@
 # Svelte Whisper 🤫
 
-Tiny runtime i18n for Svelte 5 single-page apps, whether their components use runes or not. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.8 kB** to your bundle.
+Tiny runtime i18n for Svelte 5 single-page apps. Locales load on demand, the API is a handful of functions, and the whole thing adds about **1.8 kB** to your bundle.
 
 ```svelte
 <script>
@@ -13,17 +13,24 @@ Tiny runtime i18n for Svelte 5 single-page apps, whether their components use ru
 <button onclick={() => setLocale('fr')}>Français</button>
 ```
 
+In a component, write `{t('key')}`. If the component still uses `export let` or `$:` (Svelte's legacy mode), put a `$` in front: `{$t('key')}`, `{$formatNumber(n)}`, `{$locale}`. The `$` forms work in every component, so when in doubt, use them. In `.js` and `.ts` files, call the plain functions.
+
+| Your app | You write | You change |
+|---|---|---|
+| Runes | `t('key')`, `getLocale()`, `formatNumber(n)` | Nothing |
+| Legacy (`export let`, `$:`) | `$t('key')`, `$locale`, `$formatNumber(n)` | Nothing: runes can stay off |
+| Mixed | The `$` forms in legacy components, either form elsewhere | Nothing |
+
+Only `t`, `locale` and the formatters have a `$` form; a helper of your own stays a plain call, so hand it `$t` or `$locale`. See [Legacy components](#legacy-components).
+
 - **Small.** 1.8 kB gzipped for a typical app, 2 kB with every export. No dependencies beyond Svelte. No extra build plugin, no code generation.
 - **Lazy.** Each language is its own chunk, downloaded when it is first needed. Users never pay for a language they do not read.
-- **Runes not required.** `t()` is one plain function. Call it in markup, in `$derived` or in `$effect`, directly or through a function in a `.js` module, and the result updates when the language changes. Components still written with `export let` or `$:` write `$t()` instead, and get the same thing: nothing to switch on, nothing to convert. See [Legacy components](#legacy-components).
 - **Complete enough.** Interpolation, plurals, number, date and percent formatting, browser language detection, persistence, fallbacks, typed keys, and tooling for missing translations.
 - **Fast.** A lookup is one signal read and one property read, about 11 ns. See [Size and speed](#size-and-speed).
 
 [![The demo app: a language switcher, a list of the locale files downloaded so far, and live examples of interpolation, plurals, formatting, fallback and missing keys](docs/assets/demo-light.png)](https://shilo.github.io/svelte-whisper/demo/)
 
-**[Try the live demo](https://shilo.github.io/svelte-whisper/demo/)**, or read its source in [`example/`](example): it is the recommended setup in about a hundred lines.
-
-It is built for client-side apps: a Vite single-page app or a PWA. See [How it compares](#how-it-compares) for when another library fits better.
+**[Try the live demo](https://shilo.github.io/svelte-whisper/demo/)**, or read its source in [`example/`](example): it is the recommended setup in about a hundred lines. It is built for client-side apps: a Vite single-page app or a PWA. See [How it compares](#how-it-compares) for when another library fits better.
 
 ## Contents
 
@@ -49,9 +56,11 @@ It is built for client-side apps: a Vite single-page app or a PWA. See [How it c
 npm install github:Shilo/svelte-whisper
 ```
 
-Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.0.0`. Requires `svelte@^5.9.0`.
+Pin a release by adding its tag: `github:Shilo/svelte-whisper#v2.1.0`. Requires Svelte 5, any 5.x release; Svelte 4 is not supported. The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other, whatever your own `runes` setting is. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
 
-The library is one runes module, `index.svelte.js`, which your app's Svelte plugin compiles like any other, whatever your own `runes` setting is. There is nothing else to configure. Because it is compiled with your app, it cannot be imported from plain Node without Svelte.
+- Vite (5 to 8) with `@sveltejs/vite-plugin-svelte`, Rollup with `rollup-plugin-svelte` and esbuild with `esbuild-svelte` need nothing else.
+- webpack: the `svelte-loader` rule must also match `.svelte.js` files, as for any runes module: `test: /\.svelte(\.js)?$/`.
+- Vitest component tests need `resolve: { conditions: ['browser'] }`, as for any Svelte 5 component test.
 
 ## Quick start
 
@@ -85,18 +94,7 @@ mount(App, { target: document.getElementById('app') });
 
 ### Without any setup
 
-If you register nothing, locales are fetched from `locales/{locale}.json` in your public folder:
-
-```svelte
-<script>
-    import { t, setLocale } from 'svelte-whisper';
-    setLocale('en'); // fetches /locales/en.json
-</script>
-
-<h1>{t('greeting', { name: 'Ada' })}</h1>
-```
-
-This is handy for prototypes. The fetched files are not hashed or bundled, so prefer loaders for production.
+If you register nothing, locales are fetched from your public folder: `setLocale('en')` requests `locales/en.json`. This is handy for prototypes. The fetched files are not hashed or bundled, so prefer loaders for production.
 
 ## Translating
 
@@ -143,7 +141,7 @@ An exact number (`"0"`) wins, then the category the browser's `Intl.PluralRules`
 
 ## Legacy components
 
-Svelte 5 compiles a component in its legacy mode when it still uses `export let`, `$:`, `$$props` or `$$restProps`, or when runes are switched off for it (`runes: false`). There it follows **stores only**: a plain function call such as `{t('key')}` is not followed, and current Svelte evaluates it again only when one of its own arguments changes, so the text stays in the old language. So `t` is also a store, and so is `locale`. Prefix them with a dollar sign:
+Svelte 5 compiles a component in its legacy mode when it still uses `export let`, `$:`, `$$props` or `$$restProps`, or when runes are switched off for it (`runes: false`). There it follows **stores only**, so the rule is one sentence: in a legacy component, put `$` in front. `t`, `locale`, `formatNumber`, `formatPercent` and `formatDate` are stores of themselves.
 
 ```svelte
 <script>
@@ -152,7 +150,7 @@ Svelte 5 compiles a component in its legacy mode when it still uses `export let`
 </script>
 
 <h1>{$t('greeting', { name: 'Ada' })}</h1>
-<p>{formatNumber(total, { style: 'currency', currency: 'EUR' }, $locale)}</p>
+<p>{$formatNumber(total, { style: 'currency', currency: 'EUR' })}</p>
 
 <select bind:value={$locale}>
     <option value="en">English</option>
@@ -165,9 +163,9 @@ Svelte 5 compiles a component in its legacy mode when it still uses `export let`
 | Translate | `t('key')` | `$t('key')` |
 | Read the locale | `getLocale()` | `$locale` |
 | Switch | `setLocale(id)` | `setLocale(id)`, `$locale = id` or `bind:value={$locale}` |
-| Format | `formatNumber(n)`, `formatPercent(x)` | `formatNumber(n, options, $locale)`, `formatPercent(x, 0, $locale)` |
+| Format | `formatNumber(n)`, `formatPercent(x)`, `formatDate(d)` | `$formatNumber(n)`, `$formatPercent(x)`, `$formatDate(d)` |
 
-The dollar forms work in every component, so an app that mixes both kinds can use `$t` everywhere and convert at its own pace. Plain `.js` and `.ts` modules always use the functions, so a helper that a legacy component calls from its markup must be handed `$t` or `$locale` as an argument: `{label(item, $t)}`.
+A plain call such as `{t('key')}` is not followed reliably in a legacy component: depending on the Svelte version, it can keep the old language until one of its own arguments changes. Write `$t`. The `$` forms work in every component, so an app that mixes both kinds can use them everywhere and convert at its own pace. Plain `.js` and `.ts` modules always use the functions, and only the library's own exports have a `$` form, so a helper that a legacy component calls from its markup must be handed `$t` or `$locale` as an argument: `{label(item, $t)}`.
 
 `bind:value={$locale}` leaves the control on the chosen language when its download fails. Where that can happen, use the picker under [Locales](#locales) with `value={$locale}`.
 
@@ -213,7 +211,7 @@ Thin wrappers over `Intl`, bound to the active locale. Formatter objects are cac
 <button onclick={resetLocale}>Use my browser's language</button>
 ```
 
-When every language is bundled, or a failed download is handled elsewhere, the picker is one line: `<select bind:value={getLocale, setLocale}>`. In a [legacy component](#legacy-components), read the locale as `$locale` in either form.
+When every language is bundled, or a failed download is handled elsewhere, the picker is one line: `<select bind:value={getLocale, setLocale}>` (a function binding, Svelte 5.9 or newer). In a [legacy component](#legacy-components), read the locale as `$locale` in either form.
 
 - `getLocale()` is the active locale, and is reactive. `setLocale(id)` switches.
 - Switching downloads the dictionary if needed and only then changes the text. The promise resolves `true` once active, or `false` if the download failed or a newer switch won.
@@ -303,10 +301,9 @@ await resetLocale();                                    // forget the stored cho
 getLocales();                                           // ['en', 'fr', 'ja']
 detectLocale();                                         // best match for the browser, or ''
 localeName('ja');                                       // '日本語'
-
 ```
 
-In [legacy components](#legacy-components) the same two reactive things are stores: `$t('greeting', { name: 'Ada' })` and `$locale`.
+In [legacy components](#legacy-components), put `$` in front of `t`, `locale` and the formatters: `$t('greeting', { name: 'Ada' })`, `$locale`, `$formatNumber(1234.5)`.
 
 ### Setup
 
@@ -351,7 +348,7 @@ In [legacy components](#legacy-components) the same two reactive things are stor
 | `formatPercent(value, precision?, locale?)` | `0.256` → `26%`. `precision` is the maximum number of decimals. Reactive unless `locale` is given. |
 | `formatDate(value, options?, locale?)` | `Intl.DateTimeFormat`. Takes a `Date` or a timestamp. Reactive unless `locale` is given. |
 
-"Reactive" means that markup, `$derived` and `$effect` calling the function run again after a locale or dictionary change. A [legacy component](#legacy-components) does not track function calls, so there use the two stores.
+"Reactive" means that markup, `$derived` and `$effect` calling the function run again after a locale or dictionary change. A [legacy component](#legacy-components) does not track function calls, so there put `$` in front: each of these four is also a store of itself.
 
 ## Recipes
 
@@ -393,7 +390,7 @@ PWA plugins precache every build chunk by default, which downloads all your lang
 
 ### Tests
 
-The library is a runes module, so test it the way you test your components: through your Svelte-aware test runner (Vitest with the Svelte plugin). Call `addDictionary` with a small dictionary and `await init({ detect: false, devOverlay: false })` in your test setup. `setLocale` is synchronous when the dictionary is already in memory.
+Test through your Svelte-aware runner, set up as under [Install](#install). In the setup, call `addDictionary` with a small dictionary and `await init({ detect: false, devOverlay: false })`; `setLocale` is then synchronous.
 
 ## Locale tools and agent skills
 
@@ -455,11 +452,11 @@ Measured with `npm run bench` (Node 25, one core of a desktop CPU, a 600-message
 
 | Operation | Time |
 |---|---|
-| Key lookup | 11–15 ns |
-| Missing key | 31 ns |
-| Interpolation, two placeholders | 165 ns |
-| Plural | 415 ns |
-| `formatNumber` | 380 ns |
+| Key lookup | 11–16 ns |
+| Missing key | 37 ns |
+| Interpolation, two placeholders | 178 ns |
+| Plural | 440 ns |
+| `formatNumber` | 385 ns |
 
 Dictionaries are flattened once when they are added, which is why nesting depth does not matter.
 
@@ -469,7 +466,7 @@ Svelte Whisper is deliberately small: a runtime library with no compiler, no mes
 
 | | Approach | Library size, gzip | Build step |
 |---|---|---|---|
-| **svelte-whisper 2.0** | Runtime on runes, lazy JSON per locale | 1.8 kB | None |
+| **svelte-whisper 2.1** | Runtime on runes, lazy JSON per locale | 1.8 kB | None |
 | [typesafe-i18n](https://github.com/codingcommons/typesafe-i18n) 5.27 | Generated typed functions plus a small runtime | 1.3 kB plus generated code | Generator |
 | [svelte-i18n](https://github.com/kaisermann/svelte-i18n) 4.0 | Runtime with ICU MessageFormat | 14.6 kB | None |
 | [i18next](https://www.i18next.com) 27.1 | Runtime with plugins | 15.5 kB before plugins | None |

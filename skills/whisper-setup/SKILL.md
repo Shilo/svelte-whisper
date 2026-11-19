@@ -5,15 +5,15 @@ description: Add svelte-whisper i18n to a Svelte 5 single-page app, or move hard
 
 # Set up svelte-whisper
 
-svelte-whisper is a runtime i18n library for client-side Svelte 5 apps. The app does not need runes switched on. It keeps state in the module, so do not use it for server-side rendering. Call its functions (`t('key')`, `getLocale()`), except in legacy components: one that still uses `export let`, `$:`, `$$props` or `$$restProps`, or has runes switched off (`runes: false`), only follows stores, so use `$t('key')` and `$locale` there, and pass the locale to formatters: `formatNumber(n, options, $locale)`. Match whichever kind the component already is; do not convert components as part of adding translations.
+svelte-whisper is a runtime i18n library for client-side Svelte 5 apps. The app does not need runes switched on. It keeps state in the module, so do not use it for server-side rendering. Call its functions (`t('key')`, `getLocale()`), except in legacy components: one that still uses `export let`, `$:`, `$$props` or `$$restProps`, or has runes switched off (`runes: false`), only follows stores, so put `$` in front there: `$t('key')`, `$locale`, `$formatNumber(n)`. Only `t`, `locale` and the formatters have a `$` form; a helper of your own stays a plain call, so hand it `$t` or `$locale`. Match whichever kind the component already is; do not convert components as part of adding translations.
 
 ## 1. Install
 
 ```bash
-npm install github:Shilo/svelte-whisper#v2.0.0
+npm install github:Shilo/svelte-whisper#v2.1.0
 ```
 
-The package is distributed from GitHub, not the npm registry. Pin a release tag as above rather than the default branch. Requires `svelte@^5.9.0`. The package is a runes module that the app's Svelte plugin compiles; nothing needs configuring.
+The package is distributed from GitHub, not the npm registry. Pin a release tag as above rather than the default branch. Requires Svelte 5 (any 5.x; Svelte 4 is not supported). The package is a runes module that the app's Svelte plugin compiles. Vite, Rollup and esbuild need nothing else. With webpack, make the `svelte-loader` rule also match `.svelte.js` files (`test: /\.svelte(\.js)?$/`). For Vitest component tests, set `resolve: { conditions: ['browser'] }`.
 
 ## 2. Create the source locale
 
@@ -92,6 +92,7 @@ export function setupI18n() {
 - Placeholders: named `{name}` with an object, indexed `{0}` with an array.
 - Plurals: an object value keyed by plural category, selected by a numeric `count`.
 - `formatNumber` and `formatDate` follow the active locale and update on a switch. A percentage is `formatPercent(value, precision?)`.
+- In a legacy component (`export let`, `$:`), write the same calls with `$` in front: `{$t('greeting', { name })}`, `{$formatNumber(total)}`, `{$locale}`, `bind:value={$locale}`.
 - `localeName(id)` gives each language its own name, so language names need no translation keys.
 - The library sets `<html lang>` and `dir` itself.
 
